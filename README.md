@@ -50,6 +50,7 @@ npm run dev
 | `npm run typecheck` | TypeScript type check |
 | `npm run test` | Vitest unit/integration tests |
 | `npm run seed` | Reset and load the fictional demonstration case |
+| `npm run import -- <folder> "<Case name>"` | Bulk-ingest a folder of documents into a case |
 
 ## Key documents
 

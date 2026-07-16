@@ -47,6 +47,15 @@ making material changes.
   demo case; do not run it if you need to keep existing local data.
 - **First run needs a login user.** There is no public registration. Run
   `npm run seed` before logging in. Demo login: `admin@kmclaim.test` / `demo1234`.
+- **Bulk import:** `npm run import -- <folderPath> "<Case name>"` recursively
+  ingests supported files (`.pdf .docx .xlsx .xls .csv .txt .md`) into a case,
+  creating the case if it does not exist. Other file types are skipped.
+- **IMPORTANT — restart after external script writes.** `npm run seed` and
+  `npm run import` write directly to `.data/db.json`, but a running `next dev`
+  server caches the DB in memory (a `globalThis` singleton that survives HMR) and
+  only reads the file at startup. After running seed/import while the server is
+  up, **restart `npm run dev`** or the new data will not appear in the UI. (Writes
+  made *through* the app UI persist to disk normally and need no restart.)
 - **OpenAI is optional.** With no `OPENAI_API_KEY`, embeddings and chat use a
   deterministic offline fallback (`local-fallback`), so the app is fully runnable
   and demonstrable without any external credential. Set the key in `.env.local`
