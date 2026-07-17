@@ -12,7 +12,8 @@
     "seed": "tsx scripts/seed.ts",
     "import": "tsx scripts/import.ts",
     "reembed": "tsx scripts/reembed.ts",
-    "verify:neo4j": "tsx scripts/verify-neo4j.ts"
+    "verify:neo4j": "tsx scripts/verify-neo4j.ts",
+    "check:llm": "tsx scripts/check-llm.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
