@@ -1,6 +1,6 @@
 import TopBar from "@/components/TopBar";
 import { guardUser } from "@/lib/guard";
-import { hasOpenAI, CHAT_MODEL, EMBEDDING_MODEL } from "@/lib/ai/openai";
+import { hasOpenAI, CHAT_MODEL, EMBEDDING_MODEL, providerLabel } from "@/lib/ai/openai";
 import { embeddingMode } from "@/lib/ai/embed";
 
 export default async function SettingsPage() {
@@ -34,6 +34,7 @@ export default async function SettingsPage() {
                 )}
               </dd>
             </div>
+            <div className="flex justify-between"><dt className="text-[color:var(--muted)]">Provider</dt><dd>{providerLabel()}</dd></div>
             <div className="flex justify-between"><dt className="text-[color:var(--muted)]">Chat model</dt><dd>{CHAT_MODEL}</dd></div>
             <div className="flex justify-between"><dt className="text-[color:var(--muted)]">Embedding model</dt><dd>{EMBEDDING_MODEL}</dd></div>
             <div className="flex justify-between"><dt className="text-[color:var(--muted)]">Embedding mode</dt><dd>{embeddingMode()}</dd></div>
