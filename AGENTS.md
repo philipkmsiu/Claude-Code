@@ -85,6 +85,17 @@ making material changes.
   vars at it. Scripts (`seed`/`import`) only write to Neo4j if the `NEO4J_*` vars
   are present in their own environment (they do not read `.env.local`), so pass
   them inline, e.g. `NEO4J_URI=... npm run seed`.
+- **PDF processing needs server-external packages.** `pdf-parse`/`pdfjs-dist`/
+  `@napi-rs/canvas` must stay out of the Next bundle (see `serverExternalPackages`
+  in `next.config.ts`) — otherwise pdfjs fails at runtime with "Setting up fake
+  worker failed: Cannot find module pdf.worker.mjs" on any PDF upload.
+- **Server must actually see the API key.** Next loads `.env.local` into the
+  server process, so put `OPENAI_API_KEY` (+ `OPENAI_BASE_URL`, model ids) there
+  for the running dev server. Panel-injected secrets only reliably reach NEW VMs;
+  a `next dev` started in a shell/tmux pane created before injection won't have
+  them, which silently disables OpenAI + OCR (getOpenAI() returns null). If chat
+  shows `local-fallback` unexpectedly, check the server process env / `.env.local`
+  and restart. Verify with `npm run check:llm`.
 - **OCR (scanned PDFs):** PDF pages with no text layer (< `OCR_MIN_CHARS`) are
   auto-detected. When an API key + vision model are configured, those pages are
   rendered to images (`pdf-parse` `getScreenshot`, canvas works headless) and
