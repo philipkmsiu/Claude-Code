@@ -19,6 +19,15 @@ export default async function DocumentDetail({
     getDocumentPages(caseId, docId),
   ]);
 
+  // Heuristic: flag likely scanned / image-only PDFs that have no real text
+  // layer, so the user knows OCR is required to make them searchable.
+  const currentVersion = versions.find((v) => v.id === doc.currentVersionId) ?? versions[0];
+  const totalChars = pages.reduce((s, p) => s + p.text.trim().length, 0);
+  const avgCharsPerPage = pages.length ? totalChars / pages.length : 0;
+  const confidence = currentVersion?.extractionConfidence ?? 1;
+  const isPdf = doc.fileName.toLowerCase().endsWith(".pdf");
+  const likelyNeedsOcr = isPdf && (confidence < 0.6 || avgCharsPerPage < 50);
+
   return (
     <div>
       <Link href={`/cases/${caseId}/documents`} className="text-[13px] text-[color:var(--muted)] hover:underline">
@@ -28,7 +37,18 @@ export default async function DocumentDetail({
         <h1 className="text-xl font-semibold">{doc.fileName}</h1>
         <span className="badge">{doc.sourceType.replace(/_/g, " ")}</span>
         {doc.supersededByDocumentId && <span className="badge badge-disputed">Superseded</span>}
+        {likelyNeedsOcr && <span className="badge badge-disputed">Needs OCR</span>}
       </div>
+
+      {likelyNeedsOcr && (
+        <div className="banner-warning mb-4">
+          This PDF appears to be <strong>scanned / image-only</strong> (very little
+          extractable text: {Math.round(avgCharsPerPage)} chars/page, extraction
+          confidence {Math.round(confidence * 100)}%). It has no usable text layer, so
+          retrieval and AI answers cannot see its content until it is OCR&apos;d. Re-save
+          it with a searchable text layer, or enable an OCR pipeline (see notes).
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="card p-5">
