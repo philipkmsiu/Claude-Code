@@ -69,3 +69,23 @@ making material changes.
   `bcryptjs` directly in scripts instead.
 - Fonts are system fonts (no `next/font/google`) to avoid build-time network
   fetches in sandboxed environments.
+- **Retrieval design:** hybrid vector + keyword retrieval, bounded top-K context,
+  and a lost-in-the-middle reorder (`reorderLostInTheMiddle` in
+  `src/lib/retrieval.ts`) that puts the most relevant passages at the context
+  edges. Graph RAG then expands from the top vector hits to related passages via
+  shared entities (multi-hop) before building the bounded context.
+- **Graph RAG / Neo4j:** the knowledge graph has a pluggable `GraphStore`
+  (`src/lib/graph/store.ts`). Default is the local JSON store (fully offline). To
+  use Neo4j, set `NEO4J_URI` / `NEO4J_USER` / `NEO4J_PASSWORD` and it switches
+  automatically (`getGraphStore()`), no code change. The graph is built during
+  ingestion, so after switching backends you must re-ingest/seed so the graph
+  populates the new backend. Verify a live Neo4j with `npm run verify:neo4j`.
+  Neo4j itself is optional infra (not installed by the update script); run it
+  however you like (tarball + `bin/neo4j start`, or Docker) and point the env
+  vars at it. Scripts (`seed`/`import`) only write to Neo4j if the `NEO4J_*` vars
+  are present in their own environment (they do not read `.env.local`), so pass
+  them inline, e.g. `NEO4J_URI=... npm run seed`.
+- **Embeddings:** `npm run reembed` re-embeds all existing chunks with the
+  currently-configured provider (run it after adding `OPENAI_API_KEY` so
+  previously local-embedded docs switch to OpenAI vectors). Then restart the dev
+  server.

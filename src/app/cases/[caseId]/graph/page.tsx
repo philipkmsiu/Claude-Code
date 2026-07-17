@@ -23,12 +23,13 @@ export default async function GraphPage({
     .filter((e) => e.type === "CO_OCCURS")
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 15);
+  const totalMentions = nodes.reduce((s, n) => s + n.mentions, 0);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-3 mb-2">
         <h1 className="text-xl font-semibold">Knowledge Graph</h1>
-        <span className="badge">
+        <span className={`badge ${store.backend === "neo4j" ? "badge-resolved" : ""}`}>
           backend: {store.backend}
         </span>
       </div>
@@ -42,7 +43,7 @@ export default async function GraphPage({
         <div className="card p-4"><div className="text-2xl font-semibold">{nodes.length}</div><div className="text-[12px] text-[color:var(--muted)]">Entities</div></div>
         <div className="card p-4"><div className="text-2xl font-semibold">{edges.filter((e) => e.type === "CO_OCCURS").length}</div><div className="text-[12px] text-[color:var(--muted)]">Co-occurrence links</div></div>
         <div className="card p-4"><div className="text-2xl font-semibold">{byType.size}</div><div className="text-[12px] text-[color:var(--muted)]">Entity types</div></div>
-        <div className="card p-4"><div className="text-2xl font-semibold">{edges.filter((e) => e.type === "MENTIONED_IN").length}</div><div className="text-[12px] text-[color:var(--muted)]">Mentions</div></div>
+        <div className="card p-4"><div className="text-2xl font-semibold">{totalMentions}</div><div className="text-[12px] text-[color:var(--muted)]">Mentions</div></div>
       </div>
 
       <div className="mb-6">
