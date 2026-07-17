@@ -1,8 +1,10 @@
-import { mutate } from "@/lib/db/store";
+import { mutate, getDb } from "@/lib/db/store";
 import { newId, nowIso, sha256 } from "@/lib/util";
 import { extractDocument, sourceTypeFromName } from "@/lib/documents/extract";
 import { chunkPages } from "@/lib/documents/chunk";
 import { embedMany } from "@/lib/ai/embed";
+import { getGraphStore } from "@/lib/graph/store";
+import { extractEntities } from "@/lib/graph/extract";
 import type {
   DocumentChunk,
   DocumentPage,
@@ -39,7 +41,8 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
   const childTexts = rawChunks.filter((c) => !c.isParent).map((c) => c.text);
   const childEmbeddings = await embedMany(childTexts);
 
-  return mutate((db) => {
+  const createdChildChunks: DocumentChunk[] = [];
+  const result = await mutate((db) => {
     // Duplicate detection across the case (never across cases).
     const existingVersion = db.document_versions.find(
       (v) => v.caseId === input.caseId && v.hash === hash,
@@ -142,6 +145,7 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
       };
       childCursor++;
       db.document_chunks.push(chunk);
+      createdChildChunks.push(chunk);
     });
 
     db.audit_logs.push({
@@ -161,4 +165,31 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
       duplicate: Boolean(existingVersion),
     };
   });
+
+  // Build the knowledge graph for this document (Graph RAG). Runs after the
+  // store mutation so it works against persisted chunks. Failures here must not
+  // fail ingestion, so they are caught and ignored.
+  try {
+    const db = await getDb();
+    const kase = db.cases.find((c) => c.id === input.caseId);
+    const graph = getGraphStore();
+    for (const chunk of createdChildChunks) {
+      const entities = extractEntities(chunk.text, {
+        claimant: kase?.claimant,
+        respondent: kase?.respondent,
+      });
+      if (entities.length > 0) {
+        await graph.indexEntities({
+          caseId: input.caseId,
+          chunkId: chunk.id,
+          documentId: result.document.id,
+          entities,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Graph indexing failed (ingestion still succeeded):", err);
+  }
+
+  return result;
 }

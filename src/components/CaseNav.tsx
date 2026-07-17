@@ -10,6 +10,7 @@ const items = [
   { seg: "chronology", label: "Chronology" },
   { seg: "summary", label: "Master Summary" },
   { seg: "chat", label: "AI Chat" },
+  { seg: "graph", label: "Knowledge Graph" },
   { seg: "memory", label: "Memory Review" },
   { seg: "audit", label: "Audit History" },
 ];

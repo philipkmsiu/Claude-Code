@@ -10,12 +10,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "tsx scripts/seed.ts",
-    "import": "tsx scripts/import.ts"
+    "import": "tsx scripts/import.ts",
+    "reembed": "tsx scripts/reembed.ts",
+    "verify:neo4j": "tsx scripts/verify-neo4j.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "docx": "^9.7.1",
     "mammoth": "^1.12.0",
+    "neo4j-driver": "^6.2.0",
     "next": "16.2.10",
     "openai": "^6.47.0",
     "pdf-parse": "^2.4.5",

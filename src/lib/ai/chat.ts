@@ -1,5 +1,9 @@
 import { getOpenAI, CHAT_MODEL } from "@/lib/ai/openai";
-import { buildContext, type RetrievedChunk } from "@/lib/retrieval";
+import {
+  buildContext,
+  reorderLostInTheMiddle,
+  type RetrievedChunk,
+} from "@/lib/retrieval";
 import { getDocument } from "@/lib/repo";
 import type {
   AiStructuredAnswer,
@@ -122,6 +126,7 @@ async function localAnswer(
     suggestedMemoryUpdates,
     confidence,
     usedModel: "local-fallback",
+    graphEntitiesUsed: ctx.graphEntities.map((e) => `${e.label} (${e.entityType})`),
   };
 }
 
@@ -132,14 +137,17 @@ async function openAiAnswer(
   const openai = getOpenAI();
   if (!openai) return localAnswer(caseId, query);
   const ctx = await buildContext(caseId, query);
+  // Reorder the bounded context to keep the most relevant passages at the edges
+  // (lost-in-the-middle mitigation) before handing it to the model.
+  const orderedChunks = reorderLostInTheMiddle(ctx.chunks);
   const contextBlocks = await Promise.all(
-    ctx.chunks.map(async (rc, i) => {
+    orderedChunks.map(async (rc, i) => {
       const c = await citationFor(caseId, rc);
       return `[#${i + 1}] file=${c.fileName} page=${c.page ?? "?"} para=${c.paragraph ?? "?"} clause=${c.clause ?? "-"} contrary=${rc.contrary}\n${rc.chunk.text.slice(0, 700)}`;
     }),
   );
 
-  const userPrompt = `CASE MASTER SUMMARY:\n${ctx.masterSummary ?? "(none approved yet)"}\n\nISSUES:\n${ctx.issues.map((i) => `- ${i.title} [${i.status}]`).join("\n") || "(none)"}\n\nRETRIEVED SOURCE PASSAGES:\n${contextBlocks.join("\n\n") || "(none)"}\n\nQUESTION: ${query}\n\nReturn JSON with keys: answer (string), statementType (one of fact|allegation|inference|legal_submission|expert_opinion|ai_generated|unverified), citations (array of {fileName,page,paragraph,clause,quote}), uncertainties (string[]), contraryEvidence (string[]), suggestedMemoryUpdates (array of {target,action,summary,content}), confidence (0..1).`;
+  const userPrompt = `CASE MASTER SUMMARY:\n${ctx.masterSummary ?? "(none approved yet)"}\n\nISSUES:\n${ctx.issues.map((i) => `- ${i.title} [${i.status}]`).join("\n") || "(none)"}\n\nRELATED ENTITIES (from knowledge graph):\n${ctx.graphEntities.map((e) => `- ${e.label} [${e.entityType}]`).join("\n") || "(none)"}\n\nRETRIEVED SOURCE PASSAGES:\n${contextBlocks.join("\n\n") || "(none)"}\n\nQUESTION: ${query}\n\nReturn JSON with keys: answer (string), statementType (one of fact|allegation|inference|legal_submission|expert_opinion|ai_generated|unverified), citations (array of {fileName,page,paragraph,clause,quote}), uncertainties (string[]), contraryEvidence (string[]), suggestedMemoryUpdates (array of {target,action,summary,content}), confidence (0..1).`;
 
   try {
     const res = await openai.chat.completions.create({
@@ -162,6 +170,7 @@ async function openAiAnswer(
       suggestedMemoryUpdates: parsed.suggestedMemoryUpdates ?? [],
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
       usedModel: `openai:${CHAT_MODEL}`,
+      graphEntitiesUsed: ctx.graphEntities.map((e) => `${e.label} (${e.entityType})`),
     };
   } catch {
     // Any API/parse failure falls back to the deterministic grounded answer.

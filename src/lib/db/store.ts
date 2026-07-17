@@ -40,6 +40,8 @@ function emptyDb(): Database {
     tasks: [],
     audit_logs: [],
     exports: [],
+    graph_nodes: [],
+    graph_edges: [],
   };
 }
 

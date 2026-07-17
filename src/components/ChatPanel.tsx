@@ -147,6 +147,17 @@ function AnswerCard({ content, s }: { content: string; s: AiStructuredAnswer | n
         </details>
       )}
 
+      {s && s.graphEntitiesUsed && s.graphEntitiesUsed.length > 0 && (
+        <div className="mt-3">
+          <div className="label">Knowledge-graph entities expanded</div>
+          <div className="flex flex-wrap gap-1">
+            {s.graphEntitiesUsed.map((g, i) => (
+              <span key={i} className="badge badge-version">{g}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {s && s.suggestedMemoryUpdates.length > 0 && (
         <div className="mt-3 text-[12px] text-[color:var(--muted)]">
           Proposed {s.suggestedMemoryUpdates.length} memory update(s) — review in Memory Review.

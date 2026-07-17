@@ -233,6 +233,7 @@ export interface AiStructuredAnswer {
   suggestedMemoryUpdates: SuggestedMemoryUpdate[];
   confidence: number; // 0..1
   usedModel: string; // "openai:<model>" or "local-fallback"
+  graphEntitiesUsed: string[]; // knowledge-graph entities that expanded the context
 }
 
 export interface ChatMessage {
@@ -323,6 +324,42 @@ export interface ExportRecord {
   createdAt: string;
 }
 
+// ---- Knowledge graph (Graph RAG) ----
+export type EntityType =
+  | "party"
+  | "person"
+  | "organisation"
+  | "date"
+  | "amount"
+  | "clause"
+  | "authority"
+  | "location"
+  | "issue";
+
+export interface GraphNode {
+  id: string;
+  caseId: string;
+  entityType: EntityType;
+  label: string; // canonical display label
+  normalized: string; // lowercased key used for de-duplication
+  mentions: number;
+  createdAt: string;
+}
+
+export type GraphEdgeType = "CO_OCCURS" | "MENTIONED_IN" | "RELATES_TO_ISSUE";
+
+export interface GraphEdge {
+  id: string;
+  caseId: string;
+  type: GraphEdgeType;
+  fromId: string; // node id
+  toId: string; // node id OR, for MENTIONED_IN, a chunk id
+  chunkId: string | null; // provenance: which chunk produced this edge
+  documentId: string | null;
+  weight: number;
+  createdAt: string;
+}
+
 export interface Database {
   users: User[];
   cases: Case[];
@@ -347,6 +384,8 @@ export interface Database {
   tasks: Task[];
   audit_logs: AuditLog[];
   exports: ExportRecord[];
+  graph_nodes: GraphNode[];
+  graph_edges: GraphEdge[];
 }
 
 export type TableName = keyof Database;

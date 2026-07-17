@@ -1,6 +1,7 @@
 import { listChunks, getMasterSummary, listIssues } from "@/lib/repo";
 import { embed, cosineSimilarity } from "@/lib/ai/embed";
-import type { DocumentChunk } from "@/lib/types";
+import { getGraphStore } from "@/lib/graph/store";
+import type { DocumentChunk, EntityType } from "@/lib/types";
 
 export interface RetrievedChunk {
   chunk: DocumentChunk;
@@ -8,6 +9,7 @@ export interface RetrievedChunk {
   keywordScore: number;
   score: number;
   contrary: boolean;
+  graph?: boolean; // true if surfaced via knowledge-graph expansion
 }
 
 const CONTRARY_TERMS = [
@@ -102,15 +104,33 @@ export async function retrieve(
   return primary;
 }
 
+// "Lost in the middle" mitigation. LLMs attend most strongly to the start and
+// end of a context and can miss information buried in the middle. Given items
+// already sorted by descending relevance, this interleaves them so the most
+// relevant land at the two edges and the least relevant sit in the middle,
+// e.g. ranks [0,1,2,3,4,5] -> [0,2,4,5,3,1].
+export function reorderLostInTheMiddle<T>(items: T[]): T[] {
+  const head: T[] = [];
+  const tail: T[] = [];
+  items.forEach((it, i) => {
+    if (i % 2 === 0) head.push(it);
+    else tail.unshift(it);
+  });
+  return [...head, ...tail];
+}
+
 export interface CaseContext {
   masterSummary: string | null;
   issues: { title: string; status: string }[];
   chunks: RetrievedChunk[];
+  graphEntities: { label: string; entityType: EntityType }[];
 }
 
 // Builds the bounded context in the spec's suggested retrieval order:
 // approved memory (master summary) -> issue notes -> source chunks (incl.
-// contrary evidence), reranked.
+// contrary evidence), reranked. It is then augmented with Graph RAG: entities
+// mentioned in the top vector hits are expanded through the knowledge graph to
+// pull in related passages that pure vector similarity might miss (multi-hop).
 export async function buildContext(
   caseId: string,
   query: string,
@@ -118,9 +138,49 @@ export async function buildContext(
   const { currentVersion } = await getMasterSummary(caseId);
   const issues = await listIssues(caseId);
   const chunks = await retrieve(caseId, query, { includeContrary: true });
+
+  let graphExpanded: RetrievedChunk[] = [];
+  let graphEntities: { label: string; entityType: EntityType }[] = [];
+  try {
+    const graph = getGraphStore();
+    const seedChunkIds = chunks.slice(0, 6).map((c) => c.chunk.id);
+    const entityIds = await graph.entitiesInChunks(caseId, seedChunkIds);
+    if (entityIds.length > 0) {
+      const relatedChunkIds = await graph.chunksForEntities(caseId, entityIds);
+      const have = new Set(chunks.map((c) => c.chunk.id));
+      const newIds = relatedChunkIds.filter((id) => !have.has(id));
+      if (newIds.length > 0) {
+        const all = await listChunks(caseId);
+        const byId = new Map(all.map((c) => [c.id, c]));
+        graphExpanded = newIds
+          .map((id) => byId.get(id))
+          .filter((c): c is DocumentChunk => Boolean(c))
+          .slice(0, 4)
+          .map((chunk) => ({
+            chunk,
+            vectorScore: 0,
+            keywordScore: 0,
+            score: 0,
+            contrary: false,
+            graph: true,
+          }));
+      }
+      const view = await graph.getGraph(caseId);
+      const idSet = new Set(entityIds);
+      graphEntities = view.nodes
+        .filter((n) => idSet.has(n.id))
+        .sort((a, b) => b.mentions - a.mentions)
+        .slice(0, 12)
+        .map((n) => ({ label: n.label, entityType: n.entityType }));
+    }
+  } catch (err) {
+    console.error("Graph augmentation skipped:", err);
+  }
+
   return {
     masterSummary: currentVersion?.content ?? null,
     issues: issues.map((i) => ({ title: i.title, status: i.status })),
-    chunks,
+    chunks: [...chunks, ...graphExpanded],
+    graphEntities,
   };
 }
