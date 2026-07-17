@@ -1,5 +1,6 @@
 import mammoth from "mammoth";
 import * as XLSX from "xlsx";
+import { ocrAvailable, ocrPdfPages, OCR_MIN_CHARS } from "@/lib/documents/ocr";
 import type { SourceType } from "@/lib/types";
 
 export interface ExtractedPage {
@@ -23,6 +24,24 @@ async function extractPdf(buf: Buffer): Promise<ExtractionResult> {
       result.pages.length > 0
         ? result.pages.map((p) => ({ pageNumber: p.num, text: p.text ?? "" }))
         : splitIntoPages(result.text ?? "");
+
+    // OCR fallback: pages with (almost) no text layer are likely scanned. When a
+    // vision model is configured, render + OCR just those pages so scanned legal
+    // documents become searchable. Born-digital pages keep their exact text
+    // layer (more accurate than OCR).
+    if (ocrAvailable()) {
+      const lowPages = pages
+        .filter((p) => p.text.trim().length < OCR_MIN_CHARS)
+        .map((p) => p.pageNumber);
+      if (lowPages.length > 0) {
+        const ocrMap = await ocrPdfPages(buf, lowPages);
+        for (const p of pages) {
+          const t = ocrMap.get(p.pageNumber);
+          if (t) p.text = t;
+        }
+      }
+    }
+
     const nonEmpty = pages.filter((p) => p.text.trim().length > 0).length;
     const confidence = pages.length ? nonEmpty / pages.length : 0;
     return { pages, confidence };

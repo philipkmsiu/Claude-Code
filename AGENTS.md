@@ -85,6 +85,14 @@ making material changes.
   vars at it. Scripts (`seed`/`import`) only write to Neo4j if the `NEO4J_*` vars
   are present in their own environment (they do not read `.env.local`), so pass
   them inline, e.g. `NEO4J_URI=... npm run seed`.
+- **OCR (scanned PDFs):** PDF pages with no text layer (< `OCR_MIN_CHARS`) are
+  auto-detected. When an API key + vision model are configured, those pages are
+  rendered to images (`pdf-parse` `getScreenshot`, canvas works headless) and
+  transcribed verbatim by the vision model (`src/lib/documents/ocr.ts`; prompt
+  forbids inference and marks unreadable text `[illegible]`). Configure via
+  `OPENAI_VISION_MODEL` (defaults to `OPENAI_CHAT_MODEL`), `OCR_ENABLED`,
+  `OCR_IMAGE_WIDTH`, `OCR_MAX_TOKENS`. With no key, OCR is off and the document
+  detail page shows a "Needs OCR" flag for image-only PDFs.
 - **Embeddings:** `npm run reembed` re-embeds all existing chunks with the
   currently-configured provider (run it after adding `OPENAI_API_KEY` so
   previously local-embedded docs switch to OpenAI vectors). Then restart the dev
