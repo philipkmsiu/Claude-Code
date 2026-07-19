@@ -140,7 +140,7 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 8,
       area: '慕尼黑・近郊',
       summary:
-        '巴伐利亞童話城堡，迪士尼城堡原型之一。建議從慕尼黑出發排全日，預留排隊與山城散步時間。',
+        '路德維希二世在阿爾卑斯山邊打造的浪漫城堡，尖塔與白牆常被視為迪士尼城堡的靈感來源。雲霧散開時整座建築像從童話書跳出來；建議從慕尼黑出發排全日，預留爬山城、排隊與拍照的空檔，別跟林德霍夫硬擠成匆忙半日。',
       nearbyFood:
         '山城 Hohenschwangau 可吃烤豬肘、Weisswurst 白腸早餐；回慕尼黑後去 Hofbräuhaus 或任意啤酒花園配 Pretzel。',
       souvenirs: '城堡明信片、巴伐利亞藍白格紋小物、蜂蜜酒或限定紀念幣。',
@@ -151,7 +151,7 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 4,
       area: '慕尼黑・舊城',
       summary:
-        '瑪莉安廣場是慕尼黑心跳：新市政廳木偶鐘、聖母教堂雙塔，九月還能碰上啤酒節的喧鬧與pretzel香氣。',
+        '瑪莉安廣場是慕尼黑的客廳：新市政廳木偶鐘一響，廣場上的人會一起抬頭。聖母教堂雙塔是城市座標，九月若碰上啤酒節，空氣裡全是pretzel、烤雞與帳篷歌聲，會覺得巴伐利亞的熱鬧原來可以這麼密集。',
       nearbyFood:
         'Viktualienmarkt 市場攤位（香腸、起司、烤雞）、Bratwurst、Obatzda 起司醬配麵包圈；啤酒節期間直接進大帳篷。',
       souvenirs: '啤酒杯（Maßkrug）、Pretzel 相關小物、FC Bayern 周邊、Leberwurst 肝腸真空包。',
@@ -161,7 +161,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['culture', 'photo'],
       hours: 3.5,
       area: '慕尼黑・西城',
-      summary: '巴洛克夏宮與花園，節奏比城堡日遊更鬆，適合當作慕尼黑第二個文化半日。',
+      summary:
+        '寧芬堡宮曾是巴伐利亞選帝侯的夏宮，對稱花園與噴泉把「皇家度假」寫進城市西郊。節奏比新天鵝堡日遊鬆很多：可以慢慢走長廊、坐在草皮邊發呆，很適合當成慕尼黑第二個文化半日，讓眼睛從尖塔轉到巴洛克曲線。',
       nearbyFood: '宮殿咖啡廳甜點、附近義大利／巴伐利亞簡餐；傍晚可回舊城吃 Schweinshaxe 豬肘。',
       souvenirs: '宮殿瓷器風格磁鐵、慕尼黑巧克力、巴伐利亞蜂蜜。',
     },
@@ -170,7 +171,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['photo', 'culture'],
       hours: 3,
       area: '慕尼黑・近郊',
-      summary: '路德維希二世的袖珍宮殿，常與新天鵝堡連線；華麗室內與山景形成強烈對比。',
+      summary:
+        '林德霍夫是路德維希二世的「袖珍凡爾賽」，室內金碧輝煌，室外卻被阿爾卑斯山景包住。常與新天鵝堡連線：一座講遠望與傳說，一座講私人品味與精緻，對比看完會更懂這位國王為什麼既瘋狂又迷人。',
       nearbyFood: '景區餐廳的巴伐利亞定食；兩堡連線日建議帶三明治在車上吃更省時間。',
       souvenirs: '路德維希二世主題書籤／明信片、阿爾卑斯木雕小物。',
     },
@@ -179,7 +181,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['must', 'culture', 'photo'],
       hours: 3,
       area: '柏林・米特',
-      summary: '冷戰分裂的實體遺跡。走完紀念牆與文獻中心，會更懂這座城市為何如此直白又複雜。',
+      summary:
+        '柏林圍牆紀念園區把冷戰分裂留成可以走路的長度：混凝土、瞭望塔與說明牌並排。走完一截再進文獻中心，會突然懂這座城市為何既直白又複雜——歡樂的街頭藝術背後，是真的有家庭被牆切開的記憶。',
       nearbyFood: '附近 Currywurst 咖哩香腸、Döner 土耳其烤肉、Hackescher Markt 一帶的咖啡與早午餐。',
       souvenirs: '圍牆碎片證書小物（認明正貨）、Berliner Bär 小熊、Ampelmännchen 綠人周邊。',
     },
@@ -188,7 +191,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['must', 'photo', 'popular'],
       hours: 2.5,
       area: '柏林・米特',
-      summary: '德國統一的門面地標。國會玻璃穹頂可預約登頂，日落時城市輪廓特別清楚。',
+      summary:
+        '布蘭登堡門是德國近現代史的門面：凱旋、分裂、統一都曾在這扇門前發生。國會大廈的玻璃穹頂可預約登頂，從螺旋坡道看柏林屋頂在腳下展開；日落時城市輪廓特別清楚，也很適合當作柏林第一個「我到了」的畫面。',
       nearbyFood: 'Potsdamer Platz 國際料理、德國豬排 Schnitzel、傍晚去 Oranienburger Str. 一帶晚餐。',
       souvenirs: '布蘭登堡門模型、德國國旗小物、Berliner Luft 薄荷酒。',
     },
@@ -197,7 +201,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['must', 'culture'],
       hours: 4,
       area: '柏林・米特',
-      summary: '世界遺產等級的博物館群。挑 1–2 座深挖比走馬看花更值得；雨天首選。',
+      summary:
+        '博物館島是世界遺產級的文化群島，佩加蒙、老博物館等把古代文明與歐洲收藏擠在施普雷河彎。別貪心想一天刷完：挑 1–2 座深挖，反而比較記得住展廳裡的光與靜；下雨天更是柏林最划算的室內避難所。',
       nearbyFood: '島上咖啡簡餐、旁側 Hackescher Markt 的德式早午餐或素食館。',
       souvenirs: '博物館商店藝術明信片／海報、設計感文具、柏林主題畫冊。',
     },
@@ -206,7 +211,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['photo', 'culture', 'popular'],
       hours: 2,
       area: '柏林・弗里德里希斯海因',
-      summary: '圍牆遺段上的巨型塗鴉，是柏林街頭藝術最直覺的一課，拍照節奏快、故事卻很重。',
+      summary:
+        '東側畫廊把圍牆遺段變成露天畫廊，「兄弟之吻」等作品讓冷戰記憶變成可拍可摸的顏色。拍照節奏很快，但每一面牆背後的故事都很重；建議慢一點讀解說，才不會只帶回一組網美照。',
       nearbyFood: '畫廊旁小吃車、附近越南／中東簡餐；傍晚可轉去 Markthalle Neun 市集吃一輪。',
       souvenirs: '街頭藝術明信片、塗鴉藝術家小海報、二手黑膠（若逛 Friedrichshain）。',
     },
@@ -215,7 +221,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['must', 'photo', 'culture', 'popular'],
       hours: 2.5,
       area: '科隆・舊城',
-      summary: '哥德式雙塔幾乎從火車站撲面而來。登塔看萊茵河，或只在廣場感受石頭的尺度。',
+      summary:
+        '科隆大教堂的哥德式雙塔幾乎從車站大門撲面而來，是少數「下火車就被建築嚇到」的歐洲車站體驗。登塔可俯瞰萊茵河與舊城屋頂；若不想爬，站在廣場仰望石頭的垂直線條，也已經足夠震撼。',
       nearbyFood: '舊城啤酒館的科隆 Kölsch 啤酒配 Rheinischer Sauerbraten；車站旁也有快速德式簡餐。',
       souvenirs: '4711 古龍水（科隆同源）、大教堂主題巧克力、Kölsch 啤酒杯。',
     },
@@ -224,7 +231,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['photo', 'nature', 'popular'],
       hours: 3,
       area: '科隆・萊茵河',
-      summary: '從水面看科隆天際線與兩岸酒莊小鎮氣息，適合當作轉場城市之間的喘息行程。',
+      summary:
+        '萊茵河遊船把視角換成水面：科隆天際線後退，兩岸橋墩與酒莊小鎮氣息慢慢過來。適合當作轉場城市之間的喘息——讓耳朵休息一下，用河風把大教堂與下一站接起來。',
       nearbyFood: '船上輕食或下船後去河邊啤酒花園；可配當地白葡萄酒。',
       souvenirs: '萊茵河風景明信片、德國白葡萄酒小瓶、河景冰箱貼。',
     },
@@ -233,7 +241,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['culture', 'photo'],
       hours: 2.5,
       area: '杜塞道夫・近郊',
-      summary: '粉彩洛可可宮殿與法式花園，常作為科隆／杜塞道夫段的優雅半日點。',
+      summary:
+        '本拉特宮像一塊粉彩洛可可蛋糕，法式花園對稱得近乎可愛。它常被排進科隆／杜塞道夫段當優雅半日：看完大教堂的石頭重量，來這裡換一口甜的、輕的宮廷空氣。',
       nearbyFood: '杜塞道夫 Altstadt 的 Altbier 黑啤酒配豬肉菜；日本街若順路可換口味。',
       souvenirs: 'Mustard 杜塞道夫芥末、Altbier 相關小物、萊茵河主題巧克力。',
     },
@@ -242,7 +251,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['must', 'culture', 'photo'],
       hours: 3,
       area: '德累斯頓・舊城',
-      summary: '易北河旁的巴洛克寶石。戰後重建的精緻輪廓，夜晚燈光一開就像舞台布景。',
+      summary:
+        '德累斯頓舊城在易北河旁展開，森帕歌劇院與教堂廣場是巴洛克重建的驕傲。二戰後幾乎夷平再拼回來的輪廓，白天看是精緻，夜晚燈光一開就像整座城市在上演舞台劇——很適合慢慢走，不要趕下一班車。',
       nearbyFood: '舊城德式豬排、易北河景觀咖啡；可試 Saxon 酸菜燉肉或聖誕季節的 Stollen 麵包。',
       souvenirs: 'Meissen 風格瓷器磁鐵、Striezel 聖誕麵包（季節）、歌劇院明信片。',
     },
@@ -251,7 +261,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['photo', 'culture', 'food'],
       hours: 2.5,
       area: '法蘭克福・舊城',
-      summary: '天際線與半木造屋並存的德國金融城門面，適合抵達或離開日的輕步行與蘋果酒。',
+      summary:
+        '法蘭克福舊城把玻璃天際線與半木造屋硬生生放在同一張明信片上，是德國金融城最有反差的門面。羅馬廣場適合抵達或離開日的輕步行；傍晚點一杯 Apfelwein 蘋果酒，會覺得這座「銀行城市」其實也很會过日子。',
       nearbyFood: 'Apfelwein 蘋果酒配 Handkäse 手製起司、綠醬青醬蛋／肉排（Grüne Soße）。',
       souvenirs: '蘋果酒小瓶、法蘭克福綠醬料包、天際線明信片。',
     },
@@ -260,7 +271,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['must', 'photo', 'popular'],
       hours: 4,
       area: '海德堡',
-      summary: '紅砂巖城堡俯瞰內卡河與大學城紅屋頂，是南德最經典的「一眼愛上」畫面之一。',
+      summary:
+        '海德堡城堡的紅砂巖牆在山上發著暖色，俯瞰內卡河與大學城紅屋頂，是南德最經典的「一眼愛上」畫面。山城石階、老橋與哲學家小徑連成一氣；就算只留半天，站在城堡平台吹風，也足夠帶走一整段德國浪漫。',
       nearbyFood: '老橋附近德式豬肘與麵食、學生城咖啡；可試海德堡啤酒花園。',
       souvenirs: '學生監獄主題小物、城堡紅砂巖磁鐵、德國大學城明信片。',
     },
@@ -269,7 +281,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['nature', 'photo'],
       hours: 7,
       area: '巴登－符騰堡・黑森林',
-      summary: '針葉林、山湖與木屋村串起來的公路日。節奏要鬆，重點是風景本身而不是趕點。',
+      summary:
+        '黑森林風景大道把針葉林、山湖與木屋村串成一條可開車可遠眺的綠帶。這裡的重點不是打卡數量，而是讓車窗外的深綠色慢慢蓋過行程表；中途停車吃黑森林蛋糕，會比趕點更符合這座森林的脾氣。',
       nearbyFood: '必吃黑森林蛋糕 Schwarzwälder Kirschtorte、煙燻火腿、鄉村湯；路邊木屋餐廳最有感覺。',
       souvenirs: '咕咕鐘（或迷你版）、黑森林櫻桃酒、木雕小鹿、蜂蜜。',
     },
@@ -278,7 +291,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       tags: ['food', 'popular'],
       hours: 3,
       area: '彈性',
-      summary: '德國行程的精髓之一：坐進啤酒花園或老城咖啡，讓鐵路與城堡之間留一段真正的日常。',
+      summary:
+        '彈性咖啡與啤酒花園日，其實是德國行程的精髓：讓鐵路與城堡之間出現一段「什麼都不趕」的日常。坐進樹蔭下的長桌，聽鄰桌德語聊天，比多塞一個景點更能記住「我真的來過德國」。',
       nearbyFood: '當天所在城市的啤酒花園套餐：麵包圈、烤雞、薯泥與當季小麥啤酒。',
       souvenirs: '當日城市磁鐵補齊、德國超市超市零食（Haribo、Ritter Sport）。',
     },
@@ -409,14 +423,15 @@ export function inferCustomTripProfile(name: string): {
         note: `${label}：慕尼黑＋城堡或柏林單城約 6–7 天；南德＋萊茵或柏林串線舒服約 ${slow ? 9 : 8} 天，再長可加德累斯頓／海德堡。`,
       },
       tagline: '城堡、啤酒與鐵路串起的中歐慢遊',
-      intro: `${label} 適合用鐵路把慕尼黑、柏林、科隆等基地串起來：白天看城堡與博物館，傍晚留啤酒花園。同一城的景點請排在同一天，避免柏林與科隆混日。`,
+      intro: `${label} 適合用鐵路把慕尼黑、柏林、科隆等基地串起來：白天看城堡、博物館與萊茵河，傍晚把腳伸進啤酒花園。同一城的景點請排在同一天，讓歷史場景有時間慢慢進記憶，而不是趕點打卡。`,
       background:
-        '德國位於歐洲心臟，從巴伐利亞城堡、萊茵河谷到柏林的當代藝術與冷戰遺跡，尺度大卻可用 ICE 高鐵高效銜接。啤酒文化、聖誕市集與重建的巴洛克舊城，讓「精確」與「浪漫」同時存在。',
+        '德國位於歐洲心臟，歷史上曾是神聖羅馬帝國諸侯、普魯士與戰後東西分裂的交會處。南邊巴伐利亞保留城堡與啤酒傳統，萊茵河谷以哥德教堂與河運文明聞名，柏林則同時承載冷戰傷痕與當代藝術能量。今天用 ICE 高鐵串線，等於用幾天時間走完「童話、重建與現代」三層德國。',
       memorable: [
-        '新天鵝堡雲霧散開的那一刻，整座童話城堡像被點亮。',
-        '柏林圍牆紀念段散步時，塗鴉與歷史解說牌並排的錯位感。',
-        '科隆大教堂雙塔從車站大門撲面而來的壓迫美感。',
-        '傍晚鑽進啤酒花園，Pretzel 與小麥啤酒剛上桌的鬆一口气。',
+        '新天鵝堡雲霧散開的那一刻，整座童話城堡像被點亮，山風裡還能聽見遊客的驚嘆。',
+        '沿著柏林圍牆紀念段慢慢走，塗鴉色彩與歷史解說牌並排，快樂拍照與沈重記憶同時存在。',
+        '出科隆車站抬頭，大教堂雙塔幾乎壓到眼前，石頭的尺度比照片兇很多。',
+        '傍晚鑽進啤酒花園，Pretzel 上桌、小麥啤酒起泡，火車與城堡的疲憊會突然鬆開。',
+        '海德堡紅砂巖城堡俯瞰紅屋頂與內卡河，是「啊，這就是德國明信片」的經典瞬間。',
       ],
       bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
       seasonGuide,

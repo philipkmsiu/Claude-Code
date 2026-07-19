@@ -1429,9 +1429,17 @@ function App() {
             <article className="info-block wide dest-story-panel">
               <h3>目的地速寫</h3>
               <p className="muted">先認識背景與難忘之處，再決定玩幾天會更有感覺。</p>
-              {selectedDestinations.map((d) => (
-                <DestinationLore key={d.id} destination={d} />
-              ))}
+                {selectedDestinations.map((d) => (
+                  <DestinationLore
+                    key={d.id}
+                    destination={d}
+                    highlightSpots={d.spots.filter((spot) =>
+                      selectedSpotIds.length
+                        ? selectedSpotIds.includes(spot.id)
+                        : true,
+                    )}
+                  />
+                ))}
             </article>
 
             <aside className={`ai-panel ${aiLoading ? 'loading' : aiDayRec ? 'ready' : ''}`}>
@@ -2317,8 +2325,17 @@ function App() {
             <div className="result-grid">
               <article className="info-block wide">
                 <h3>當地簡介・歷史與難忘之處</h3>
+                <p className="muted-line">
+                  以下是目的地背景，以及你行程中各景點的場景、歷史與氛圍說明。
+                </p>
                 {selectedDestinations.map((d) => (
-                  <DestinationLore key={d.id} destination={d} />
+                  <DestinationLore
+                    key={d.id}
+                    destination={d}
+                    highlightSpots={d.spots.filter((spot) =>
+                      selectedSpotIds.includes(spot.id),
+                    )}
+                  />
                 ))}
               </article>
 

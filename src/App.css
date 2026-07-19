@@ -826,6 +826,50 @@ main {
   margin-bottom: 0.25rem;
 }
 
+.dest-scene-list {
+  list-style: none;
+  margin: 0 0 0.55rem;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dest-scene-list li {
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.85rem;
+  background: rgba(31, 61, 54, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.08);
+}
+
+.dest-scene-list strong {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--forest);
+  font-size: 0.98rem;
+}
+
+.dest-scene-list strong em {
+  margin-left: 0.35rem;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.dest-scene-list p {
+  margin: 0;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.dest-scene-extra {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 0.86rem;
+}
+
 .dest-lore.compact {
   margin: 0.15rem 0 0.1rem;
 }
