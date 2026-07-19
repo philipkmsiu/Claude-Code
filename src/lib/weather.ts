@@ -33,6 +33,14 @@ const GEO_ALIAS: Record<string, string> = {
   敦煌: 'Dunhuang',
   嘉峪關: 'Jiayuguan',
   青海湖: 'Qinghai Lake',
+  慕尼黑: 'Munich',
+  柏林: 'Berlin',
+  科隆: 'Cologne',
+  法蘭克福: 'Frankfurt',
+  德累斯頓: 'Dresden',
+  海德堡: 'Heidelberg',
+  杜塞道夫: 'Dusseldorf',
+  德國: 'Berlin',
 }
 
 function wmoLabel(code: number, rainChance: number): string {

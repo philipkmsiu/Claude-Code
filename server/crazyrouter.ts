@@ -374,11 +374,24 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
     const content = await chatCompletion([
       {
         role: 'system',
-        content: `你是專業旅遊規劃 AI，熟悉各地真實景點與動線。
-請為指定目的地推薦「真實存在、可造訪」的景點清單。
+        content: `你是專業旅遊規劃 AI，熟悉各地真實景點、住宿基地與動線。
+請為指定目的地推薦可直接給旅客看的完整資料。
 只回傳 JSON：
 {
   "intro": string,
+  "tagline": string,
+  "background": string,
+  "memorable": string[],
+  "hotels": [
+    {
+      "name": string,
+      "area": string,
+      "nightsHint": string,
+      "pricePerNight": string,
+      "highlight": string,
+      "styles": ("value"|"standard"|"clean"|"luxury"|"luxuryValue")[]
+    }
+  ],
   "spots": [
     {
       "name": string,
@@ -393,13 +406,17 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
 }
 硬性規則：
 - 必須給 ${targetCount}–${targetCount + 4} 個景點（長天數行程需要足夠真實景點，禁止灌水空白日）
-- name 必須是真實景點／街區／體驗名稱（例如「兵馬俑」「大雁塔」「回民街」）
+- name 必須是真實景點／街區／體驗名稱（例如「新天鵝堡」「科隆大教堂」「布蘭登堡門」）
 - 禁止空泛類別名，例如「經典地標」「老城／歷史區」「觀景／打卡點」「在地美食區」「近郊日遊」「再訪最愛街區」
-- 禁止把目的地名稱直接串成「XX經典地標」這種模板
+- 禁止把目的地名稱直接串成「XX經典地標」「german景區度假酒店」這種模板
+- summary 必須是 1–2 句繁體中文，說明為何難忘／怎麼排，不要一句空話
+- background 用 2–3 句繁體中文講歷史／地理／旅行意義
+- memorable 給 3–5 條具體可想像的畫面（不要「第一眼天際線」這種万能句）
+- hotels 給 3–5 間「真實常見住宿類型＋具體城區」，例如「柏林米特區精品酒店」「慕尼黑舊城設計旅店」；禁止「XX景區度假酒店」「主要基地城市」
+- area 用實際城市／城區（如「慕尼黑・舊城」「柏林・米特」「科隆・舊城」），方便同一城排同一天
 - tags 至少要有意義；必去用 must，打卡用 photo
 - stayHours 用 1–9 的數字（全日近郊可 7–9）
-- area 用實際區域／基地（如「西安城牆內」「臨潼」「曲江」）
-- intro / summary / ticket 用繁體中文，簡潔可執行
+- intro / ticket / hotel 文案用繁體中文
 - 覆蓋：必去、自然、文化、美食、打卡、近郊；依目的地真實特色調整
 - 不要 Markdown`,
       },
@@ -413,13 +430,24 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
-          ask: '請列出足夠填滿行程天數的真實景點，不要類別模板，也不要用彈性日湊數。',
+          ask: '請給真實景點、可執行的 1–2 句景點說明、目的地背景／難忘之處，以及分城市的住宿建議。不要類別模板，也不要用彈性日湊數。',
         }),
       },
     ], 0.4)
 
     const parsed = extractJson(content) as {
       intro?: string
+      tagline?: string
+      background?: string
+      memorable?: string[]
+      hotels?: {
+        name?: string
+        area?: string
+        nightsHint?: string
+        pricePerNight?: string
+        highlight?: string
+        styles?: string[]
+      }[]
       spots?: {
         name?: string
         nameLocal?: string
@@ -436,9 +464,25 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       throw new Error('AI returned too few real spots.')
     }
 
+    const memorable = Array.isArray(parsed.memorable)
+      ? parsed.memorable.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 6)
+      : []
+    const hotels = Array.isArray(parsed.hotels) ? parsed.hotels : []
+
     sendJson(res, 200, {
       source: 'crazyrouter',
       intro: parsed.intro || '',
+      tagline: parsed.tagline || '',
+      background: parsed.background || '',
+      memorable,
+      hotels: hotels.map((hotel) => ({
+        name: String(hotel.name || '').trim(),
+        area: String(hotel.area || '').trim(),
+        nightsHint: String(hotel.nightsHint || '').trim(),
+        pricePerNight: String(hotel.pricePerNight || '').trim(),
+        highlight: String(hotel.highlight || '').trim(),
+        styles: Array.isArray(hotel.styles) ? hotel.styles : [],
+      })),
       spots: spots.map((spot) => ({
         name: String(spot.name || '').trim(),
         nameLocal: String(spot.nameLocal || spot.name || '').trim(),

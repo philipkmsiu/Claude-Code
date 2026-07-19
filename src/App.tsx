@@ -33,6 +33,7 @@ import {
   hotelBookingAdvice,
   hotelStyles,
   hotelsForStyle,
+  hotelsFromAi,
   nightsFromDays,
   parseDestinationNames,
   scenicSpotsFromAi,
@@ -811,8 +812,15 @@ function App() {
     setAiSpotsError('')
     setAiSpotsNote(force ? '正在重新請 AI 推薦真實景點…' : '')
     try {
-      const updates: { id: DestinationId; spots: Destination['spots']; intro?: string }[] =
-        []
+      const updates: {
+        id: DestinationId
+        spots: Destination['spots']
+        intro?: string
+        tagline?: string
+        background?: string
+        memorable?: string[]
+        hotels?: Destination['hotels']
+      }[] = []
       const notes: string[] = []
 
       for (const dest of targets) {
@@ -829,10 +837,15 @@ function App() {
           throw new Error(`AI 給 ${dest.nameZh} 的真實景點太少，請再試一次`)
         }
         const userSpots = dest.spots.filter((spot) => spot.id.startsWith('user-spot-'))
+        const aiHotels = hotelsFromAi(dest.nameZh, result.hotels || [])
         updates.push({
           id: dest.id,
           spots: [...userSpots, ...aiSpots],
           intro: result.intro,
+          tagline: result.tagline,
+          background: result.background,
+          memorable: result.memorable,
+          hotels: aiHotels.length >= 2 ? aiHotels : undefined,
         })
         if (result.intro) notes.push(result.intro)
       }
@@ -850,9 +863,15 @@ function App() {
             ...base,
             spots: update.spots,
             intro: update.intro?.trim() || base.intro,
-            tagline: update.intro?.trim()
-              ? 'AI 已推薦真實景點'
-              : base.tagline,
+            tagline:
+              update.tagline?.trim() ||
+              (update.intro?.trim() ? 'AI 已推薦真實景點與住宿' : base.tagline),
+            background: update.background?.trim() || base.background,
+            memorable:
+              update.memorable && update.memorable.length >= 2
+                ? update.memorable
+                : base.memorable,
+            hotels: update.hotels?.length ? update.hotels : base.hotels,
           })
         }
         const orderedIds = [
@@ -2508,7 +2527,13 @@ function App() {
                   仿照完整規劃書格式：每日列出住宿地、主要安排、節奏／車程、住宿方向，並附天氣與降雨機率
                   {weatherLoading ? '（天氣載入中…）' : ''}。
                   {dayWeather.some((w) => w?.source === 'climate')
-                    ? ' 出發日較遠時，天氣為近三年同期平均（南疆盆地 9 月初仍可能偏暖）。'
+                    ? isLongHaulDestination(
+                        selectedDestinations.map((d) => d.nameZh).join(' ') ||
+                          primary?.nameZh ||
+                          '',
+                      )
+                      ? ' 出發日較遠時，天氣為近三年同期平均（南疆盆地 9 月初仍可能偏暖）。'
+                      : ' 出發日較遠時，天氣為近三年同期氣候平均，僅供參考。'
                     : ''}
                 </p>
               </div>

@@ -128,6 +128,125 @@ function cityTemplateSeeds(place: string): SpotSeed[] {
   ]
 }
 
+function germanyTemplateSeeds(): SpotSeed[] {
+  return [
+    {
+      name: '新天鵝堡',
+      tags: ['must', 'photo', 'popular'],
+      hours: 8,
+      area: '慕尼黑・近郊',
+      summary:
+        '巴伐利亞童話城堡，迪士尼城堡原型之一。建議從慕尼黑出發排全日，預留排隊與山城散步時間。',
+    },
+    {
+      name: '慕尼黑啤酒節／瑪莉安廣場',
+      tags: ['must', 'food', 'culture', 'popular'],
+      hours: 4,
+      area: '慕尼黑・舊城',
+      summary:
+        '瑪莉安廣場是慕尼黑心跳：新市政廳木偶鐘、聖母教堂雙塔，九月還能碰上啤酒節的喧鬧與pretzel香氣。',
+    },
+    {
+      name: '寧芬堡宮',
+      tags: ['culture', 'photo'],
+      hours: 3.5,
+      area: '慕尼黑・西城',
+      summary: '巴洛克夏宮與花園，節奏比城堡日遊更鬆，適合當作慕尼黑第二個文化半日。',
+    },
+    {
+      name: '林德霍夫宮',
+      tags: ['photo', 'culture'],
+      hours: 3,
+      area: '慕尼黑・近郊',
+      summary: '路德維希二世的袖珍宮殿，常與新天鵝堡連線；華麗室內與山景形成強烈對比。',
+    },
+    {
+      name: '柏林圍牆紀念園區',
+      tags: ['must', 'culture', 'photo'],
+      hours: 3,
+      area: '柏林・米特',
+      summary: '冷戰分裂的實體遺跡。走完紀念牆與文獻中心，會更懂這座城市為何如此直白又複雜。',
+    },
+    {
+      name: '布蘭登堡門與國會大廈',
+      tags: ['must', 'photo', 'popular'],
+      hours: 2.5,
+      area: '柏林・米特',
+      summary: '德國統一的門面地標。國會玻璃穹頂可預約登頂，日落時城市輪廓特別清楚。',
+    },
+    {
+      name: '博物館島（佩加蒙／老博物館）',
+      tags: ['must', 'culture'],
+      hours: 4,
+      area: '柏林・米特',
+      summary: '世界遺產等級的博物館群。挑 1–2 座深挖比走馬看花更值得；雨天首選。',
+    },
+    {
+      name: '東側畫廊',
+      tags: ['photo', 'culture', 'popular'],
+      hours: 2,
+      area: '柏林・弗里德里希斯海因',
+      summary: '圍牆遺段上的巨型塗鴉，是柏林街頭藝術最直覺的一課，拍照節奏快、故事卻很重。',
+    },
+    {
+      name: '科隆大教堂',
+      tags: ['must', 'photo', 'culture', 'popular'],
+      hours: 2.5,
+      area: '科隆・舊城',
+      summary: '哥德式雙塔幾乎從火車站撲面而來。登塔看萊茵河，或只在廣場感受石頭的尺度。',
+    },
+    {
+      name: '萊茵河遊船',
+      tags: ['photo', 'nature', 'popular'],
+      hours: 3,
+      area: '科隆・萊茵河',
+      summary: '從水面看科隆天際線與兩岸酒莊小鎮氣息，適合當作轉場城市之間的喘息行程。',
+    },
+    {
+      name: '本拉特宮',
+      tags: ['culture', 'photo'],
+      hours: 2.5,
+      area: '杜塞道夫・近郊',
+      summary: '粉彩洛可可宮殿與法式花園，常作為科隆／杜塞道夫段的優雅半日點。',
+    },
+    {
+      name: '森帕歌劇院與教堂廣場',
+      tags: ['must', 'culture', 'photo'],
+      hours: 3,
+      area: '德累斯頓・舊城',
+      summary: '易北河旁的巴洛克寶石。戰後重建的精緻輪廓，夜晚燈光一開就像舞台布景。',
+    },
+    {
+      name: '法蘭克福舊城與羅馬廣場',
+      tags: ['photo', 'culture', 'food'],
+      hours: 2.5,
+      area: '法蘭克福・舊城',
+      summary: '天際線與半木造屋並存的德國金融城門面，適合抵達或離開日的輕步行與蘋果酒。',
+    },
+    {
+      name: '海德堡城堡',
+      tags: ['must', 'photo', 'popular'],
+      hours: 4,
+      area: '海德堡',
+      summary: '紅砂巖城堡俯瞰內卡河與大學城紅屋頂，是南德最經典的「一眼愛上」畫面之一。',
+    },
+    {
+      name: '黑森林風景大道',
+      tags: ['nature', 'photo'],
+      hours: 7,
+      area: '巴登－符騰堡・黑森林',
+      summary: '針葉林、山湖與木屋村串起來的公路日。節奏要鬆，重點是風景本身而不是趕點。',
+    },
+    {
+      name: '彈性咖啡與啤酒花園日',
+      tags: ['food', 'popular'],
+      hours: 3,
+      area: '彈性',
+      summary: '德國行程的精髓之一：坐進啤酒花園或老城咖啡，讓鐵路與城堡之間留一段真正的日常。',
+    },
+  ]
+}
+
 function xinjiangTemplateSeeds(): SpotSeed[] {
   return [
     { name: '烏魯木齊抵達適應', tags: ['must'], hours: 4, area: '烏魯木齊', summary: '飛抵後休息適應，不要趕路。' },
@@ -179,6 +298,9 @@ export function inferCustomTripProfile(name: string): {
   const xinjiang = /新疆|北疆|南疆|喀納斯|喀什|伊犁|帕米爾/.test(text)
   const multiCity = /[＋+及與和／/]/.test(text) || (text.match(/[市縣州島]/g)?.length ?? 0) >= 2
   const paris = /巴黎|Paris/i.test(text)
+  const germany = /德國|Germany|german|Deutschland|柏林|慕尼黑|科隆|德累斯頓|法蘭克福/i.test(
+    text,
+  )
 
   // Single Chinese historic cities: keep advice in a realistic city-break range.
   if (/西安|西京|兵馬俑/.test(text) && !loop) {
@@ -235,6 +357,42 @@ export function inferCustomTripProfile(name: string): {
       tips: [
         '熱門館需預約時段；星期一／二部分場館休館請先查。',
         '地鐵＋步行最有效率；把同一區景點排在同一天。',
+      ],
+    }
+  }
+
+  if (germany) {
+    const label = /德國|Germany|german|Deutschland/i.test(text) ? '德國' : text
+    return {
+      recommendedDays: {
+        min: 6,
+        comfortable: slow ? 9 : 8,
+        suggestedLongest: 12,
+        note: `${label}：慕尼黑＋城堡或柏林單城約 6–7 天；南德＋萊茵或柏林串線舒服約 ${slow ? 9 : 8} 天，再長可加德累斯頓／海德堡。`,
+      },
+      tagline: '城堡、啤酒與鐵路串起的中歐慢遊',
+      intro: `${label} 適合用鐵路把慕尼黑、柏林、科隆等基地串起來：白天看城堡與博物館，傍晚留啤酒花園。同一城的景點請排在同一天，避免柏林與科隆混日。`,
+      background:
+        '德國位於歐洲心臟，從巴伐利亞城堡、萊茵河谷到柏林的當代藝術與冷戰遺跡，尺度大卻可用 ICE 高鐵高效銜接。啤酒文化、聖誕市集與重建的巴洛克舊城，讓「精確」與「浪漫」同時存在。',
+      memorable: [
+        '新天鵝堡雲霧散開的那一刻，整座童話城堡像被點亮。',
+        '柏林圍牆紀念段散步時，塗鴉與歷史解說牌並排的錯位感。',
+        '科隆大教堂雙塔從車站大門撲面而來的壓迫美感。',
+        '傍晚鑽進啤酒花園，Pretzel 與小麥啤酒剛上桌的鬆一口气。',
+      ],
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
+      spots: spotsFromSeeds(label, germanyTemplateSeeds()),
+      flexDayIdeas: [
+        '慕尼黑老城咖啡與英式花園散步',
+        '柏林二手市集或畫廊半日',
+        '萊茵河畔啤酒與夕陽',
+        '雨備：博物館島深挖一座館',
+      ],
+      tips: [
+        '德國跨城請優先 ICE／區域列車，把慕尼黑、柏林、科隆當過夜基地。',
+        '新天鵝堡建議獨立留一整天；博物館島挑 1–2 座即可。',
+        '九月可能碰上慕尼黑啤酒節，住宿與人潮要提前抓。',
       ],
     }
   }
@@ -452,7 +610,9 @@ export function scenicSpotsFromAi(
       nameLocal: item.nameLocal?.trim() || name,
       area: item.area?.trim() || '市區',
       stayHours: hours,
-      summary: item.summary?.trim() || `${name}：值得安排的在地行程。`,
+      summary:
+        item.summary?.trim() ||
+        `${name}是當地值得停留的一站；建議預留體驗與拍照時間，並依天氣彈性調整。`,
       tags: tags.length ? tags : (['popular'] as SpotTag[]),
       ticket: item.ticket?.trim() || '視當地而定',
       bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
@@ -461,15 +621,200 @@ export function scenicSpotsFromAi(
   return spots
 }
 
+/** Human label for hotel/copy when the typed name is a language slug like "german". */
+export function displayPlaceLabel(name: string): string {
+  const text = name.trim()
+  if (/^german$|^germany$|^deutschland$/i.test(text)) return '德國'
+  if (/^france$|^french$/i.test(text)) return '法國'
+  if (/^italy$|^italian$/i.test(text)) return '義大利'
+  if (/^spain$|^spanish$/i.test(text)) return '西班牙'
+  if (/^japan$|^japanese$/i.test(text)) return '日本'
+  return text
+}
+
+/** Concrete hotel suggestions for custom destinations (never "XX景區度假酒店"). */
+export function hotelsForCustomPlace(name: string): HotelOption[] {
+  const text = name.trim()
+  const label = displayPlaceLabel(text)
+  if (/德國|Germany|german|Deutschland|柏林|慕尼黑|科隆/i.test(text)) {
+    return [
+      {
+        name: '慕尼黑中央車站／舊城設計旅店',
+        area: '慕尼黑・舊城',
+        nightsHint: '南德段連住 2–3 晚',
+        pricePerNight: '€120–220',
+        highlight: '走路可到瑪莉安廣場，方便出發去新天鵝堡',
+        styles: ['value', 'standard', 'clean'],
+      },
+      {
+        name: '柏林米特區精品酒店',
+        area: '柏林・米特',
+        nightsHint: '柏林段連住 2–3 晚',
+        pricePerNight: '€140–260',
+        highlight: '鄰近布蘭登堡門與博物館島，少換宿',
+        styles: ['standard', 'luxuryValue', 'clean'],
+      },
+      {
+        name: '科隆大教堂廣場周邊酒店',
+        area: '科隆・舊城',
+        nightsHint: '萊茵段 1–2 晚',
+        pricePerNight: '€110–200',
+        highlight: '出車站即見大教堂，轉乘 ICE 方便',
+        styles: ['value', 'standard', 'luxuryValue'],
+      },
+      {
+        name: '萊茵河景觀／法蘭克福天際線旅店',
+        area: '法蘭克福・舊城',
+        nightsHint: '海德堡／黑森林段 1–2 晚',
+        pricePerNight: '€130–240',
+        highlight: '高鐵與機場連外方便，適合南德西段過夜',
+        styles: ['standard', 'luxury', 'luxuryValue'],
+      },
+      {
+        name: '德累斯頓舊城易北河景觀酒店',
+        area: '德累斯頓・舊城',
+        nightsHint: '1–2 晚',
+        pricePerNight: '€120–210',
+        highlight: '走路可到森帕歌劇院與教堂廣場',
+        styles: ['standard', 'luxuryValue', 'clean'],
+      },
+    ]
+  }
+  if (/巴黎|Paris/i.test(text)) {
+    return [
+      {
+        name: '瑪黑區精品旅店',
+        area: '巴黎・瑪黑',
+        nightsHint: '市區連住為主',
+        pricePerNight: '€180–320',
+        highlight: '步行友善，餐廳與美術館都近',
+        styles: ['standard', 'luxuryValue', 'clean'],
+      },
+      {
+        name: '聖日耳曼／塞納河左岸飯店',
+        area: '巴黎・聖日耳曼',
+        nightsHint: '2–4 晚',
+        pricePerNight: '€200–380',
+        highlight: '塞納河與咖啡館氣氛佳',
+        styles: ['luxury', 'luxuryValue'],
+      },
+      {
+        name: '歌劇院／百貨商圈商務旅店',
+        area: '巴黎・歌劇院',
+        nightsHint: '購物日連住',
+        pricePerNight: '€160–280',
+        highlight: '地鐵樞紐清楚，適合首次到訪',
+        styles: ['value', 'standard', 'clean'],
+      },
+    ]
+  }
+  if (/歐洲|Italy|義大利|西班牙|Spain|瑞士|London|倫敦|Rome|羅馬/i.test(text)) {
+    return [
+      {
+        name: `${label}舊城步行圈精品旅店`,
+        area: `${label}・舊城`,
+        nightsHint: '主要基地連住',
+        pricePerNight: '視城市而定',
+        highlight: '優先住舊城或地鐵樞紐，減少行李移動',
+        styles: ['standard', 'value', 'clean'],
+      },
+      {
+        name: `${label}車站周邊商務飯店`,
+        area: `${label}・車站`,
+        nightsHint: '轉乘日 1–2 晚',
+        pricePerNight: '中價',
+        highlight: '方便火車／機場快線銜接',
+        styles: ['value', 'standard', 'clean'],
+      },
+      {
+        name: `${label}景觀／河岸升級酒店`,
+        area: `${label}・景觀區`,
+        nightsHint: '1–2 晚儀式感',
+        pricePerNight: '中高檔',
+        highlight: '挑旅程中段升等，體驗更好記',
+        styles: ['luxury', 'luxuryValue'],
+      },
+    ]
+  }
+  return [
+    {
+      name: `${label}市中心商務旅店`,
+      area: `${label}・市中心`,
+      nightsHint: '主要基地連住',
+      pricePerNight: '視淡旺季',
+      highlight: '交通便利，適合把行李固定在一處',
+      styles: ['value', 'standard', 'clean'],
+    },
+    {
+      name: `${label}老城／景點圈精品酒店`,
+      area: `${label}・老城`,
+      nightsHint: '2–3 晚',
+      pricePerNight: '中高檔',
+      highlight: '走路可逛精華區，氛圍佳',
+      styles: ['luxury', 'luxuryValue', 'standard'],
+    },
+    {
+      name: `${label}車站或機場便捷旅宿`,
+      area: `${label}・交通節點`,
+      nightsHint: '抵達／離開日',
+      pricePerNight: '中價',
+      highlight: '減少趕車壓力，清潔評分優先',
+      styles: ['clean', 'value', 'standard'],
+    },
+  ]
+}
+
+/** Map AI hotel suggestions onto HotelOption records. */
+export function hotelsFromAi(
+  place: string,
+  suggestions: {
+    name?: string
+    area?: string
+    nightsHint?: string
+    pricePerNight?: string
+    highlight?: string
+    styles?: string[]
+  }[],
+): HotelOption[] {
+  const label = displayPlaceLabel(place)
+  const allowed: HotelStyle[] = [
+    'value',
+    'standard',
+    'clean',
+    'luxury',
+    'luxuryValue',
+  ]
+  const hotels: HotelOption[] = []
+  for (const item of suggestions) {
+    const name = item.name?.trim()
+    if (!name) continue
+    // Reject the old generic template names.
+    if (/景區度假酒店|沿線高性價比|清掃評分高旅宿|主要基地城市/.test(name)) continue
+    const styles = (item.styles || []).filter((style): style is HotelStyle =>
+      allowed.includes(style as HotelStyle),
+    )
+    hotels.push({
+      name,
+      area: item.area?.trim() || `${label}・市中心`,
+      nightsHint: item.nightsHint?.trim() || '建議連住',
+      pricePerNight: item.pricePerNight?.trim() || '視淡旺季',
+      highlight: item.highlight?.trim() || '位置方便，適合作為過夜基地',
+      styles: styles.length ? styles : (['standard', 'value'] as HotelStyle[]),
+    })
+  }
+  return hotels
+}
+
 /** Build a plannable destination from a user-typed place name. */
 export function createCustomDestination(rawName: string): Destination {
   const name = rawName.trim()
+  const label = displayPlaceLabel(name)
   const id = `custom-${slugifyDestination(name)}-${Date.now().toString(36)}`
   const profile = inferCustomTripProfile(name)
 
   return {
     id,
-    nameZh: name,
+    nameZh: label,
     nameLocal: name,
     tagline: profile.tagline,
     intro: profile.intro,
@@ -488,32 +833,7 @@ export function createCustomDestination(rawName: string): Destination {
         ? `嚴冬可能較差：${profile.seasonGuide.worstReason}`
         : '請出發前查當地氣溫與降雨',
     },
-    hotels: [
-      {
-        name: `${name}沿線高性價比旅店`,
-        area: '主要基地城市',
-        nightsHint: '分段連住，減少換宿',
-        pricePerNight: '視淡旺季',
-        highlight: '長線行程建議分北疆／南疆等基地住',
-        styles: ['value', 'standard', 'clean'],
-      },
-      {
-        name: `${name}景區度假酒店`,
-        area: '重點景區',
-        nightsHint: '2–3 晚儀式感',
-        pricePerNight: '中高檔',
-        highlight: '重點區可升級住宿提升舒適度',
-        styles: ['luxury', 'luxuryValue'],
-      },
-      {
-        name: `${name}清掃評分高旅宿`,
-        area: '過渡城市',
-        nightsHint: '趕路日 overnight',
-        pricePerNight: '中價',
-        highlight: '清潔優先，適合長途中途休息',
-        styles: ['clean', 'value', 'standard'],
-      },
-    ],
+    hotels: hotelsForCustomPlace(name),
     spots: profile.spots,
     flexDayIdeas: profile.flexDayIdeas,
     tips: profile.tips,
@@ -1697,13 +2017,17 @@ export function inferSeasonGuide(name: string): SeasonGuide {
       note: '首爾可冬遊，但舒適度遠不如春秋；不是每月同等推薦。',
     }
   }
-  if (/歐洲|巴黎|倫敦|羅馬|瑞士|北歐/.test(text)) {
+  if (
+    /歐洲|巴黎|倫敦|羅馬|瑞士|北歐|德國|Germany|german|Deutschland|柏林|慕尼黑|科隆|義大利|西班牙/i.test(
+      text,
+    )
+  ) {
     return {
       bestMonths: [5, 6, 7, 8, 9],
       worstMonths: [11, 12, 1, 2],
-      bestReason: '日照長、戶外與景點開放時間較友善。',
+      bestReason: '日照長、戶外與景點開放時間較友善；九月仍宜步行與城堡行程。',
       worstReason: '冬天天短濕冷，部分山地／小鎮活動受限。',
-      note: '多數歐洲城市夏季較好逛；冬季需接受天短與寒冷。',
+      note: '多數歐洲城市夏秋較好逛；冬季需接受天短與寒冷。',
     }
   }
   return {
@@ -1776,6 +2100,15 @@ const KNOWN_HOTEL_CITIES = [
   '台北',
   '巴黎',
   '首爾',
+  '慕尼黑',
+  '柏林',
+  '科隆',
+  '法蘭克福',
+  '德累斯頓',
+  '海德堡',
+  '杜塞道夫',
+  '漢堡',
+  '紐倫堡',
 ]
 
 /** Collapse spot areas into a hotel base city/region. */
@@ -1805,6 +2138,10 @@ const SHARED_HOTEL_CLUSTERS: string[][] = [
   ['東京', '橫濱', '横浜', '鎌倉', '箱根'],
   ['台北', '新北', '基隆', '桃園'],
   ['首爾', '京畿', '仁川'],
+  ['慕尼黑', '新天鵝堡', '林德霍夫', '寧芬堡', '巴伐利亞'],
+  ['科隆', '杜塞道夫', '本拉特', '萊茵'],
+  ['法蘭克福', '海德堡', '巴登', '黑森林', '斯圖加特'],
+  ['柏林', '波茨坦', '德累斯頓'],
 ]
 
 function sharedHotelClusterId(base: string): string | null {
@@ -2384,9 +2721,10 @@ function sortSpotsForTraveler(
 function groupByArea(spots: ScenicSpot[]): Map<string, ScenicSpot[]> {
   const map = new Map<string, ScenicSpot[]>()
   for (const spot of spots) {
-    const list = map.get(spot.area) ?? []
+    const key = hotelAreaBase(spot.area) || spot.area || '市區'
+    const list = map.get(key) ?? []
     list.push(spot)
-    map.set(spot.area, list)
+    map.set(key, list)
   }
   return map
 }
@@ -2763,43 +3101,6 @@ export function ensureSpotsForDays(options: {
   return next
 }
 
-function placeSpotInBuckets(
-  dayBuckets: ScenicSpot[][],
-  spot: ScenicSpot,
-  spotsPerDay: number,
-  preferEmpty: boolean,
-) {
-  if (preferEmpty) {
-    const empty = dayBuckets.findIndex((b) => b.length === 0)
-    if (empty >= 0) {
-      dayBuckets[empty].push(spot)
-      return
-    }
-  }
-  let best = -1
-  let bestScore = Number.POSITIVE_INFINITY
-  dayBuckets.forEach((bucket, index) => {
-    const usedHours = bucket.reduce((sum, s) => sum + s.stayHours, 0)
-    const countLimit = bucket.some((s) => s.stayHours >= 6) ? 1 : spotsPerDay
-    if (bucket.length >= countLimit) return
-    if (usedHours + spot.stayHours > spotsPerDay * 2.8) return
-    const score = bucket.length * 10 + usedHours
-    if (score < bestScore) {
-      bestScore = score
-      best = index
-    }
-  })
-  if (best >= 0) dayBuckets[best].push(spot)
-  else {
-    const lightest = dayBuckets.reduce(
-      (bestIdx, bucket, i) =>
-        bucket.length < dayBuckets[bestIdx].length ? i : bestIdx,
-      0,
-    )
-    dayBuckets[lightest].push(spot)
-  }
-}
-
 function buildRouteLeg(
   from: string,
   to: string,
@@ -3095,79 +3396,107 @@ export function buildItinerary(options: {
   // rest/flex days across the journey — never a trailing rest-only block.
   const days = requestedDays
 
-  const longSpots = selected.filter((s) => s.stayHours >= 6)
-  const shortSpots = selected.filter((s) => s.stayHours < 6)
-  const areaGroups = [...groupByArea(shortSpots).entries()].sort(
-    (a, b) => b[1].length - a[1].length,
+  // Pack by city/base first so Berlin never shares a day with Cologne, etc.
+  const AREA_TRAVEL_ORDER = [
+    '慕尼黑',
+    '海德堡',
+    '法蘭克福',
+    '斯圖加特',
+    '巴登',
+    '黑森林',
+    '科隆',
+    '杜塞道夫',
+    '柏林',
+    '德累斯頓',
+    '漢堡',
+    '巴黎',
+    '大阪',
+    '京都',
+    '東京',
+    '台北',
+    '首爾',
+  ]
+  const areaRank = (base: string) => {
+    const idx = AREA_TRAVEL_ORDER.findIndex(
+      (token) => base.includes(token) || token.includes(base),
+    )
+    return idx >= 0 ? idx : 50 + (base.codePointAt(0) || 0)
+  }
+  const areaGroups = [...groupByArea(selected).entries()].sort(
+    (a, b) => areaRank(a[0]) - areaRank(b[0]) || b[1].length - a[1].length,
   )
-  const orderedShort: ScenicSpot[] = []
-  for (const [, group] of areaGroups) orderedShort.push(...group)
 
-  // Pack spots into a compact content calendar first…
-  const contentDayEstimate = Math.min(
-    days,
-    Math.max(
-      2,
-      longSpots.length + Math.ceil(Math.max(orderedShort.length, 1) / spotsPerDay),
-      Math.ceil(selected.length / Math.max(spotsPerDay, 1)),
-    ),
-  )
-  const contentBuckets: ScenicSpot[][] = Array.from(
-    { length: contentDayEstimate },
-    () => [],
-  )
+  const packedContent: ScenicSpot[][] = []
+  for (const [, group] of areaGroups) {
+    const longInArea = group.filter((s) => s.stayHours >= 6)
+    const shortInArea = group.filter((s) => s.stayHours < 6)
+    for (const spot of longInArea) packedContent.push([spot])
 
-  longSpots.forEach((spot, idx) => {
-    const dayIndex = Math.min(contentDayEstimate - 1, Math.max(0, idx))
-    if (contentBuckets[dayIndex].length === 0) contentBuckets[dayIndex].push(spot)
-    else placeSpotInBuckets(contentBuckets, spot, spotsPerDay, true)
-  })
+    let bucket: ScenicSpot[] = []
+    let usedHours = 0
+    for (const spot of shortInArea) {
+      const wouldExceed =
+        bucket.length >= spotsPerDay ||
+        usedHours + spot.stayHours > spotsPerDay * 2.8
+      if (bucket.length && wouldExceed) {
+        packedContent.push(bucket)
+        bucket = []
+        usedHours = 0
+      }
+      bucket.push(spot)
+      usedHours += spot.stayHours
+    }
+    if (bucket.length) packedContent.push(bucket)
+  }
 
-  let cursor = 0
-  for (const spot of orderedShort) {
-    let placed = false
-    for (let offset = 0; offset < contentDayEstimate; offset++) {
-      const i = (cursor + offset) % contentDayEstimate
-      const bucket = contentBuckets[i]
-      const usedHours = bucket.reduce((sum, s) => sum + s.stayHours, 0)
-      const countLimit = bucket.some((s) => s.stayHours >= 6) ? 1 : spotsPerDay
-      if (bucket.length < countLimit && usedHours + spot.stayHours <= spotsPerDay * 2.8) {
-        bucket.push(spot)
-        cursor = (i + (bucket.length >= countLimit ? 1 : 0)) % contentDayEstimate
-        placed = true
+  // If packing produced more content days than chosen length, compress lightly
+  // by merging only within the same city base.
+  while (packedContent.length > days) {
+    let merged = false
+    for (let i = 0; i < packedContent.length - 1; i += 1) {
+      const a = packedContent[i]
+      const b = packedContent[i + 1]
+      const baseA = hotelAreaBase(a[0]?.area || '')
+      const baseB = hotelAreaBase(b[0]?.area || '')
+      const clusterOk =
+        baseA === baseB ||
+        Boolean(
+          sharedHotelClusterId(baseA) &&
+            sharedHotelClusterId(baseA) === sharedHotelClusterId(baseB),
+        )
+      const hours = [...a, ...b].reduce((sum, s) => sum + s.stayHours, 0)
+      if (
+        clusterOk &&
+        !a.some((s) => s.stayHours >= 6) &&
+        !b.some((s) => s.stayHours >= 6) &&
+        a.length + b.length <= spotsPerDay + 1 &&
+        hours <= spotsPerDay * 3.2
+      ) {
+        packedContent[i] = [...a, ...b]
+        packedContent.splice(i + 1, 1)
+        merged = true
         break
       }
     }
-    if (!placed) placeSpotInBuckets(contentBuckets, spot, spotsPerDay, true)
+    if (!merged) break
   }
 
-  const usedIds = new Set(contentBuckets.flat().map((s) => s.id))
-  const filler = sortSpotsForTraveler(
-    allSpots.filter((s) => !usedIds.has(s.id)),
-    companion,
-    specialNeeds,
-  )
-  for (const spot of filler) {
-    const empty = contentBuckets.findIndex((b) => b.length === 0)
-    if (empty < 0) break
-    contentBuckets[empty].push(spot)
-    usedIds.add(spot.id)
-  }
-
-  const packedContent = contentBuckets.filter((b) => b.length > 0)
   // …then spread those content days across the full trip length.
-  const spreadBuckets = spreadContentAcrossDays(packedContent, days)
+  const spreadBuckets = spreadContentAcrossDays(
+    packedContent.slice(0, Math.max(days, 1)),
+    days,
+  )
 
   const plannedDays = spreadBuckets.map((bucket, index) => {
     const isFirst = index === 0
     const isLast = index === spreadBuckets.length - 1
     const flexIdea = flexIdeas[index % Math.max(flexIdeas.length, 1)] || '街區慢遊與咖啡'
     // Rest days inherit the previous content day's area so lodging stays coherent.
-    let inheritArea = hotelAreaHint || '市區'
+    let inheritArea = '市區'
     for (let j = index; j >= 0; j -= 1) {
       const prev = spreadBuckets[j]
       if (prev && prev.length) {
-        inheritArea = hotelAreaHint || prev[0].area || inheritArea
+        inheritArea = prev[0].area || inheritArea
         break
       }
     }
@@ -3175,28 +3504,29 @@ export function buildItinerary(options: {
       for (let j = index; j < spreadBuckets.length; j += 1) {
         const next = spreadBuckets[j]
         if (next && next.length) {
-          inheritArea = hotelAreaHint || next[0].area || inheritArea
+          inheritArea = next[0].area || inheritArea
           break
         }
       }
     }
     const area = bucket?.[0]?.area || inheritArea
+    const stayBase = hotelAreaBase(area)
     const themeCore =
       !bucket || bucket.length === 0
         ? `慢遊休息日・恢復體力`
         : bucket.some((s) => s.stayHours >= 6)
           ? bucket[0].name
-          : `${area} 精華`
+          : `${stayBase} 精華`
 
     const schedule: ScheduleItem[] = []
     let hour = isFirst ? Math.max(startHour, 10) : startHour
 
     if (!bucket || bucket.length === 0) {
       return makeFlexRestDay({
-        stayArea: hotelAreaHint || area,
-        stayCity: hotelAreaBase(hotelAreaHint || area),
+        stayArea: area,
+        stayCity: stayBase,
         flexIdea,
-        hotelDirection: hotelAreaHint || area,
+        hotelDirection: area,
         isFirst,
         isLast,
       })
@@ -3206,7 +3536,7 @@ export function buildItinerary(options: {
       schedule.push({
         time: timeLabel(Math.max(9, hour - 1)),
         title: '抵達 / 入住安頓',
-        detail: `建議住在 ${hotelAreaHint || area}，先放行李再出門。`,
+        detail: `建議住在 ${stayBase}，先放行李再出門。`,
       })
     } else {
       schedule.push({
@@ -3254,7 +3584,7 @@ export function buildItinerary(options: {
       schedule.push({
         time: timeLabel(Math.min(Math.max(hour, 18), 20)),
         title: '晚餐與回飯店',
-        detail: `今晚住 ${hotelAreaHint || area}。`,
+        detail: `今晚住 ${stayBase}。`,
       })
     }
 
@@ -3270,14 +3600,14 @@ export function buildItinerary(options: {
       .join('')
     return enrichDayPlanRow({
       theme,
-      stayArea: hotelAreaHint || area,
-      stayCity: hotelAreaBase(area),
+      stayArea: area,
+      stayCity: stayBase,
       mainPlan: buildMainPlan(bucket, theme, false),
       dayStory:
         dayStory ||
         `${bucket.map((s) => s.name).join('、')}是這天的主角；慢慢看、慢慢吃，比趕打卡名單更值得記住。`,
       paceNote: buildPaceNote(bucket, pace, isFirst, isLast),
-      hotelDirection: hotelAreaHint || area,
+      hotelDirection: area,
       schedule,
       budget: `當日約 ${budgetLow}–${budgetHigh} 單位（不含住宿，幣別依目的地）`,
       tip: buildDayTip(bucket, specialNeeds, pace),

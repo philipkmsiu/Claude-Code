@@ -28,9 +28,22 @@ export type AiSuggestedSpot = {
   ticket: string
 }
 
+export type AiSuggestedHotel = {
+  name: string
+  area: string
+  nightsHint: string
+  pricePerNight: string
+  highlight: string
+  styles: string[]
+}
+
 export type AiSpotSuggestion = {
   source: 'crazyrouter'
   intro: string
+  tagline?: string
+  background?: string
+  memorable?: string[]
+  hotels?: AiSuggestedHotel[]
   spots: AiSuggestedSpot[]
 }
 
