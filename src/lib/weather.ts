@@ -9,6 +9,32 @@ type GeoHit = {
 
 const geoCache = new Map<string, GeoHit | null>()
 
+/** Prefer city centers over airports / obscure hits. */
+const GEO_ALIAS: Record<string, string> = {
+  烏魯木齊: 'Urumqi',
+  乌鲁木齐: 'Urumqi',
+  喀什: 'Kashgar',
+  禾木: 'Hemu Xinjiang',
+  喀納斯: 'Kanas Lake',
+  布尔津: 'Burqin',
+  布爾津: 'Burqin',
+  克拉瑪依: 'Karamay',
+  赛里木湖: 'Sayram Lake',
+  賽里木湖: 'Sayram Lake',
+  伊寧: 'Yining',
+  伊宁: 'Yining',
+  塔縣: 'Tashkurgan',
+  塔县: 'Tashkurgan',
+  庫車: 'Kuqa',
+  库车: 'Kuqa',
+  阿勒泰: 'Altay Xinjiang',
+  返程: 'Urumqi',
+  西寧: 'Xining',
+  敦煌: 'Dunhuang',
+  嘉峪關: 'Jiayuguan',
+  青海湖: 'Qinghai Lake',
+}
+
 function wmoLabel(code: number, rainChance: number): string {
   if (rainChance >= 60 || code >= 61) return '有雨機會高'
   if (rainChance >= 40 || code >= 51) return '可能有短暫雨'
@@ -26,21 +52,32 @@ async function geocode(place: string): Promise<GeoHit | null> {
   const key = place.trim()
   if (!key) return null
   if (geoCache.has(key)) return geoCache.get(key) ?? null
-  try {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(key)}&count=1&language=zh&format=json`
-    const res = await fetch(url)
-    if (!res.ok) {
-      geoCache.set(key, null)
-      return null
+
+  const alias = GEO_ALIAS[key] || GEO_ALIAS[key.replace(/市區|景區|湖畔/g, '')]
+  const queries = alias ? [alias, key] : [key]
+
+  for (const q of queries) {
+    try {
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=3&language=en&format=json`,
+      )
+      if (!res.ok) continue
+      const data = (await res.json()) as { results?: GeoHit[] }
+      const hit =
+        data.results?.find((r) => !/airport|aerodrome/i.test(r.name)) ??
+        data.results?.[0] ??
+        null
+      if (hit) {
+        geoCache.set(key, hit)
+        return hit
+      }
+    } catch {
+      /* try next */
     }
-    const data = (await res.json()) as { results?: GeoHit[] }
-    const hit = data.results?.[0] ?? null
-    geoCache.set(key, hit)
-    return hit
-  } catch {
-    geoCache.set(key, null)
-    return null
   }
+
+  geoCache.set(key, null)
+  return null
 }
 
 function addDays(isoDate: string, offset: number): string {
@@ -51,6 +88,11 @@ function addDays(isoDate: string, offset: number): string {
 
 function shiftYear(isoDate: string, year: number): string {
   const [, m, d] = isoDate.split('-')
+  // Handle Feb 29 → Feb 28 on non-leap years
+  if (m === '02' && d === '29') {
+    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+    return `${year}-02-${leap ? '29' : '28'}`
+  }
   return `${year}-${m}-${d}`
 }
 
@@ -70,7 +112,6 @@ async function fetchDailyRange(options: {
   if (options.mode === 'forecast') {
     url = `https://api.open-meteo.com/v1/forecast?latitude=${options.latitude}&longitude=${options.longitude}&${common}&timezone=${encodeURIComponent(options.timezone)}&start_date=${options.start}&end_date=${options.end}`
   } else {
-    // Same calendar dates last year as climate reference for far-future trips.
     url = `https://archive-api.open-meteo.com/v1/archive?latitude=${options.latitude}&longitude=${options.longitude}&${common}&timezone=${encodeURIComponent(options.timezone)}&start_date=${options.start}&end_date=${options.end}`
   }
 
@@ -82,7 +123,7 @@ async function fetchDailyRange(options: {
       weathercode: number[]
       temperature_2m_max: number[]
       temperature_2m_min: number[]
-      precipitation_probability_max?: number[]
+      precipitation_probability_max?: (number | null)[]
       precipitation_sum: number[]
     }
   }
@@ -90,8 +131,19 @@ async function fetchDailyRange(options: {
   if (!daily?.time?.length) return map
 
   daily.time.forEach((date, i) => {
-    const rainChance = Number(daily.precipitation_probability_max?.[i] ?? 0)
     const rainMm = Number(daily.precipitation_sum?.[i] ?? 0)
+    const rawProb = daily.precipitation_probability_max?.[i]
+    // Archive often returns null probability — estimate from rainfall
+    const rainChance =
+      rawProb == null || Number.isNaN(Number(rawProb))
+        ? rainMm >= 5
+          ? 60
+          : rainMm >= 1
+            ? 35
+            : rainMm > 0
+              ? 20
+              : 10
+        : Number(rawProb)
     const code = Number(daily.weathercode?.[i] ?? 0)
     map.set(date, {
       date,
@@ -106,8 +158,69 @@ async function fetchDailyRange(options: {
   return map
 }
 
+/** Average several prior years so one hot September day doesn't dominate. */
+async function fetchClimateAverage(options: {
+  latitude: number
+  longitude: number
+  tripDates: string[]
+  timezone: string
+  baseYear: number
+}): Promise<Map<string, DayWeather>> {
+  const years = [options.baseYear, options.baseYear - 1, options.baseYear - 2]
+  const yearMaps = await Promise.all(
+    years.map(async (year) => {
+      const starts = options.tripDates.map((d) => shiftYear(d, year))
+      const start = starts.reduce((a, b) => (a < b ? a : b))
+      const end = starts.reduce((a, b) => (a > b ? a : b))
+      return fetchDailyRange({
+        latitude: options.latitude,
+        longitude: options.longitude,
+        start,
+        end,
+        timezone: options.timezone,
+        mode: 'climate',
+      })
+    }),
+  )
+
+  const out = new Map<string, DayWeather>()
+  for (const tripDate of options.tripDates) {
+    const samples: DayWeather[] = []
+    years.forEach((year, yi) => {
+      const hit = yearMaps[yi].get(shiftYear(tripDate, year))
+      if (hit) samples.push(hit)
+    })
+    if (!samples.length) continue
+    const tempMin = Math.round(
+      samples.reduce((s, w) => s + w.tempMin, 0) / samples.length,
+    )
+    const tempMax = Math.round(
+      samples.reduce((s, w) => s + w.tempMax, 0) / samples.length,
+    )
+    const rainChance = Math.round(
+      samples.reduce((s, w) => s + w.rainChance, 0) / samples.length,
+    )
+    const rainMm =
+      Math.round(
+        (samples.reduce((s, w) => s + w.rainMm, 0) / samples.length) * 10,
+      ) / 10
+    // Pick modal-ish label from the mildest/median sample
+    const mid = samples[Math.floor(samples.length / 2)]
+    out.set(tripDate, {
+      date: tripDate,
+      label: mid.label,
+      tempMin,
+      tempMax,
+      rainChance,
+      rainMm,
+      source: 'climate',
+    })
+  }
+  return out
+}
+
 /**
- * Attach daily weather (live forecast when near-term; else last-year climate proxy)
+ * Attach daily weather (live forecast when near-term; else multi-year climate average)
  * for each itinerary day location.
  */
 export async function loadDayWeather(options: {
@@ -130,7 +243,6 @@ export async function loadDayWeather(options: {
     () => null,
   )
 
-  // Group indices by place to minimize API calls.
   const byPlace = new Map<string, number[]>()
   options.places.forEach((place, index) => {
     const key = place.trim() || '目的地'
@@ -148,6 +260,7 @@ export async function loadDayWeather(options: {
       const rangeStart = addDays(start, first)
       const rangeEnd = addDays(start, last)
       const timezone = geo.timezone || 'auto'
+      const tripDates = indexes.map((i) => addDays(start, i))
 
       let weatherMap: Map<string, DayWeather>
       if (useForecast) {
@@ -160,26 +273,13 @@ export async function loadDayWeather(options: {
           mode: 'forecast',
         })
       } else {
-        const year = today.getFullYear() - 1
-        weatherMap = await fetchDailyRange({
+        weatherMap = await fetchClimateAverage({
           latitude: geo.latitude,
           longitude: geo.longitude,
-          start: shiftYear(rangeStart, year),
-          end: shiftYear(rangeEnd, year),
+          tripDates,
           timezone,
-          mode: 'climate',
+          baseYear: today.getFullYear() - 1,
         })
-        // Remap climate dates onto trip dates.
-        const remapped = new Map<string, DayWeather>()
-        for (const index of indexes) {
-          const tripDate = addDays(start, index)
-          const climateDate = shiftYear(tripDate, year)
-          const climate = weatherMap.get(climateDate)
-          if (climate) {
-            remapped.set(tripDate, { ...climate, date: tripDate, source: 'climate' })
-          }
-        }
-        weatherMap = remapped
       }
 
       for (const index of indexes) {
@@ -198,6 +298,9 @@ export function formatWeatherLine(weather: DayWeather | null | undefined): strin
     weather.rainChance >= 40 || weather.rainMm >= 1
       ? `降雨機率 ${weather.rainChance}%${weather.rainMm ? `・約 ${weather.rainMm}mm` : ''}`
       : `降雨機率 ${weather.rainChance}%`
-  const source = weather.source === 'forecast' ? '預報' : '往年同期參考'
+  const source =
+    weather.source === 'forecast' ? '預報' : '近三年同期平均'
+  // South Xinjiang basins can still be warm in early September — keep the number,
+  // but make the reference window obvious so it doesn't read like a live forecast.
   return `${weather.label} ${weather.tempMin}–${weather.tempMax}°C・${rain}（${source}）`
 }

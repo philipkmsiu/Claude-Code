@@ -858,6 +858,24 @@ main {
   background: rgba(200, 16, 46, 0.08);
   color: var(--forest);
   box-shadow: inset 0 0 0 1px rgba(200, 16, 46, 0.12);
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.day-story-inline {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.day-story-line {
+  color: var(--ink-soft);
 }
 
 .dest-story-panel {

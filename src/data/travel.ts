@@ -1159,10 +1159,10 @@ export const destinations: Destination[] = [
     background:
       '關西是日本歷史與庶民文化交會之處：京都長期作為古都，神社佛閣與四季景色深厚；大阪則以商人城市聞名，吃喝與街頭活力特別強。兩城互補，是第一次去日本最容易愛上的組合。',
     memorable: [
-      '伏見千本鳥居的朱紅色長廊',
-      '道頓堀夜晚的巨型招牌與蒸汽',
-      '清水寺舞台外的山景與二年坂',
-      '黑門市場一串接著一串的朝食',
+      '伏見稻荷的千本鳥居像一道朱紅色隧道，走進去會有種「怎麼還沒走完」的快樂迷路感。',
+      '道頓堀夜晚招牌與蒸汽一起冒，章魚燒剛出爐時，整條橋都像在開派對。',
+      '清水寺舞台外的山景與二年坂石階，是京都最有「啊，我真的來日本了」的畫面之一。',
+      '黑門市場早餐可以一路串吃：海鮮、串炸、玉子燒，肚子飽了行程才正式開始。',
     ],
     bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
     seasonGuide: {
@@ -1237,10 +1237,10 @@ export const destinations: Destination[] = [
     background:
       '大阪古稱「天下廚房」，商人文化讓這座城市把吃看得很認真：章魚燒、串炸、旋轉壽司都是日常。霓虹、橋與河道構成關西最有節奏感的夜景，也是主題樂園與購物的便利基地。',
     memorable: [
-      '道頓堀橋上那一口熱騰騰的章魚燒',
-      '通天閣／新世界的復古庶民味',
-      '大阪城天守與護城河的開闊感',
-      '環球影城玩到腿軟的快樂疲憊',
+      '站在道頓堀橋上咬一口熱騰騰章魚燒，霓虹與人聲會告訴你：大阪的重點從來都是「開心吃」。',
+      '通天閣與新世界帶着復古庶民味，串炸配啤酒，比任何網美店都更像本地日常。',
+      '大阪城天守與護城河很有「天下人」氣勢，晴天拍起來金閃閃，陰天則多了點歷史沉感。',
+      '環球影城玩到腿軟的那種疲憊很甜：排隊抱怨完，出園又會說「下次還要來」。',
     ],
     bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
     seasonGuide: {
@@ -1301,10 +1301,10 @@ export const destinations: Destination[] = [
     background:
       '京都曾是日本千年古都，神社佛閣、町家巷弄與茶道文化層層疊疊。真正動人的不只是名寺，還有早晚光影裡安靜的小路，以及季節把整座城市重新上色的方式。',
     memorable: [
-      '金閣寺倒影在鏡湖的那一瞬間',
-      '祇園黄昏可能掠過的和服身影',
-      '嵐山竹林裡沙沙作響的綠光',
-      '一杯宇治抹茶留在舌尖的苦香',
+      '金閣寺倒影在鏡湖的那一瞬間很安靜，人再多，也還是會忍不住停半秒。',
+      '祇園黄昏的石燈與巷弄最有氣氛，若碰巧瞥見和服身影，整晚都會記得。',
+      '嵐山竹林的綠光會沙沙作響，早到的人會覺得自己走進了另一個季節。',
+      '宇治抹茶的苦香留在舌尖，配和果子坐下休息，比趕下一間寺更京都。',
     ],
     bestSeason: '最適合 3–4 月、11 月；最不建議 7–8 月',
     seasonGuide: {
@@ -1357,10 +1357,10 @@ export const destinations: Destination[] = [
     background:
       '東京是江戶以來不斷疊加的巨型都會：淺草保留老東京氣息，澀谷與新宿是當代都市節奏，六本木與上野則打開藝文面向。每個駅圏幾乎都是一座小城市，值得分區慢慢認識。',
     memorable: [
-      '澀谷十字路口人潮同時湧出的畫面',
-      '淺草雷門與仲見世的香火味',
-      'teamLab 裡光與水的沉浸感',
-      '便利店深夜買飯團的日常幸福感',
+      '澀谷十字路口人潮同時湧出時，會覺得整座城市都在跳同一支舞——第一次見總是會愣住。',
+      '淺草雷門與仲見世的香火、人形燒氣味混在一起，是東京最「觀光卻仍動人」的入口。',
+      'teamLab 的光與水讓人失去時間感，從裡面走出來，現實街道會顯得特別安靜。',
+      '深夜便利店買飯團與熱茶，是東京旅最老實的幸福感：便宜、溫暖、明天還能繼續走。',
     ],
     bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
     seasonGuide: {
@@ -1442,10 +1442,10 @@ export const destinations: Destination[] = [
     background:
       '台北是台灣的政治與文化中心，也把山、河、夜市與博物館擠進很短的通勤距離。從故宮到象山、從老街到文創園區，城市尺度親切，卻能同時給你深度與輕鬆。',
     memorable: [
-      '夜市裡胡椒餅剛出爐的胡椒香',
-      '象山步道回望 101 的經典構圖',
-      '九份山城燈火在霧氣裡亮起',
-      '一頓台式早餐開啟的悠閒早晨',
+      '夜市裡胡椒餅剛出爐時，胡椒香會先打在臉上——那味道比任何文案都更台北。',
+      '象山步道回望 101 的構圖經典到俗氣，可親自走到時，還是會想再按一次快門。',
+      '九份山城燈火在霧氣裡亮起，像把時光調回老電影，梯坎與茶館特別適合慢慢晃。',
+      '一頓蛋餅豆漿開啟的早晨，會讓整趟行程突然變得很生活，也很放鬆。',
     ],
     bestSeason: '最適合 10–4 月；最不建議 6–8 月',
     seasonGuide: {
@@ -1519,10 +1519,10 @@ export const destinations: Destination[] = [
     background:
       '首爾是朝鮮王朝五百年的都城，也是當代韓流的舞台。景福宮與北村韓屋訴說舊日秩序，弘大、明洞與聖水則是流行與設計的前線——古今並存，是這座城市最迷人的張力。',
     memorable: [
-      '穿韓服走在景福宮石道上的儀式感',
-      '北村巷弄裡忽然開闊的城市俯瞰',
-      '一鍋起司火鍋或烤五花肉的熱氣',
-      '深夜便利店與韓屋燈火並存的街景',
+      '穿韓服走在景福宮石道上，儀式感會自己冒出來；拍完照也不想立刻換回牛仔褲。',
+      '北村巷弄忽而轉出城市俯瞰，古今疊在同一眼裡，是首爾最迷人的地方。',
+      '一鍋起司火鍋或烤五花肉的熱氣，能把白天走路的疲倦瞬間融化。',
+      '深夜便利店燈火與韓屋暖窗並存，讓人覺得這座城市既流行、又仍然有溫度。',
     ],
     bestSeason: '最適合 4–6 月、9–11 月；最不建議 12–2 月',
     seasonGuide: {
@@ -2863,6 +2863,7 @@ export function buildItinerary(options: {
         stayArea: hotelAreaHint || area,
         stayCity: hotelAreaBase(hotelAreaHint || area),
         mainPlan: buildMainPlan([], themeCore, true),
+        dayStory: `今天是刻意留白的休息日：可以「${flexIdea}」，或乾脆補眠、洗衣、慢慢吃一頓。慢遊不是偷懶，是讓身體跟得上風景。`,
         paceNote: buildPaceNote([], pace, isFirst, isLast),
         hotelDirection: hotelAreaHint || area,
         schedule,
@@ -2933,11 +2934,19 @@ export function buildItinerary(options: {
     const budgetHigh = budgetLow + 45 + (pace === 'packed' ? 20 : 0)
 
     const theme = `${isFirst ? '抵達 · ' : isLast ? '收尾 · ' : ''}${themeCore}`
+    const dayStory = bucket
+      .map((s) => s.summary)
+      .filter((s) => s && s.length > 12)
+      .slice(0, 2)
+      .join('')
     return enrichDayPlanRow({
       theme,
       stayArea: hotelAreaHint || area,
       stayCity: hotelAreaBase(area),
       mainPlan: buildMainPlan(bucket, theme, false),
+      dayStory:
+        dayStory ||
+        `${bucket.map((s) => s.name).join('、')}是這天的主角；慢慢看、慢慢吃，比趕打卡名單更值得記住。`,
       paceNote: buildPaceNote(bucket, pace, isFirst, isLast),
       hotelDirection: hotelAreaHint || area,
       schedule,

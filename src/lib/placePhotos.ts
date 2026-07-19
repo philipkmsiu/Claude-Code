@@ -50,11 +50,33 @@ const SEARCH_HINT: Record<string, string> = {
   鳴沙山: 'Singing Sand Dunes Dunhuang',
   月牙泉: 'Crescent Lake Dunhuang',
   喀納斯: 'Kanas Lake Xinjiang',
+  喀納斯湖: 'Kanas Lake Xinjiang autumn',
   禾木: 'Hemu Village Xinjiang autumn',
   賽里木湖: 'Sayram Lake Xinjiang',
   喀什: 'Kashgar Old City',
-  烏魯木齊: 'Urumqi Xinjiang skyline',
+  喀什古城: 'Kashgar Old Town streets',
+  烏魯木齊: 'Urumqi Hongshan Park',
+  烏市: 'Urumqi Grand Bazaar',
   天山天池: 'Heaven Lake Tian Shan',
+  阿勒泰: 'Altay Xinjiang mountains',
+  阿禾公路: 'Ahe Highway Xinjiang birch',
+  五彩灘: 'Five Colored Beach Burqin',
+  世界魔鬼城: 'Urho Ghost City Yardang',
+  魔鬼城: 'Urho Ghost City Xinjiang',
+  克拉瑪依: 'Karamay Xinjiang',
+  布爾津: 'Burqin Xinjiang river',
+  伊寧: 'Yining Liuxing Street',
+  六星街: 'Yining Six Star Street',
+  塔縣: 'Tashkurgan Stone City',
+  石頭城: 'Tashkurgan Stone Fortress',
+  白沙湖: 'Baisha Lake Pamir',
+  喀拉庫里: 'Karakul Lake Muztagh Ata',
+  慕士塔格: 'Muztagh Ata mountain',
+  庫車: 'Kuqa Grand Canyon Xinjiang',
+  天山神秘大峽谷: 'Kuqa Tianshan Mysterious Canyon',
+  國際大巴扎: 'Urumqi International Grand Bazaar',
+  紅山公園: 'Hongshan Park Urumqi',
+  新疆博物館: 'Xinjiang Regional Museum',
   伏見稻荷: 'Fushimi Inari Shrine torii',
   清水寺: 'Kiyomizu-dera Kyoto',
   大阪城: 'Osaka Castle keep',
@@ -151,6 +173,23 @@ export type DayPhotoQuery = {
   spotNames?: string[]
 }
 
+/** Scenic fallbacks when a day is mostly rest / logistics. */
+const CITY_SCENIC: Record<string, string[]> = {
+  烏魯木齊: ['紅山公園', '國際大巴扎', '新疆博物館', '天山天池'],
+  烏市: ['紅山公園', '國際大巴扎'],
+  喀什: ['喀什古城', '喀什'],
+  禾木: ['禾木'],
+  喀納斯: ['喀納斯湖', '喀納斯'],
+  賽里木湖: ['賽里木湖'],
+  伊寧: ['六星街', '伊寧'],
+  塔縣: ['石頭城', '塔縣'],
+  庫車: ['天山神秘大峽谷', '庫車'],
+  克拉瑪依: ['世界魔鬼城', '克拉瑪依'],
+  布爾津: ['五彩灘', '布爾津'],
+  阿勒泰: ['阿勒泰'],
+  返程: ['烏魯木齊', '紅山公園'],
+}
+
 /** Candidate queries for one day, most specific first. */
 export function dayPhotoCandidates(
   day: DayPhotoQuery,
@@ -162,12 +201,15 @@ export function dayPhotoCandidates(
   const fromPlan = (day.mainPlan || '')
     .split(/[、，,；;]/)
     .map((s) => s.trim())
-    .filter(Boolean)
+    .filter((s) => s && !/休息|洗衣|咖啡|散步|自由|整理|按摩|緩衝|彈性/.test(s))
   const theme = (day.theme || '').replace(/抵達|收尾|休息日|·/g, '').trim()
+  const city = (day.stayCity || '').replace(/市區|景區內|湖畔/g, '').trim()
+  const cityScenic = CITY_SCENIC[city] || []
   const ordered = [
     ...fromSpots,
     ...fromPlan,
-    day.stayCity && day.stayCity !== destinationName ? day.stayCity : '',
+    ...cityScenic,
+    city && city !== destinationName ? city : '',
     theme,
   ].filter(Boolean) as string[]
   return [...new Set(ordered)]
@@ -189,6 +231,16 @@ export async function resolveDayPhotos(
         picked = url
         used.add(url)
         break
+      }
+    }
+    // Last resort: allow a city photo even if seen before, rather than a blank/broken slot.
+    if (!picked) {
+      for (const candidate of candidates) {
+        const url = await resolvePlacePhoto(candidate)
+        if (url) {
+          picked = url
+          break
+        }
       }
     }
     results.push(picked)

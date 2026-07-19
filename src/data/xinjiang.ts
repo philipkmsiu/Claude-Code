@@ -7,7 +7,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Ürümqi',
     area: '烏魯木齊',
     stayHours: 4,
-    summary: '博物館、紅山、大巴扎；作進出與緩衝基地。',
+    summary:
+      '烏魯木齊是進出新疆的門戶：新疆博物館把絲路與多民族文化一次講清，紅山公園可俯瞰市區，國際大巴扎則是香料、烤包子與晚燈最熱鬧的地方。',
     tags: ['must', 'culture', 'food'],
     ticket: '博物館免費／預約',
     bestFor: ['couple', 'friends', 'family', 'solo'],
@@ -18,7 +19,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Tianchi',
     area: '烏魯木齊',
     stayHours: 5,
-    summary: '半日高山湖泊，單程約 1.5 小時。',
+    summary:
+      '天山天池是高山冷湖，傳說與西王母故事常被导游掛在嘴邊；半日來回剛好，湖面倒映雪峰時特別好拍。',
     tags: ['must', 'nature', 'photo'],
     ticket: '門票＋區間車另計',
     bestFor: ['couple', 'friends', 'family'],
@@ -29,7 +31,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Altay',
     area: '阿勒泰',
     stayHours: 2,
-    summary: '飛抵北疆門戶， overnight 過渡。',
+    summary:
+      '阿勒泰是北疆秋色之旅的門戶城市：先落地睡一晚，隔天再上阿禾公路，比硬開車十幾小時舒服得多。',
     tags: ['popular'],
     ticket: '視航班',
     bestFor: ['couple', 'friends'],
@@ -40,7 +43,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Ahe Highway',
     area: '阿勒泰→禾木',
     stayHours: 5,
-    summary: '約 4–5 小時風景公路，沿途停車。',
+    summary:
+      '阿禾公路本身就是景點：白樺、草原與河谷一路輪播，建議把車程拆成「邊開邊停」而不是趕路。',
     tags: ['nature', 'photo', 'must'],
     ticket: '過路／停車另計',
     bestFor: ['couple', 'friends'],
@@ -51,7 +55,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Hemu',
     area: '禾木',
     stayHours: 6,
-    summary: '秋色慢遊核心；建議連住並升級住宿。',
+    summary:
+      '禾木像童話村：木屋煙囪、橋梁倒影與晨霧是北疆最容易記住的畫面，連住兩晚才來得及慢慢走。',
     tags: ['must', 'photo', 'nature'],
     ticket: '景區票另計',
     bestFor: ['couple', 'friends'],
@@ -62,7 +67,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Kanas',
     area: '喀納斯',
     stayHours: 6,
-    summary: '神仙灣、月亮灣、臥龍灣慢遊。',
+    summary:
+      '喀納斯三灣以神仙灣、月亮灣、臥龍灣聞名，湖灣曲線像被神筆勾過；慢走比趕打卡更值得。',
     tags: ['must', 'photo', 'nature'],
     ticket: '門票＋區間車',
     bestFor: ['couple', 'friends', 'family'],
@@ -73,7 +79,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Five-Colored Beach',
     area: '布爾津',
     stayHours: 2,
-    summary: '喀納斯東返途中打卡。',
+    summary:
+      '五彩灘的岩層像打翻的調色盤，黃、紅、灰在夕陽下特別誇張，適合東返布爾津時停一小時。',
     tags: ['photo', 'nature'],
     ticket: '門票另計',
     bestFor: ['couple', 'friends'],
@@ -84,7 +91,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Ghost City',
     area: '克拉瑪依',
     stayHours: 3,
-    summary: '雅丹地貌；接往賽里木湖前的中繼。',
+    summary:
+      '世界魔鬼城是風蝕雅丹：岩石像城堡與怪獸，風大時真的有點「鬼氣」，拍照很過癮但要防沙。',
     tags: ['photo', 'nature', 'popular'],
     ticket: '門票另計',
     bestFor: ['couple', 'friends'],
@@ -95,7 +103,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Sayram Lake',
     area: '賽里木湖',
     stayHours: 6,
-    summary: '環湖慢遊；湖畔高端住宿優先。',
+    summary:
+      '賽里木湖被稱作「大西洋的眼淚」，湖藍得不真實；環湖慢遊一天剛剛好，湖畔住宿比趕路更值。',
     tags: ['must', 'photo', 'nature'],
     ticket: '門票＋區間車',
     bestFor: ['couple', 'friends'],
@@ -106,7 +115,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Yining',
     area: '伊寧',
     stayHours: 4,
-    summary: '市內休息、洗衣、咖啡與慢遊。',
+    summary:
+      '伊寧六星街與喀贊其保留着多民族街巷味道：休息日喝杯咖啡、逛老房子，比再塞一個景點更療癒。',
     tags: ['food', 'culture', 'photo'],
     ticket: '免費',
     bestFor: ['couple', 'friends'],
@@ -117,7 +127,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Kashgar Old Town',
     area: '喀什',
     stayHours: 5,
-    summary: '開城儀式、百年茶館、清真寺周邊。',
+    summary:
+      '喀什古城像活着的絲路博物館：開城儀式、百年茶館與清真寺巷弄，讓人覺得時間走得特別慢。',
     tags: ['must', 'culture', 'photo'],
     ticket: '古城步行免費／部分體驗另計',
     bestFor: ['couple', 'friends', 'family', 'solo'],
@@ -128,7 +139,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Pamir lakes',
     area: '喀什→塔縣',
     stayHours: 6,
-    summary: '帕米爾公路精華，分段停留。',
+    summary:
+      '白沙湖到喀拉庫里、慕士塔格，是帕米爾公路最經典的一段：雪山、湖面與盤山路會輪流搶鏡頭。',
     tags: ['must', 'photo', 'nature'],
     ticket: '景區票另計',
     bestFor: ['couple', 'friends'],
@@ -139,7 +151,8 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Tashkurgan',
     area: '塔縣',
     stayHours: 5,
-    summary: '班迪爾藍湖；盤龍古道只走精華觀景位。',
+    summary:
+      '塔縣石頭城與金草灘帶着高原邊城氣息；盤龍古道不必走完全程，精華觀景位已夠震撼。',
     tags: ['must', 'photo', 'culture'],
     ticket: '門票另計',
     bestFor: ['couple', 'friends'],
@@ -150,12 +163,75 @@ const spots: ScenicSpot[] = [
     nameLocal: 'Kuqa Canyon',
     area: '庫車',
     stayHours: 4,
-    summary: '早上峽谷，午後老城／王府。',
+    summary:
+      '庫車天山神秘大峽谷的紅岩壁像被火燒過，午前光線最好；午後轉王府與老城，節奏剛剛好。',
     tags: ['must', 'photo', 'nature'],
     ticket: '門票另計',
     bestFor: ['couple', 'friends', 'family'],
   },
 ]
+
+/** Per-day 1–2 sentence lore for poster + itinerary detail. */
+const DAY_STORIES: Record<string, string> = {
+  抵達烏魯木齊:
+    '剛落地別急着衝景點：烏魯木齊海拔與時差會讓人昏沉，先吃頓抓飯、早點睡，旅途才開得了好頭。',
+  烏魯木齊慢遊:
+    '新疆博物館把絲路故事說得很清楚，紅山與大巴扎則讓你第一次感覺「哇，真的來到西域了」。',
+  天山天池半日:
+    '天池的湖水冷得發藍，倒映天山雪峰；半日來回剛好，下午還能回城補覺或逛街。',
+  飛阿勒泰:
+    '飛阿勒泰是為了把十幾個小時的車程換成一小時風景：北疆秋色之旅，從這裡才真正開始。',
+  '阿禾公路→禾木':
+    '阿禾公路兩邊的白樺與草原會一路搶鏡頭；把開車當成風景日，比當成趕路日開心得多。',
+  禾木慢遊:
+    '禾木的木屋、小橋與炊煙像明信片走進現實；慢走河岸，比追日出人潮更記得住。',
+  禾木自由日:
+    '特意留一天什麼都不趕：午睡、喝奶茶、再走一次昨晚喜歡的小路，這才叫慢遊。',
+  轉住喀納斯:
+    '從禾木轉喀納斯車程不長，卻像換了一個色盤：湖灣與森林會慢慢把節奏拉得更靜。',
+  喀納斯三灣:
+    '神仙灣、月亮灣、臥龍灣各有弧度，像被神筆勾過的湖岸；慢慢走完，比拍一百張打卡照更值。',
+  喀納斯備用日:
+    '北疆天氣說變就變，備用日不是浪費，而是讓你有機會再看一次被雲霧洗過的湖面。',
+  '五彩灘→布爾津':
+    '五彩灘的岩層顏色誇張得像調色盤翻車；夕陽時分停一下，東返布爾津的路上會一直回味。',
+  '魔鬼城→克拉瑪依':
+    '世界魔鬼城的雅丹被風刻成怪獸與城堡，風大時帽子都要飛——荒涼得很有戲劇感。',
+  前往賽里木湖:
+    '這一天車程稍長，但終點是「大西洋的眼淚」：抵達後先休息，把力氣留給明天的環湖。',
+  賽里木湖環湖:
+    '賽里木湖的藍會讓人懷疑濾鏡壞了；環湖慢遊、在果子溝大橋看看深谷，是北疆最舒服的一天。',
+  '賽里木→伊寧':
+    '離開大湖進伊寧，像從風景大片切回生活場景：六星街的咖啡香會提醒你——也該休息了。',
+  伊寧休息日:
+    '伊寧最適合當「充電站」：洗衣、散步喀贊其老街、吃一頓烤肉，讓身體準備南疆的下半場。',
+  返回烏魯木齊:
+    '北疆段落落幕，飛或坐舒適動車回烏市；這天不排景點，是為了讓轉機與睡眠都留有餘地。',
+  烏市完整休息:
+    '完整休息日聽起來「什麼都沒做」，其實最重要：整理行李、按摩、補眠，南疆才玩得動。',
+  烏市彈性日:
+    '留給天氣與航班的彈性日：可以再逛一次大巴扎，或乾脆睡到自然醒——慢遊就是有這種特權。',
+  飛喀什:
+    '飛喀什像瞬間切換世界：北疆是森林湖色，南疆則是土色巷弄、香料味與更濃的絲路氣息。',
+  喀什古城:
+    '喀什古城的開城儀式與百年茶館，讓人覺得自己走進絲路電影；中午避開烈日，早晚最好逛。',
+  喀什自由日:
+    '再給古城一天：旅拍、喝壺茶、在巴扎迷路都值得；南疆的魅力，常常藏在「看起來沒安排」裡。',
+  '帕米爾→塔縣':
+    '白沙湖、喀拉庫里到慕士塔格，是帕米爾公路的經典連招：雪山、湖面與高原風會輪流登場。',
+  塔縣周邊:
+    '石頭城與金草灘帶着邊城史詩感；盤龍古道不必走完，站在精華觀景位就已足夠嗆心。',
+  '塔縣→喀什':
+    '原路折返喀什，風景看第二遍會更熟：這次可以少拍照、多發呆，讓高原記憶沉澱下來。',
+  喀什休息日:
+    '高原下來後身體會抗議：洗衣、按摩、吃頓好的，比硬塞景點更負責任。',
+  飛庫車:
+    '飛庫車是為了跳過沙漠長途：紅層峽谷在前面等你，機艙裡先補一杯咖啡吧。',
+  庫車峽谷與老城:
+    '天山神秘大峽谷的紅岩像被火燒過的牆；午前走峽谷，午後逛王府老城，冷熱對比很過癮。',
+  返程:
+    '返程日請把時間留給機場與延誤：新疆的故事講完了，但行李轉盤前的耐心，也算最後一課。',
+}
 
 function day(
   theme: string,
@@ -167,18 +243,23 @@ function day(
   tip: string,
   budget: string,
 ): DayPlan {
+  const dayStory = DAY_STORIES[theme]
+  const spotSummary = spots.find((s) => s.id === spotIds[0])?.summary
   return {
     theme,
     stayArea,
     stayCity: stayArea.replace(/市區|景區內|湖畔| overnight.*/, '').trim() || stayArea,
     mainPlan,
+    dayStory: dayStory || spotSummary,
     paceNote,
     hotelDirection,
     schedule: [
       {
         time: '全日',
         title: mainPlan,
-        detail: `${paceNote}｜住宿方向：${hotelDirection}`,
+        detail: [dayStory || spotSummary, paceNote, `住宿方向：${hotelDirection}`]
+          .filter(Boolean)
+          .join('｜'),
         spotId: spotIds[0],
       },
     ],
@@ -231,10 +312,10 @@ export const xinjiangDestination: Destination = {
   background:
     '新疆古稱西域，是絲綢之路進入中亞的門戶：北疆以阿爾泰山、喀納斯與伊犁河谷的森林草原聞名；南疆則有喀什古城、帕米爾高原與維吾爾人文。遼闊的距離本身就是體驗的一部分——所以慢遊、控車程、用飛機銜接長段，才比較舒服。',
   memorable: [
-    '喀納斯／禾木的秋色、木屋與晨霧',
-    '賽里木湖被稱為「大西洋的眼淚」',
-    '喀什老城巷弄、巴扎香料與歌舞',
-    '帕米爾高原的雪山、盤山路與界碑感',
+    '喀納斯與禾木的秋色像被加了濾鏡：木屋炊煙、晨霧和湖灣曲線，是很多人回家後第一個講給朋友聽的畫面。',
+    '賽里木湖被稱作「大西洋的眼淚」，湖水藍得幾乎不像真的；環湖慢走一天，比趕着打卡十個點更值得。',
+    '喀什古城仍有絲路市井味：開城儀式、百年茶館、巴扎香料與巷弄燈光，讓夜晚散步變得很有電影感。',
+    '帕米爾公路上的雪山、盤山路與界碑，會讓人突然意識到「原來已經站在那麼高的地方」——震撼又安靜。',
   ],
   bestSeason: '最適合 9–10 月；最不建議 7–8 月盛夏長戶外',
   seasonGuide: {

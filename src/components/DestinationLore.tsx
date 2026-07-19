@@ -17,7 +17,9 @@ export function DestinationLore({ destination, compact = false }: Props) {
         {preview.length > 0 ? (
           <ul className="dest-memorable-chips">
             {preview.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item} title={item}>
+                {item.replace(/。.*$/, '。')}
+              </li>
             ))}
           </ul>
         ) : null}

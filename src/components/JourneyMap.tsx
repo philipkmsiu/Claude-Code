@@ -75,10 +75,10 @@ export function JourneyMap({
     )
       .then((rows) => {
         if (cancelled) return
-        // Unique live photos only — never cycle handbook gallery (that reused the same wall shot).
+        // Prefer unique URLs from the resolver; keep soft reuse rather than blank slots.
         const used = new Set<string>()
         const merged = rows.map((url) => {
-          if (!url || used.has(url)) return null
+          if (!url) return null
           used.add(url)
           return url
         })
@@ -466,6 +466,25 @@ function buildSerpentinePath(
 }
 
 function dayBullets(day: DayPlan): string[] {
+  // Prefer 1–2 sentence lore over choppy keyword fragments.
+  if (day.dayStory?.trim()) {
+    const sentences = day.dayStory
+      .split(/(?<=[。！？!?])/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (sentences.length) return sentences.slice(0, 2)
+    return [day.dayStory.trim()]
+  }
+  const richDetail = day.schedule
+    .map((s) => s.detail)
+    .find((d) => d && d.length > 18 && !/住宿方向/.test(d))
+  if (richDetail) {
+    return richDetail
+      .split(/[｜|]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 10)
+      .slice(0, 2)
+  }
   if (day.mainPlan) {
     const parts = day.mainPlan
       .split(/[、，,；;]/)
@@ -596,20 +615,23 @@ function DayScene({
   photo?: string
 }) {
   const kind = sceneKind(day)
+  const [failed, setFailed] = useState(false)
+  const showPhoto = Boolean(photo) && !failed
   return (
     <div className={`day-scene scene-${kind}`}>
-      {photo ? (
+      {showPhoto ? (
         <img
           className="day-scene-img"
           src={photo}
           alt={day.stayCity || day.theme}
           loading="lazy"
           referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
         />
       ) : (
         <SceneArt kind={kind} index={index} />
       )}
-      {photo ? <span className="scene-caption">{sceneLabel(kind)}</span> : null}
+      {showPhoto ? <span className="scene-caption">{sceneLabel(kind)}</span> : null}
     </div>
   )
 }

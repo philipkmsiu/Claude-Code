@@ -2498,7 +2498,12 @@ function App() {
                         <td>第 {index + 1} 日</td>
                         <td>{day.dateLabel}</td>
                         <td>{day.stayCity || day.stayArea}</td>
-                        <td>{day.mainPlan || day.theme}</td>
+                        <td>
+                          <div>{day.mainPlan || day.theme}</div>
+                          {day.dayStory ? (
+                            <small className="day-story-inline">{day.dayStory}</small>
+                          ) : null}
+                        </td>
                         <td>{day.paceNote || day.tip}</td>
                         <td>{day.hotelDirection || day.stayArea}</td>
                         <td>{formatWeatherLine(day.weather)}</td>
@@ -2540,6 +2545,12 @@ function App() {
                       <strong>主要安排：</strong>
                       {day.mainPlan || day.theme}
                     </p>
+                    {day.dayStory ? (
+                      <p className="day-meta-line day-story-line">
+                        <strong>有趣／背景：</strong>
+                        {day.dayStory}
+                      </p>
+                    ) : null}
                     <p className="day-meta-line">
                       <strong>節奏／車程：</strong>
                       {day.paceNote || day.tip}

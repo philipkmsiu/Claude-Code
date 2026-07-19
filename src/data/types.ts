@@ -91,6 +91,11 @@ export interface DayPlan {
   stayCity?: string
   /** One-line main arrangement (表：主要安排). */
   mainPlan?: string
+  /**
+   * 1–2 sentence funny / historical / memorable note for this day
+   * (poster captions + itinerary detail).
+   */
+  dayStory?: string
   /** Pace / drive note (表：節奏／車程). */
   paceNote?: string
   /** Hotel direction (表：住宿方向). */
