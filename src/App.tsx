@@ -18,6 +18,7 @@ import {
   deriveFitStatus,
   destinationNeedsAiSpots,
   destinations as presetDestinations,
+  ensureSpotsForDays,
   findKnownDestination,
   fitStatusTitle,
   applyHotelStayPlan,
@@ -476,6 +477,12 @@ function App() {
     [rawItinerary, hotelStayPlan],
   )
 
+  const hollowDayCount = useMemo(
+    () => itinerary.filter((day) => !day.spotIds.length).length,
+    [itinerary],
+  )
+  const daysTrimmed = itinerary.length > 0 && itinerary.length < planDays
+
   function setTripDays(next: number) {
     const clamped = clampDays(next)
     setDays(clamped)
@@ -676,7 +683,17 @@ function App() {
         return update ? { ...dest, spots: update.spots } : dest
       })
       const flat = nextSpots.flatMap((d) => d.spots)
-      setSelectedSpotIds(defaultSelectedSpotIds(flat, nextSpots[0]))
+      const initial = defaultSelectedSpotIds(flat, nextSpots[0])
+      setSelectedSpotIds(
+        ensureSpotsForDays({
+          selectedSpotIds: initial,
+          allSpots: flat,
+          days: planDays,
+          pace,
+          companion,
+          specialNeeds,
+        }),
+      )
     } catch (error) {
       setAiSpotsError(error instanceof Error ? error.message : 'AI 景點建議失敗')
     } finally {
@@ -688,7 +705,17 @@ function App() {
   function initSpotsAndContinue() {
     const dests = selectedDestinations
     const spots = dests.flatMap((d) => d.spots)
-    setSelectedSpotIds(defaultSelectedSpotIds(spots, dests[0]))
+    const initial = defaultSelectedSpotIds(spots, dests[0])
+    setSelectedSpotIds(
+      ensureSpotsForDays({
+        selectedSpotIds: initial,
+        allSpots: spots,
+        days: planDays,
+        pace,
+        companion,
+        specialNeeds,
+      }),
+    )
     setStep('spots')
     void loadAiSpotsForDestinations(false)
   }
@@ -708,6 +735,18 @@ function App() {
   }
 
   function regenerate() {
+    const pool = selectedDestinations.flatMap((d) => d.spots)
+    const toppedUp = ensureSpotsForDays({
+      selectedSpotIds,
+      allSpots: pool,
+      days: planDays,
+      pace,
+      companion,
+      specialNeeds,
+    })
+    if (toppedUp.length !== selectedSpotIds.length) {
+      setSelectedSpotIds(toppedUp)
+    }
     setPlanVersion((v) => v + 1)
     setStep('result')
   }
@@ -1686,16 +1725,44 @@ function App() {
           <section className="result enter">
             <div className="result-hero">
               <p className="eyebrow">
-                {selectedDestinations.map((d) => d.nameLocal).join(' + ')} · {planDays}{' '}
-                天 {Math.min(hotelNights, planDays)} 夜 · {travelers} 人 · {paceLabel} ·{' '}
+                {selectedDestinations.map((d) => d.nameLocal).join(' + ')} ·{' '}
+                {itinerary.length || planDays} 天實際行程 · {travelers} 人 · {paceLabel} ·{' '}
                 {companionLabel}
               </p>
               <h2>{selectedDestinations.map((d) => d.nameZh).join('、')}</h2>
               <p className="result-tagline">
-                {startDate} → {endDate} · 已排入 {selectedSpotIds.length} 個景點 ·{' '}
+                {startDate} → {endDate} · 已排入{' '}
+                {itinerary.reduce((n, d) => n + d.spotIds.length, 0)} 個真實景點 ·{' '}
                 {styleLabel} · 約 {hotelAdvice.rooms} 間房
               </p>
             </div>
+
+            {(daysTrimmed || hollowDayCount > 0) && (
+              <aside className="ai-panel ready">
+                <strong>
+                  {daysTrimmed
+                    ? `已依真實景點排成 ${itinerary.length} 天（你選了 ${planDays} 天）`
+                    : `行程含 ${hollowDayCount} 個休息日`}
+                </strong>
+                <p>
+                  {daysTrimmed
+                    ? '多出來的天數會變成沒有目的地的空白日，所以系統已自動收斂天數，並優先填入真實景點。'
+                    : '休息日用於恢復體力；若你希望每天都有景點，請回景點步驟多勾選，或縮短天數。'}
+                </p>
+                {daysTrimmed ? (
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => {
+                      setTripDays(itinerary.length)
+                      setPlanVersion((v) => v + 1)
+                    }}
+                  >
+                    同步天數為 {itinerary.length} 天
+                  </button>
+                ) : null}
+              </aside>
+            )}
 
             <div className="result-grid">
               <article className="info-block">
@@ -1873,7 +1940,7 @@ function App() {
                 <p>
                   {primary.curatedPlans?.[planDays]
                     ? `這是 ${primary.nameZh} 的 ${planDays} 日完整舒服版行程；取消勾選景點後可精簡對應日。`
-                    : `依你勾選的景點與 ${planDays} 天重排。若要改天數或景點，回上一步後再重新產生。`}
+                    : `目前實際排出 ${itinerary.length} 天，其中 ${itinerary.length - hollowDayCount} 天有真實景點。空白日最多保留 ${pace === 'relaxed' ? 2 : 1} 天休息，不會再用「近郊加點」這類空名稱湊天數。`}
                 </p>
               </div>
               <div className="day-list">

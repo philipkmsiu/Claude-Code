@@ -111,8 +111,9 @@ async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
 規則：
 - 天數必須是 2 到 21 的整數
 - minDays <= comfortableDays <= suggestedLongestDays
-- 新疆南北疆、青甘大環線、長公路環線屬於長線，comfortableDays 通常 >= 14
-- 「慢遊／舒適」要明顯加天
+- 單一城市（如西安、大阪、台北）comfortableDays 通常 3–7，suggestedLongestDays 很少超過 10；禁止無故給 12–14 天
+- 只有新疆南北疆、青甘大環線、長公路環線才把 comfortableDays 拉到 >= 12
+- 「慢遊／舒適」可小幅加天，但不能把城市遊加成兩週空轉
 - reason / warnings 用繁體中文，簡短可執行
 - 不要輸出 Markdown`,
       },
@@ -340,6 +341,11 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       return
     }
 
+    const plannedDays = Number(payload.days)
+    const targetCount = Number.isFinite(plannedDays)
+      ? Math.min(28, Math.max(16, Math.ceil(plannedDays * 2.2)))
+      : 18
+
     const content = await chatCompletion([
       {
         role: 'system',
@@ -361,13 +367,13 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
   ]
 }
 硬性規則：
-- 必須給 14–20 個景點
-- name 必須是真實景點／街區／體驗名稱（例如「立山黑部阿爾卑斯路線」「富山市玻璃美術館」）
-- 禁止空泛類別名，例如「經典地標」「老城／歷史區」「觀景／打卡點」「在地美食區」「近郊日遊」
+- 必須給 ${targetCount}–${targetCount + 4} 個景點（長天數行程需要足夠真實景點，禁止灌水空白日）
+- name 必須是真實景點／街區／體驗名稱（例如「兵馬俑」「大雁塔」「回民街」）
+- 禁止空泛類別名，例如「經典地標」「老城／歷史區」「觀景／打卡點」「在地美食區」「近郊日遊」「再訪最愛街區」
 - 禁止把目的地名稱直接串成「XX經典地標」這種模板
 - tags 至少要有意義；必去用 must，打卡用 photo
 - stayHours 用 1–9 的數字（全日近郊可 7–9）
-- area 用實際區域／基地（如「立山」「富山市區」「高岡」「冰見」）
+- area 用實際區域／基地（如「西安城牆內」「臨潼」「曲江」）
 - intro / summary / ticket 用繁體中文，簡潔可執行
 - 覆蓋：必去、自然、文化、美食、打卡、近郊；依目的地真實特色調整
 - 不要 Markdown`,
@@ -380,8 +386,9 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           companions: payload.companions ?? 'friends',
           partySize: Number(payload.partySize) || 2,
           specialNeeds: payload.specialNeeds ?? [],
-          plannedDays: payload.days ?? null,
-          ask: '請列出這個旅程真正該去的真實景點，不要給類別模板；可依人數微調親子／小團友善程度。',
+          plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
+          targetSpotCount: targetCount,
+          ask: '請列出足夠填滿行程天數的真實景點，不要類別模板，也不要用彈性日湊數。',
         }),
       },
     ], 0.4)

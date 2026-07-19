@@ -1730,6 +1730,75 @@ function applySpotFilterToCurated(
   })
 }
 
+/** How many spots are typically needed so most days have real destinations. */
+export function spotsNeededForDays(days: number, pace: TripPace): number {
+  const spotsPerDay = tripPaces.find((p) => p.id === pace)?.spotsPerDay ?? 3
+  const contentDays = Math.max(1, clampDays(days) - 1) // allow 1 rest day
+  return Math.max(spotsPerDay, contentDays * Math.max(2, spotsPerDay - 1))
+}
+
+/** Top up selected spots from the destination pool so long trips aren't empty. */
+export function ensureSpotsForDays(options: {
+  selectedSpotIds: string[]
+  allSpots: ScenicSpot[]
+  days: number
+  pace: TripPace
+  companion: Companion
+  specialNeeds: string[]
+}): string[] {
+  const needed = spotsNeededForDays(options.days, options.pace)
+  if (options.selectedSpotIds.length >= needed) return options.selectedSpotIds
+  const selected = new Set(options.selectedSpotIds)
+  const extras = sortSpotsForTraveler(
+    options.allSpots.filter((spot) => !selected.has(spot.id)),
+    options.companion,
+    options.specialNeeds,
+  )
+  const next = [...options.selectedSpotIds]
+  for (const spot of extras) {
+    if (next.length >= needed) break
+    next.push(spot.id)
+  }
+  return next
+}
+
+function placeSpotInBuckets(
+  dayBuckets: ScenicSpot[][],
+  spot: ScenicSpot,
+  spotsPerDay: number,
+  preferEmpty: boolean,
+) {
+  if (preferEmpty) {
+    const empty = dayBuckets.findIndex((b) => b.length === 0)
+    if (empty >= 0) {
+      dayBuckets[empty].push(spot)
+      return
+    }
+  }
+  let best = -1
+  let bestScore = Number.POSITIVE_INFINITY
+  dayBuckets.forEach((bucket, index) => {
+    const usedHours = bucket.reduce((sum, s) => sum + s.stayHours, 0)
+    const countLimit = bucket.some((s) => s.stayHours >= 6) ? 1 : spotsPerDay
+    if (bucket.length >= countLimit) return
+    if (usedHours + spot.stayHours > spotsPerDay * 2.8) return
+    const score = bucket.length * 10 + usedHours
+    if (score < bestScore) {
+      bestScore = score
+      best = index
+    }
+  })
+  if (best >= 0) dayBuckets[best].push(spot)
+  else {
+    const lightest = dayBuckets.reduce(
+      (bestIdx, bucket, i) =>
+        bucket.length < dayBuckets[bestIdx].length ? i : bestIdx,
+      0,
+    )
+    dayBuckets[lightest].push(spot)
+  }
+}
+
 export function buildItinerary(options: {
   destinations: Destination[]
   selectedSpotIds: string[]
@@ -1739,13 +1808,13 @@ export function buildItinerary(options: {
   specialNeeds: string[]
   hotelAreaHint: string
 }): DayPlan[] {
-  const days = clampDays(options.days)
+  const requestedDays = clampDays(options.days)
   const { destinations: dests, selectedSpotIds, pace, companion, specialNeeds, hotelAreaHint } =
     options
 
   // Prefer a handcrafted plan (e.g. 青甘大環線 14 日) when available.
   if (dests.length === 1) {
-    const curated = dests[0].curatedPlans?.[days]
+    const curated = dests[0].curatedPlans?.[requestedDays]
     if (curated?.length) {
       return applySpotFilterToCurated(curated, selectedSpotIds)
     }
@@ -1756,15 +1825,23 @@ export function buildItinerary(options: {
   const startHour = lateStart || specialNeeds.some((n) => n.includes('少走路')) ? 10 : 9
 
   const allSpots = dests.flatMap((d) => d.spots)
+  const selectedIds = ensureSpotsForDays({
+    selectedSpotIds,
+    allSpots,
+    days: requestedDays,
+    pace,
+    companion,
+    specialNeeds,
+  })
   const selected = sortSpotsForTraveler(
-    allSpots.filter((s) => selectedSpotIds.includes(s.id)),
+    allSpots.filter((s) => selectedIds.includes(s.id)),
     companion,
     specialNeeds,
   )
   const flexIdeas = dests.flatMap((d) => d.flexDayIdeas)
 
   if (!selected.length) {
-    return Array.from({ length: days }, (_, i) => ({
+    return Array.from({ length: Math.min(requestedDays, 3) }, (_, i) => ({
       theme: `Day ${i + 1} · 自由活動`,
       stayArea: hotelAreaHint || dests[0]?.nameZh || '市區',
       schedule: [
@@ -1780,6 +1857,16 @@ export function buildItinerary(options: {
     }))
   }
 
+  // Size the trip to content: avoid many blank「彈性日」with no real destinations.
+  const roughContentDays = Math.max(
+    1,
+    Math.ceil(selected.length / Math.max(2, spotsPerDay - 0.5)),
+  )
+  const maxFlexDays = pace === 'relaxed' ? 2 : 1
+  const days = clampDays(
+    Math.min(requestedDays, roughContentDays + maxFlexDays),
+  )
+
   const longSpots = selected.filter((s) => s.stayHours >= 6)
   const shortSpots = selected.filter((s) => s.stayHours < 6)
   const areaGroups = [...groupByArea(shortSpots).entries()].sort(
@@ -1793,11 +1880,7 @@ export function buildItinerary(options: {
   longSpots.forEach((spot, idx) => {
     const dayIndex = Math.min(days - 1, Math.max(1, idx + 1))
     if (dayBuckets[dayIndex].length === 0) dayBuckets[dayIndex].push(spot)
-    else {
-      const empty = dayBuckets.findIndex((b) => b.length === 0)
-      if (empty >= 0) dayBuckets[empty].push(spot)
-      else dayBuckets[dayIndex].push(spot)
-    }
+    else placeSpotInBuckets(dayBuckets, spot, spotsPerDay, true)
   })
 
   let cursor = 0
@@ -1815,28 +1898,43 @@ export function buildItinerary(options: {
         break
       }
     }
-    if (!placed) {
-      // Prefer empty days first (long trips), else lightest day
-      const empty = dayBuckets.findIndex((b) => b.length === 0)
-      const fallback =
-        empty >= 0
-          ? empty
-          : dayBuckets.reduce(
-              (best, bucket, i) => (bucket.length < dayBuckets[best].length ? i : best),
-              0,
-            )
-      dayBuckets[fallback].push(spot)
-    }
+    if (!placed) placeSpotInBuckets(dayBuckets, spot, spotsPerDay, true)
   }
 
-  return dayBuckets.map((bucket, index) => {
+  // Fill any remaining empty days from leftover pool before allowing flex days.
+  const usedIds = new Set(dayBuckets.flat().map((s) => s.id))
+  const filler = sortSpotsForTraveler(
+    allSpots.filter((s) => !usedIds.has(s.id)),
+    companion,
+    specialNeeds,
+  )
+  for (const spot of filler) {
+    const empty = dayBuckets.findIndex((b) => b.length === 0)
+    if (empty < 0) break
+    dayBuckets[empty].push(spot)
+    usedIds.add(spot.id)
+  }
+
+  // Keep at most maxFlexDays empty rest days; drop the rest so the plan isn't hollow.
+  let emptyLeft = maxFlexDays
+  const trimmedBuckets = dayBuckets.filter((bucket) => {
+    if (bucket.length > 0) return true
+    if (emptyLeft > 0) {
+      emptyLeft -= 1
+      return true
+    }
+    return false
+  })
+  if (!trimmedBuckets.length) trimmedBuckets.push(dayBuckets[0] ?? [])
+
+  return trimmedBuckets.map((bucket, index) => {
     const isFirst = index === 0
-    const isLast = index === days - 1
+    const isLast = index === trimmedBuckets.length - 1
     const flexIdea = flexIdeas[index % Math.max(flexIdeas.length, 1)] || '街區慢遊與咖啡'
     const area = bucket[0]?.area || hotelAreaHint || '市區'
     const themeCore =
       bucket.length === 0
-        ? `彈性日・${flexIdea}`
+        ? `休息日・恢復體力`
         : bucket.some((s) => s.stayHours >= 6)
           ? bucket[0].name
           : `${area} 精華`
@@ -1849,19 +1947,19 @@ export function buildItinerary(options: {
         {
           time: timeLabel(hour),
           title: '晚起／自由早餐',
-          detail: '天數較長時保留空白日，避免旅遊疲勞。',
+          detail: '刻意保留的休息日，不是因為沒有景點可排。',
         },
         {
           time: timeLabel(hour + 2),
           title: flexIdea,
-          detail: '可臨時決定；也可把前幾天沒排進去的想去之處補上。',
+          detail: '可慢遊已去過的街區、補眠或處理交通／洗衣，不新增未規劃景點。',
         },
         {
           time: timeLabel(15),
-          title: '咖啡或購物',
+          title: '咖啡或輕活動',
           detail: specialNeeds.includes('想安排購物')
             ? '今天很適合藥妝／伴手禮補貨。'
-            : '放慢，幫後面幾天留體力。',
+            : '放慢，幫前後幾天留體力。',
         },
         {
           time: timeLabel(19),
@@ -1874,7 +1972,7 @@ export function buildItinerary(options: {
         stayArea: hotelAreaHint || area,
         schedule,
         budget: '€/¥/NT$ 視當日消費，通常低於觀光日',
-        tip: '長行程的空白日不是浪費，是讓整體更舒適。',
+        tip: '若你其實想多看景點，請回景點步驟多勾真實景點，或縮短天數。',
         spotIds: [],
       }
     }
