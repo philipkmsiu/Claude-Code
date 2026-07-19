@@ -2,12 +2,13 @@
 
 Interactive **AI** travel planner by **KM Building Company**, powered by **Crazyrouter** (OpenAI-compatible).
 
-> GitHub repo folder may still show an older remote name; the product name is **KM Travel Planner**.
+**GitHub repository name:** rename the remote from `Claude-Code` to **`KM-Travel-Planner`** in GitHub → Settings → General → Repository name (API tokens in this environment cannot rename repos).
 
 ## Branding
 
-- App name: **KM Travel Planner**
+- App / product: **KM Travel Planner**
 - Company: **KM Building Company**
+- Package: `km-travel-planner`
 - Logo (source): `public/branding/CompanyLogo_Only.ai`
 - Web logo: `public/km-logo.png` (also `km-logo.svg` / favicon)
 

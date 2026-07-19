@@ -563,7 +563,7 @@ async function fetchCommonsThumb(
 
   const response = await fetch(api, {
     headers: {
-      'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/Claude-Code)',
+      'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/KM-Travel-Planner)',
       Accept: 'application/json',
     },
   })
@@ -658,7 +658,7 @@ async function handlePlacePhotoFile(req: IncomingMessage, res: ServerResponse) {
 
     const upstream = await fetch(src, {
       headers: {
-        'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/Claude-Code)',
+        'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/KM-Travel-Planner)',
         Accept: 'image/*',
       },
     })
