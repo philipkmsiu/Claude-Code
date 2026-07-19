@@ -687,5 +687,33 @@ export const qingganDestination: Destination = {
         src: '/handbook/qinggan-desert-lake.jpeg',
       },
     ],
+    visualPoster: {
+      themeLine:
+        '14 天舒服版｜包司機＋重點飛機｜嘉峪關・敦煌・翡翠湖・大地之眼・青海湖',
+      mustEat: [
+        { name: '手抓羊肉', daysLabel: 'DAY 2–4、11–12', motif: '🥩' },
+        { name: '牛肉麵', daysLabel: 'DAY 1、西寧', motif: '🍜' },
+        { name: '驢肉黃麵', daysLabel: 'DAY 4–6 敦煌', motif: '🍝' },
+        { name: '烤羊排', daysLabel: 'DAY 8–10 茫崖', motif: '🍖' },
+        { name: '酸奶糰子', daysLabel: '青海湖段', motif: '🥛' },
+        { name: '杏皮茶點心', daysLabel: 'DAY 5–6', motif: '🍑' },
+      ],
+      mustDrink: [
+        { name: '杏皮茶', motif: '🍵' },
+        { name: '酥油茶', motif: '🧈' },
+        { name: '沙棘汁', motif: '🧡' },
+        { name: '熱奶茶', motif: '☕' },
+      ],
+      travelTips: [
+        '首 2–3 日放慢，適應高原',
+        '莫高窟務必提前預約',
+        '敦煌→花土溝優先搭飛機',
+        '艾肯泉／翡翠湖注意無人機規定',
+        '早晚溫差大，薄外套＋防曬',
+        '包車確認取消條款與保險',
+      ],
+      footerNote:
+        '路線示意；實際以天氣、航班與最終確認酒店／包車為準。',
+    },
   },
 }

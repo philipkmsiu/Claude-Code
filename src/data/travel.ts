@@ -18,6 +18,7 @@ export type {
   TransportMode,
   TripHandbook,
   TripPace,
+  VisualPosterContent,
 } from './types'
 
 import type {

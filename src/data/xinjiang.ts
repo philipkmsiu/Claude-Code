@@ -554,5 +554,39 @@ export const xinjiangDestination: Destination = {
       '9–10 月屬北疆秋色旺季，禾木、喀納斯及賽里木湖價格波動大，應由 planner 按最終日期鎖房。',
       '個別新開酒店與季節性公路實際狀態，下訂前須再由商家或酒店確認。',
     ],
+    visualPoster: {
+      themeLine:
+        '29 天 28 夜｜避熱慢遊｜高質酒店｜航空座椅包車｜以北疆秋色、南疆人文與舒適慢遊為核心',
+      mustEat: [
+        { name: '烤羊肉串', daysLabel: 'DAY 1–3、20–22', motif: '🍢' },
+        { name: '饢（囊餅）', daysLabel: '全程補給', motif: '🫓' },
+        { name: '烤包子', daysLabel: 'DAY 2、21', motif: '🥟' },
+        { name: '大盤雞', daysLabel: 'DAY 15–16', motif: '🍗' },
+        { name: '抓飯', daysLabel: 'DAY 20–22', motif: '🍚' },
+        { name: '拉条子', daysLabel: 'DAY 4–12', motif: '🍜' },
+        { name: '酸奶', daysLabel: '高原／景區日', motif: '🥛' },
+        { name: '冷水魚', daysLabel: 'DAY 8–10', motif: '🐟' },
+        { name: '手抓肉', daysLabel: 'DAY 23–24', motif: '🥩' },
+      ],
+      mustDrink: [
+        { name: '新疆奶茶', motif: '🍵' },
+        { name: '格瓦斯', motif: '🥤' },
+        { name: '石榴汁', motif: '🧃' },
+        { name: '沙棘汁', motif: '🧡' },
+        { name: '酸奶／酸馬奶', motif: '🥛' },
+      ],
+      travelTips: [
+        '早晚溫差大，薄外套要隨身',
+        '日照與紫外線強，防曬帽子不可少',
+        '長車程帶行動電源',
+        '尊重當地民族習俗與禮儀',
+        '景區偏涼，加一件保暖衣',
+        '證件隨身，方便安檢查驗',
+        '多喝水，避免劇烈運動防高原反應',
+        '行程留彈性，遇天氣可調整',
+      ],
+      footerNote:
+        '路線示意，實際行程可能因天氣或交通管制調整；下訂前請與 planner 最終確認。',
+    },
   },
 }

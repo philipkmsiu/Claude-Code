@@ -2241,6 +2241,13 @@ function App() {
               nights={nightsFromDays(planDays)}
               transportMode={transportMode}
               itinerary={datedItinerary}
+              visualPoster={tripHandbook?.visualPoster}
+              photoSrcs={
+                tripHandbook?.photos?.map((p) => p.src) ||
+                selectedDestinations.flatMap((d) =>
+                  (d.handbook?.photos || []).map((p) => p.src),
+                )
+              }
             />
 
             <div className="nav-row sticky-actions">

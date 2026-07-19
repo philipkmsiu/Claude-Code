@@ -164,6 +164,18 @@ export interface TripHandbook {
   remarks?: string[]
   /** 目的地／景點參考相片 */
   photos?: DestinationPhoto[]
+  /** Stage-4 illustrated journey poster (food / drink / tips sidebands). */
+  visualPoster?: VisualPosterContent
+}
+
+/** Content for the parchment-style journey summary picture. */
+export interface VisualPosterContent {
+  /** Short theme line under the title */
+  themeLine?: string
+  mustEat: { name: string; daysLabel: string; motif?: string }[]
+  mustDrink: { name: string; motif?: string }[]
+  travelTips: string[]
+  footerNote?: string
 }
 
 /** Best / worst travel months for a destination (1–12). */

@@ -1,4 +1,6 @@
-import type { DayPlan, TransportMode } from '../data/types'
+import { useRef, useState } from 'react'
+import { toPng } from 'html-to-image'
+import type { DayPlan, TransportMode, VisualPosterContent } from '../data/types'
 import { transportModeLabel } from '../data/travel'
 
 type Props = {
@@ -9,9 +11,23 @@ type Props = {
   nights: number
   transportMode: TransportMode
   itinerary: DayPlan[]
+  visualPoster?: VisualPosterContent
+  photoSrcs?: string[]
 }
 
-/** Stage-4 style illustrated journey map (SVG adventure path). */
+const DEFAULT_EAT = [
+  { name: '在地特色早餐', daysLabel: '出發日', motif: '🍳' },
+  { name: '街頭小吃', daysLabel: '市區日', motif: '🥟' },
+  { name: '代表菜晚餐', daysLabel: '重點日', motif: '🍜' },
+]
+
+const DEFAULT_DRINK = [
+  { name: '當地茶飲', motif: '🍵' },
+  { name: '新鮮果汁', motif: '🧃' },
+  { name: '溫熱湯品', motif: '🥣' },
+]
+
+/** Stage-4 parchment journey poster (sample-planner style) + PNG download. */
 export function JourneyMap({
   destinationName,
   startLabel,
@@ -20,257 +36,236 @@ export function JourneyMap({
   nights,
   transportMode,
   itinerary,
+  visualPoster,
+  photoSrcs = [],
 }: Props) {
-  const stops = itinerary.slice(0, 14)
-  const count = Math.max(stops.length, 1)
-  const width = 960
-  const height = 520
-  const padX = 70
-  const padY = 90
-  const usableW = width - padX * 2
-  const usableH = height - padY * 2 - 40
+  const posterRef = useRef<HTMLDivElement>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
 
-  const points = stops.map((_, i) => {
-    const t = count === 1 ? 0.5 : i / (count - 1)
-    const x = padX + usableW * t
-    const wave = Math.sin(t * Math.PI * 2.2) * (usableH * 0.28)
-    const y = padY + usableH * 0.5 + wave
-    return { x, y }
-  })
+  const mustEat = visualPoster?.mustEat?.length ? visualPoster.mustEat : DEFAULT_EAT
+  const mustDrink = visualPoster?.mustDrink?.length
+    ? visualPoster.mustDrink
+    : DEFAULT_DRINK
+  const travelTips =
+    visualPoster?.travelTips?.length
+      ? visualPoster.travelTips
+      : defaultTips(transportMode)
+  const themeLine =
+    visualPoster?.themeLine ||
+    `${days} 天 ${nights} 夜｜${transportModeLabel(transportMode)}｜舒適慢遊視覺摘要`
+  const footerNote =
+    visualPoster?.footerNote ||
+    '路線示意，實際以天氣、交通與最終確認行程為準。'
 
-  const pathD =
-    points.length === 1
-      ? `M ${points[0].x} ${points[0].y}`
-      : points
-          .map((p, i) => {
-            if (i === 0) return `M ${p.x} ${p.y}`
-            const prev = points[i - 1]
-            const cx1 = prev.x + (p.x - prev.x) * 0.4
-            const cy1 = prev.y
-            const cx2 = prev.x + (p.x - prev.x) * 0.6
-            const cy2 = p.y
-            return `C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p.x} ${p.y}`
-          })
-          .join(' ')
-
-  const foods = itinerary
-    .flatMap((d) => d.schedule)
-    .filter((s) => /餐|美食|咖啡/.test(s.title) || /餐|美食/.test(s.detail))
-    .map((s) => s.title)
-    .filter((name, i, arr) => arr.indexOf(name) === i)
-    .slice(0, 6)
-
-  const tips =
-    transportMode === 'private_driver'
-      ? ['準時與司機會合', '行李放後車廂最省事', '長距離日可請司機安排休息站']
-      : transportMode === 'self_drive'
-        ? ['出發前查路況與加油', '景點優先找停車場', '山路預留白天通行時間']
-        : ['先買交通卡／一日券', '跨區預留轉乘時間', '即時班次用 Maps／換乘 App']
+  async function downloadPoster() {
+    if (!posterRef.current) return
+    setExporting(true)
+    setExportError('')
+    try {
+      const dataUrl = await toPng(posterRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#f4efe4',
+      })
+      const link = document.createElement('a')
+      const safe = destinationName.replace(/\s+/g, '-') || 'journey'
+      link.download = `${safe}-旅程地圖.png`
+      link.href = dataUrl
+      link.click()
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : '匯出圖片失敗')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <section className="journey-map-section" aria-label="視覺化旅程地圖">
-      <div className="section-head">
-        <h3>階段四 · 視覺化旅遊地圖</h3>
-        <p>
-          插畫風格旅程地圖：沿著蜿蜒道路一天一天前進。交通模式：
-          {transportModeLabel(transportMode)}。
-        </p>
-      </div>
-
-      <div className="journey-map-frame">
-        <svg
-          className="journey-map-svg"
-          viewBox={`0 0 ${width} ${height}`}
-          role="img"
-          aria-label={`${destinationName} ${days} 天旅程地圖`}
+      <div className="section-head journey-map-head">
+        <div>
+          <h3>階段四 · 視覺化旅遊地圖</h3>
+          <p>
+            仿規劃書插畫海報：蜿蜒道路串起每日站點，兩側是必吃／必喝與旅行小貼士。可下載成一張摘要圖。
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={exporting}
+          onClick={() => void downloadPoster()}
         >
-          <defs>
-            <linearGradient id="roadGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#7a9e8e" />
-              <stop offset="50%" stopColor="#c4a574" />
-              <stop offset="100%" stopColor="#8a6b4a" />
-            </linearGradient>
-            <linearGradient id="mapPaper" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#f3efe6" />
-              <stop offset="100%" stopColor="#e4ebe4" />
-            </linearGradient>
-            <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+          {exporting ? '正在產生圖片…' : '下載旅程地圖 PNG'}
+        </button>
+      </div>
+      {exportError ? <p className="input-error">{exportError}</p> : null}
 
-          <rect x="0" y="0" width={width} height={height} fill="url(#mapPaper)" rx="18" />
+      <div className="poster-scroll">
+        <div
+          ref={posterRef}
+          className="journey-poster"
+          data-days={itinerary.length}
+        >
+          <header className="poster-header">
+            <div className="poster-stamp compass" aria-hidden>
+              <span>N</span>
+            </div>
+            <div className="poster-header-main">
+              <p className="poster-kicker">KM Travel Planner · Stage 4</p>
+              <h2>「{destinationName}」舒適慢遊旅程地圖</h2>
+              <p className="poster-subtitle">{themeLine}</p>
+              <p className="poster-dates">
+                {startLabel} — {endLabel}
+              </p>
+            </div>
+            <div className="poster-stamp go" aria-hidden>
+              Let&apos;s go!
+            </div>
+          </header>
 
-          {/* Decorative side motifs */}
-          <circle cx="48" cy="70" r="18" fill="#d8c4a4" opacity="0.55" />
-          <circle cx="900" cy="80" r="22" fill="#b7c9be" opacity="0.5" />
-          <path
-            d="M40 420 q30 -40 60 0 t60 0"
-            fill="none"
-            stroke="#9bb3a6"
-            strokeWidth="2"
-            opacity="0.45"
-          />
-          <path
-            d="M820 430 q25 -35 50 0 t50 0"
-            fill="none"
-            stroke="#c4a574"
-            strokeWidth="2"
-            opacity="0.4"
-          />
+          <div className="poster-body">
+            <aside className="poster-side left">
+              <h4>必吃美食</h4>
+              <ul>
+                {mustEat.map((item) => (
+                  <li key={item.name}>
+                    <span className="motif">{item.motif || '🍽'}</span>
+                    <div>
+                      <strong>{item.name}</strong>
+                      <em>{item.daysLabel}</em>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </aside>
 
-          <text
-            x={width / 2}
-            y="42"
-            textAnchor="middle"
-            className="map-title"
-            fill="#243b34"
-            fontSize="26"
-            fontFamily="Georgia, 'Noto Serif TC', serif"
-            fontWeight="700"
-          >
-            {destinationName} · 旅程地圖
-          </text>
-          <text
-            x={width / 2}
-            y="68"
-            textAnchor="middle"
-            fill="#5c6f67"
-            fontSize="13"
-            fontFamily="system-ui, sans-serif"
-          >
-            {startLabel} → {endLabel} · {days} 天 {nights} 夜 ·{' '}
-            {transportModeLabel(transportMode)}
-          </text>
+            <div className="poster-path-col">
+              <div className="path-rail" aria-hidden />
+              {itinerary.map((day, index) => {
+                const bullets = dayBullets(day)
+                const photo = photoSrcs[index % Math.max(photoSrcs.length, 1)]
+                const side = index % 2 === 0 ? 'leftish' : 'rightish'
+                return (
+                  <article
+                    key={`poster-day-${index}`}
+                    className={`poster-day ${side}`}
+                    style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
+                  >
+                    <div className="day-node">
+                      <span>DAY {index + 1}</span>
+                    </div>
+                    <div className="day-card-poster">
+                      <div className="day-card-text">
+                        <h5>{day.stayCity || day.stayArea || day.theme}</h5>
+                        <p className="day-theme">{day.theme}</p>
+                        <ul>
+                          {bullets.map((b) => (
+                            <li key={b}>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div
+                        className="day-illustration"
+                        style={
+                          photo
+                            ? {
+                                backgroundImage: `linear-gradient(180deg, rgba(244,239,228,0.15), rgba(36,59,52,0.35)), url(${photo})`,
+                              }
+                            : undefined
+                        }
+                      >
+                        <span>{illustrationMotif(day, index)}</span>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+              <div className="poster-finish">
+                <div className="finish-plane" aria-hidden>
+                  ✈
+                </div>
+                <div>
+                  <strong>機場／返程</strong>
+                  <p>謝謝相遇，期待下次！</p>
+                </div>
+              </div>
+            </div>
 
-          {/* Winding road */}
-          <path
-            d={pathD}
-            fill="none"
-            stroke="url(#roadGrad)"
-            strokeWidth="14"
-            strokeLinecap="round"
-            opacity="0.35"
-          />
-          <path
-            d={pathD}
-            fill="none"
-            stroke="url(#roadGrad)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray="10 8"
-            filter="url(#softGlow)"
-          />
+            <aside className="poster-side right">
+              <h4>必喝飲品</h4>
+              <ul>
+                {mustDrink.map((item) => (
+                  <li key={item.name}>
+                    <span className="motif">{item.motif || '🥤'}</span>
+                    <div>
+                      <strong>{item.name}</strong>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <h4 className="tips-title">旅行小貼士</h4>
+              <ol className="poster-tips">
+                {travelTips.map((tip) => (
+                  <li key={tip}>{tip}</li>
+                ))}
+              </ol>
+            </aside>
+          </div>
 
-          {/* Airport markers */}
-          <g>
-            <circle cx={padX - 18} cy={points[0]?.y ?? height / 2} r="10" fill="#4a7a6e" />
-            <text
-              x={padX - 18}
-              y={(points[0]?.y ?? height / 2) + 28}
-              textAnchor="middle"
-              fill="#243b34"
-              fontSize="11"
-            >
-              起飛
-            </text>
-          </g>
-          <g>
-            <circle
-              cx={width - padX + 18}
-              cy={points[points.length - 1]?.y ?? height / 2}
-              r="10"
-              fill="#8a6b4a"
-            />
-            <text
-              x={width - padX + 18}
-              y={(points[points.length - 1]?.y ?? height / 2) + 28}
-              textAnchor="middle"
-              fill="#243b34"
-              fontSize="11"
-            >
-              返程
-            </text>
-          </g>
-
-          {points.map((p, i) => {
-            const day = stops[i]
-            const spotLabel =
-              day.mainPlan?.split('、')[0] ||
-              day.schedule.find((s) => s.spotId)?.title ||
-              day.theme
-            const tone = ['#4a7a6e', '#8a6b4a', '#6b7c8a', '#a67c52', '#5c7a6e'][i % 5]
-            const labelY = i % 2 === 0 ? p.y - 38 : p.y + 46
-            return (
-              <g key={`day-${i}`} className="map-stop">
-                <circle cx={p.x} cy={p.y} r="22" fill="#f7f3ea" stroke={tone} strokeWidth="3" />
-                <circle cx={p.x} cy={p.y} r="14" fill={tone} opacity="0.9" />
-                <text
-                  x={p.x}
-                  y={p.y + 4}
-                  textAnchor="middle"
-                  fill="#f7f3ea"
-                  fontSize="10"
-                  fontWeight="700"
-                >
-                  D{i + 1}
-                </text>
-                <text
-                  x={p.x}
-                  y={labelY}
-                  textAnchor="middle"
-                  fill="#243b34"
-                  fontSize="11"
-                  fontWeight="600"
-                >
-                  DAY {i + 1}
-                </text>
-                <text
-                  x={p.x}
-                  y={labelY + 16}
-                  textAnchor="middle"
-                  fill="#5c6f67"
-                  fontSize="10"
-                >
-                  {truncate(spotLabel, 10)}
-                </text>
-              </g>
-            )
-          })}
-
-          {/* Side info bands */}
-          <g>
-            <text x="36" y="110" fill="#243b34" fontSize="12" fontWeight="700">
-              必吃／補給
-            </text>
-            {(foods.length ? foods : ['在地早餐', '街區小吃', '特色晚餐']).map((food, i) => (
-              <text key={food} x="36" y={130 + i * 18} fill="#5c6f67" fontSize="11">
-                · {truncate(food, 12)}
-              </text>
-            ))}
-          </g>
-          <g>
-            <text x={width - 200} y="110" fill="#243b34" fontSize="12" fontWeight="700">
-              旅行小貼士
-            </text>
-            {tips.map((tip, i) => (
-              <text key={tip} x={width - 200} y={130 + i * 18} fill="#5c6f67" fontSize="11">
-                · {tip}
-              </text>
-            ))}
-          </g>
-        </svg>
+          <footer className="poster-footer">
+            <div className="mascot" aria-hidden>
+              <span className="camel">🐪</span>
+              <p>跟著道路走，每天都有驚喜！</p>
+            </div>
+            <p className="poster-disclaimer">{footerNote}</p>
+          </footer>
+        </div>
       </div>
     </section>
   )
 }
 
-function truncate(text: string, max: number): string {
-  const t = text.trim()
-  if (t.length <= max) return t
-  return `${t.slice(0, max)}…`
+function dayBullets(day: DayPlan): string[] {
+  if (day.mainPlan) {
+    const parts = day.mainPlan
+      .split(/[、，,；;]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (parts.length) return parts.slice(0, 3)
+  }
+  const fromSchedule = day.schedule
+    .filter((s) => s.spotId || !/出發|午餐|晚餐|抵達|回飯店|晚起|前往|包車|自駕|轉乘/.test(s.title))
+    .map((s) => s.title)
+    .slice(0, 3)
+  if (fromSchedule.length) return fromSchedule
+  return [day.theme].filter(Boolean)
+}
+
+function illustrationMotif(day: DayPlan, index: number): string {
+  const text = `${day.theme} ${day.stayCity || ''} ${day.mainPlan || ''}`
+  if (/湖|海|泉/.test(text)) return '🏞'
+  if (/古城|城|關|寺|廟|窟/.test(text)) return '🏛'
+  if (/山|峰|峽谷|高原|公路/.test(text)) return '⛰'
+  if (/機場|飛|返程/.test(text)) return '✈'
+  if (/休息|自由|洗衣/.test(text)) return '☕'
+  const pool = ['🌅', '🏜', '🌾', '🕌', '📸', '🛤']
+  return pool[index % pool.length]
+}
+
+function defaultTips(mode: TransportMode): string[] {
+  const base = [
+    '早晚溫差大，薄外套要隨身',
+    '日照強，防曬帽子不可少',
+    '長車程帶行動電源與零食',
+    '尊重當地文化與民族習俗',
+    '證件隨身，方便安檢查驗',
+    '行程保留彈性，遇天氣可調整',
+  ]
+  if (mode === 'private_driver') {
+    return ['準時與司機會合，行李放後車廂', ...base.slice(0, 5)]
+  }
+  if (mode === 'self_drive') {
+    return ['出發前查路況與加油停車', ...base.slice(0, 5)]
+  }
+  return ['先備交通卡／一日券，跨區預留轉乘', ...base.slice(0, 5)]
 }
