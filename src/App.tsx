@@ -52,6 +52,7 @@ import {
 } from './data/travel'
 import { FreeTextField } from './components/FreeTextField'
 import { JourneyMap } from './components/JourneyMap'
+import { TripHandbookPanel } from './components/TripHandbook'
 import {
   recommendDaysWithAi,
   reviewPlanWithAi,
@@ -165,6 +166,7 @@ function App() {
   const hotelAreaHint = hotels[0]?.area || primary?.nameZh || '市區'
   const budgetSummary = primary?.budgetSummary
   const travelTips = primary?.tips ?? []
+  const tripHandbook = primary?.handbook
 
   const selectedSpotObjects = useMemo(
     () => allSpots.filter((s) => selectedSpotIds.includes(s.id)),
@@ -2033,15 +2035,28 @@ function App() {
                   <p>
                     <strong>{budgetSummary.perPerson}</strong>
                   </p>
+                  {budgetSummary.currencyNote ? (
+                    <p className="muted">{budgetSummary.currencyNote}</p>
+                  ) : null}
                   <div className="budget-list">
                     {budgetSummary.lines.map((line) => (
                       <div key={line.item} className="budget-item">
                         <strong>{line.item}</strong>
                         <span>{line.detail}</span>
-                        <em>{line.amount}</em>
+                        <em>
+                          {line.amount}
+                          {line.perPerson ? `｜人均 ${line.perPerson}` : ''}
+                        </em>
                       </div>
                     ))}
                   </div>
+                  {budgetSummary.optimizeTips?.length ? (
+                    <ul className="tips-list">
+                      {budgetSummary.optimizeTips.map((tip) => (
+                        <li key={tip}>{tip}</li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </article>
               )}
 
@@ -2056,6 +2071,13 @@ function App() {
                 </article>
               )}
             </div>
+
+            {tripHandbook ? (
+              <TripHandbookPanel
+                handbook={tripHandbook}
+                destinationName={primary?.nameZh || ''}
+              />
+            ) : null}
 
             <aside className={`ai-panel ${aiReviewLoading ? 'loading' : aiReview ? 'ready' : ''}`}>
               <strong>

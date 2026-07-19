@@ -5,6 +5,8 @@ export type {
   DayRouteLeg,
   Destination,
   DestinationId,
+  DestinationPhoto,
+  HotelGuideRow,
   HotelOption,
   HotelStayBlock,
   HotelStayPlan,
@@ -14,6 +16,7 @@ export type {
   SeasonGuide,
   SpotTag,
   TransportMode,
+  TripHandbook,
   TripPace,
 } from './types'
 
@@ -33,9 +36,10 @@ import type {
   TripPace,
 } from './types'
 import { qingganDestination } from './qinggan'
+import { xinjiangDestination } from './xinjiang'
 
-/** Hard ceiling for manual day input — long trips are allowed. */
-export const MAX_TRIP_DAYS = 21
+/** Hard ceiling for manual day input — long trips (e.g. 新疆 29 日) are allowed. */
+export const MAX_TRIP_DAYS = 32
 export const MIN_TRIP_DAYS = 2
 
 function slugifyDestination(name: string): string {
@@ -62,6 +66,12 @@ export function parseDestinationNames(raw: string): string[] {
 export function findKnownDestination(name: string): Destination | undefined {
   const key = name.trim().toLowerCase()
   if (!key) return undefined
+  if (/青甘|翡翠湖|艾肯泉|茫崖|敦煌.*環線|環線.*敦煌/.test(name)) {
+    return qingganDestination
+  }
+  if (/新疆|南北疆|喀納斯|禾木|喀什|帕米爾|賽里木/.test(name)) {
+    return xinjiangDestination
+  }
   return destinations.find((d) => {
     const candidates = [d.id, d.nameZh, d.nameLocal, d.tagline]
     return candidates.some((c) => c.toLowerCase().includes(key) || key.includes(c.toLowerCase()))
@@ -701,6 +711,7 @@ const kansaiSpots: ScenicSpot[] = [
 
 export const destinations: Destination[] = [
   qingganDestination,
+  xinjiangDestination,
   {
     id: 'kansai',
     nameZh: '關西（大阪＋京都）',

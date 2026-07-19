@@ -59,6 +59,16 @@ On preferences, choose **包司機 / 自駕 / 大眾運輸**:
 
 The result page ends with an illustrated SVG **旅程地圖**: winding path, DAY stops, food / tip side bands — inspired by the Gemini travel-plan handbook flow.
 
+## Planning handbook (青甘 / 新疆)
+
+Preset long trips include handbook sections from real planning books:
+
+- Budget lines with **total + per person** (hotel, driver, flights/car, meals, tickets, misc)
+- **酒店建議與價格**, photo/video stops for planner
+- **包車與 planner 要求**, Taobao search terms, quote-comparison checklist
+- **暫不列入主線**, booking checklist, remarks, itinerary summary
+- Qinggan also ships destination reference photos under `public/handbook/`
+
 ## Flow
 
 1. Destination  
