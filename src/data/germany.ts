@@ -1,4 +1,7 @@
 export type HotelStyle = 'value' | 'luxury' | 'luxuryValue' | 'standard' | 'clean'
+export type TripPace = 'relaxed' | 'balanced' | 'packed'
+export type Companion = 'solo' | 'couple' | 'family' | 'friends'
+export type SpotTag = 'must' | 'photo' | 'popular' | 'culture' | 'nature' | 'food' | 'shopping'
 
 export type DestinationId =
   | 'berlin'
@@ -7,6 +10,18 @@ export type DestinationId =
   | 'hamburg'
   | 'heidelberg'
   | 'romantic'
+
+export interface ScenicSpot {
+  id: string
+  name: string
+  nameDe: string
+  area: string
+  stayHours: number
+  summary: string
+  tags: SpotTag[]
+  ticket?: string
+  bestFor: Companion[]
+}
 
 export interface HotelOption {
   name: string
@@ -17,12 +32,20 @@ export interface HotelOption {
   styles: HotelStyle[]
 }
 
+export interface ScheduleItem {
+  time: string
+  title: string
+  detail: string
+  spotId?: string
+}
+
 export interface DayPlan {
   theme: string
   stayArea: string
-  schedule: { time: string; title: string; detail: string }[]
+  schedule: ScheduleItem[]
   budget: string
   tip: string
+  spotIds: string[]
 }
 
 export interface Destination {
@@ -39,9 +62,8 @@ export interface Destination {
     autumn: string
     winter: string
   }
-  highlights: string[]
   hotels: HotelOption[]
-  itineraries: Record<number, DayPlan[]>
+  spots: ScenicSpot[]
 }
 
 export const hotelStyles: {
@@ -76,6 +98,41 @@ export const hotelStyles: {
   },
 ]
 
+export const tripPaces: { id: TripPace; label: string; description: string; spotsPerDay: number }[] =
+  [
+    { id: 'relaxed', label: '輕鬆', description: '每天 2 個重點，多留咖啡與散步', spotsPerDay: 2 },
+    { id: 'balanced', label: '平衡', description: '每天約 3 個景點，體驗與休息兼顧', spotsPerDay: 3 },
+    { id: 'packed', label: '緊湊', description: '每天 4 個景點，想看盡量看', spotsPerDay: 4 },
+  ]
+
+export const companions: { id: Companion; label: string }[] = [
+  { id: 'solo', label: '獨旅' },
+  { id: 'couple', label: '情侶' },
+  { id: 'family', label: '家庭' },
+  { id: 'friends', label: '朋友' },
+]
+
+export const specialNeedOptions = [
+  '喜歡歷史文化',
+  '想拍打卡美照',
+  '避開人潮',
+  '想多吃在地美食',
+  '需要親子友善',
+  '盡量少走路',
+  '想安排購物',
+  '偏好戶外自然',
+]
+
+export const spotTagLabels: Record<SpotTag, string> = {
+  must: '必去',
+  photo: '打卡紅點',
+  popular: '熱門',
+  culture: '文化',
+  nature: '自然',
+  food: '美食',
+  shopping: '購物',
+}
+
 export const destinations: Destination[] = [
   {
     id: 'berlin',
@@ -83,7 +140,7 @@ export const destinations: Destination[] = [
     nameDe: 'Berlin',
     tagline: '歷史、街頭藝術與當代節奏交會的首都',
     intro:
-      '柏林不是靠一座地標撐起旅程，而是用牆、博物館島、啤酒花園與深夜酒吧拼出層次。適合喜歡城市漫遊、設計與近代史的旅人；節奏可鬆可緊，建議至少留下彈性半日。',
+      '柏林不是靠一座地標撐起旅程，而是用牆、博物館島、啤酒花園與深夜酒吧拼出層次。適合喜歡城市漫遊、設計與近代史的旅人。',
     bestSeason: '5–9 月最舒適；12 月聖誕市集氛圍濃厚',
     recommendedDays: {
       min: 3,
@@ -97,7 +154,6 @@ export const destinations: Destination[] = [
       autumn: '6–15°C，落葉公園很美，偶有細雨',
       winter: '-2–5°C，濕冷為主，聖誕市集熱飲必備',
     },
-    highlights: ['勃蘭登堡門', '博物館島', '東邊畫廊', '查理檢查哨', '蒂爾加滕'],
     hotels: [
       {
         name: 'Hotel Zoo Berlin',
@@ -132,157 +188,28 @@ export const destinations: Destination[] = [
         styles: ['luxury'],
       },
     ],
-    itineraries: {
-      3: [
-        {
-          theme: '抵達與歷史軸線',
-          stayArea: 'Mitte / Alexanderplatz',
-          schedule: [
-            { time: '10:30', title: '入住與輕食', detail: '放下行李後到 Hackescher Markt 咖啡店補給' },
-            { time: '12:30', title: '勃蘭登堡門', detail: '步行至門前廣場拍照，感受統一象徵' },
-            { time: '14:00', title: '國會大廈外觀 / 蒂爾加滕', detail: '若已預約可登頂穹頂；否則公園散步' },
-            { time: '17:30', title: '博物館島散步', detail: '黃昏光影最適合外觀拍攝' },
-            { time: '19:30', title: '晚餐', detail: '嘗試 Currywurst 或現代德菜小酒館' },
-          ],
-          budget: '€70–110 / 人（不含住宿）',
-          tip: '國會大廈穹頂需提前線上預約。',
-        },
-        {
-          theme: '圍牆與當代柏林',
-          stayArea: '同前晚住宿',
-          schedule: [
-            { time: '10:00', title: '東邊畫廊', detail: '沿東側牆段步行，預留 90 分鐘' },
-            { time: '12:30', title: '午餐', detail: 'Kreuzberg 土耳其或越南料理' },
-            { time: '14:30', title: '查理檢查哨', detail: '了解冷戰檢查站歷史' },
-            { time: '16:30', title: 'Checkpoint 周邊街區', detail: '咖啡與設計店漫遊' },
-            { time: '19:00', title: '晚餐與夜景', detail: '回 Mitte 享受慢夜生活' },
-          ],
-          budget: '€65–100 / 人',
-          tip: '東邊畫廊戶外為主，雨天改走 Topography of Terror。',
-        },
-        {
-          theme: '藝文收尾與離境',
-          stayArea: '退房後寄放行李',
-          schedule: [
-            { time: '09:30', title: '佩加蒙博物館或新博物館', detail: '擇一深度參觀 2–3 小時' },
-            { time: '13:00', title: '午餐', detail: '博物館島附近輕食' },
-            { time: '15:00', title: '最後購物', detail: 'Friedrichstraße 或 KaDeWe 選購伴手禮' },
-            { time: '17:30', title: '前往機場 / 車站', detail: '預留 60–90 分鐘交通緩衝' },
-          ],
-          budget: '€55–95 / 人',
-          tip: '博物館島建議購買單館票或 Museum Pass。',
-        },
-      ],
-      4: [
-        {
-          theme: '首都初印象',
-          stayArea: 'Mitte',
-          schedule: [
-            { time: '11:00', title: '抵達入住', detail: '先安頓，再步行探索周邊' },
-            { time: '13:00', title: '勃蘭登堡門與菩提樹下大街', detail: '經典軸線步行' },
-            { time: '16:00', title: '博物館島外觀', detail: '先熟悉地理，隔日再進館' },
-            { time: '19:00', title: '晚餐', detail: '德式豬腳或現代小酒館' },
-          ],
-          budget: '€60–95 / 人',
-          tip: '第一天別排太滿，留時間倒時差。',
-        },
-        {
-          theme: '博物館日',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '新博物館 / 舊國家美術館', detail: '擇 1–2 館深度看' },
-            { time: '13:30', title: '午餐', detail: '島上或 Hackescher Markt' },
-            { time: '15:30', title: '柏林大教堂與河岸', detail: '散步拍照' },
-            { time: '19:00', title: '晚餐', detail: 'Prenzlauer Berg 街區用餐' },
-          ],
-          budget: '€75–120 / 人',
-          tip: '熱門票建議開館前到達。',
-        },
-        {
-          theme: '圍牆記憶',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '東邊畫廊', detail: '戶外壁畫與歷史解說' },
-            { time: '13:00', title: 'Kreuzberg 午餐', detail: '多元移民美食' },
-            { time: '15:00', title: '恐怖地形學博物館', detail: '免費、內容扎實' },
-            { time: '18:30', title: '晚餐', detail: '回城區放鬆' },
-          ],
-          budget: '€55–90 / 人',
-          tip: '雨天把東邊畫廊與室內館對調。',
-        },
-        {
-          theme: '西城節奏與離境',
-          stayArea: '退房',
-          schedule: [
-            { time: '10:00', title: '蒂爾加滕或動物園區', detail: '綠地放空' },
-            { time: '12:30', title: 'KaDeWe 美食層', detail: '伴手禮與輕食一次搞定' },
-            { time: '15:30', title: '離境', detail: '機場快線或車站出發' },
-          ],
-          budget: '€50–85 / 人',
-          tip: '若班機晚，可加波茨坦半日。',
-        },
-      ],
-      5: [
-        {
-          theme: '抵達與經典軸線',
-          stayArea: 'Mitte',
-          schedule: [
-            { time: '11:00', title: '入住', detail: '先安頓行李' },
-            { time: '13:00', title: '勃蘭登堡門', detail: '歷史核心步行' },
-            { time: '16:00', title: '國會大廈周邊', detail: '預約者可登頂' },
-            { time: '19:00', title: '晚餐', detail: 'Mitte 德菜' },
-          ],
-          budget: '€60–100 / 人',
-          tip: '第一天以定位與輕鬆步行為主。',
-        },
-        {
-          theme: '博物館島深潛',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '博物館兩館連訪', detail: '預留整天節奏' },
-            { time: '18:00', title: '河岸日落', detail: 'Spree 河畔散步' },
-            { time: '19:30', title: '晚餐', detail: '精釀啤酒搭配' },
-          ],
-          budget: '€80–130 / 人',
-          tip: '別硬塞三館，兩館剛好。',
-        },
-        {
-          theme: '圍牆與 Kreuzberg',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '東邊畫廊', detail: '戶外歷史' },
-            { time: '13:00', title: '多元午餐', detail: 'Kreuzberg' },
-            { time: '15:30', title: '查理檢查哨', detail: '冷戰敘事' },
-            { time: '19:00', title: '晚餐', detail: '街頭感餐廳' },
-          ],
-          budget: '€60–95 / 人',
-          tip: '穿好走鞋，步行距離不短。',
-        },
-        {
-          theme: '波茨坦日遊',
-          stayArea: '同前',
-          schedule: [
-            { time: '09:00', title: '火車前往波茨坦', detail: '約 40 分鐘' },
-            { time: '10:30', title: '無憂宮花園', detail: '宮殿與庭園半日' },
-            { time: '14:00', title: '舊城午餐', detail: '在地咖啡館' },
-            { time: '17:30', title: '返回柏林', detail: '晚上自由' },
-          ],
-          budget: '€70–110 / 人',
-          tip: '宮殿內部票需另購，花園可先漫步。',
-        },
-        {
-          theme: '購物與離境',
-          stayArea: '退房',
-          schedule: [
-            { time: '10:00', title: '最後街區漫遊', detail: '選伴手禮' },
-            { time: '13:00', title: '午餐', detail: '機場前最後一餐' },
-            { time: '15:30', title: '離境', detail: '預留交通時間' },
-          ],
-          budget: '€45–80 / 人',
-          tip: 'Mustard、巧克力與設計小物是好選擇。',
-        },
-      ],
-    },
+    spots: [
+      { id: 'ber-brandenburg', name: '勃蘭登堡門', nameDe: 'Brandenburger Tor', area: 'Mitte', stayHours: 1, summary: '德國統一象徵，經典正面取景必拍。', tags: ['must', 'photo', 'popular'], ticket: '免費', bestFor: ['solo', 'couple', 'family', 'friends'] },
+      { id: 'ber-reichstag', name: '國會大廈穹頂', nameDe: 'Reichstag', area: 'Mitte', stayHours: 1.5, summary: '需預約登頂，俯瞰柏林軸線。', tags: ['must', 'photo', 'culture'], ticket: '免費（需預約）', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'ber-museum', name: '博物館島', nameDe: 'Museumsinsel', area: 'Mitte', stayHours: 3, summary: '世界遺產博物館群，建議擇 1–2 館。', tags: ['must', 'culture', 'popular'], ticket: '單館約 €12–19', bestFor: ['solo', 'couple', 'family', 'friends'] },
+      { id: 'ber-eastside', name: '東邊畫廊', nameDe: 'East Side Gallery', area: 'Friedrichshain', stayHours: 1.5, summary: '最長開放圍牆壁畫段，戶外打卡熱點。', tags: ['must', 'photo', 'popular'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'ber-checkpoint', name: '查理檢查哨', nameDe: 'Checkpoint Charlie', area: 'Mitte', stayHours: 1, summary: '冷戰檢查站地標，周邊展覽豐富。', tags: ['popular', 'culture', 'photo'], ticket: '外觀免費', bestFor: ['solo', 'couple', 'family', 'friends'] },
+      { id: 'ber-tv', name: '電視塔', nameDe: 'Fernsehturm', area: 'Alexanderplatz', stayHours: 1.5, summary: '城市制高點，夜景與日落都很強。', tags: ['photo', 'popular'], ticket: '約 €20–25', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'ber-tiergarten', name: '蒂爾加滕公園', nameDe: 'Tiergarten', area: 'Tiergarten', stayHours: 2, summary: '城市綠肺，適合放慢節奏散步。', tags: ['nature'], ticket: '免費', bestFor: ['solo', 'couple', 'family'] },
+      { id: 'ber-holocaust', name: '猶太人大屠殺紀念碑', nameDe: 'Holocaust Mahnmal', area: 'Mitte', stayHours: 1, summary: '沉重而重要的紀念空間。', tags: ['must', 'culture'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'ber-topography', name: '恐怖地形學博物館', nameDe: 'Topographie des Terrors', area: 'Kreuzberg', stayHours: 2, summary: '納粹與蓋世太保歷史展覽，免費且扎實。', tags: ['culture'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'ber-palace', name: '夏洛滕堡宮', nameDe: 'Schloss Charlottenburg', area: 'Charlottenburg', stayHours: 2.5, summary: '巴洛克宮殿與花園，西城經典。', tags: ['culture', 'photo'], ticket: '約 €12–17', bestFor: ['couple', 'family'] },
+      { id: 'ber-kadewe', name: 'KaDeWe 百貨', nameDe: 'KaDeWe', area: 'Schöneberg', stayHours: 2, summary: '美食層與伴手禮一次搞定。', tags: ['shopping', 'food', 'popular'], ticket: '免費入場', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'ber-hackescher', name: 'Hackescher Markt 巷弄', nameDe: 'Hackescher Markt', area: 'Mitte', stayHours: 2, summary: '庭院、設計店與咖啡，好逛好拍。', tags: ['photo', 'shopping', 'food'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'ber-tempelhof', name: '滕佩爾霍夫公園', nameDe: 'Tempelhofer Feld', area: 'Neukölln', stayHours: 2, summary: '舊機場跑道變公園，開闊好拍。', tags: ['nature', 'photo'], ticket: '免費', bestFor: ['solo', 'friends', 'family'] },
+      { id: 'ber-kreuzberg', name: 'Kreuzberg 街頭美食', nameDe: 'Kreuzberg', area: 'Kreuzberg', stayHours: 2, summary: '多元移民料理與街頭感街區。', tags: ['food', 'popular'], ticket: '餐費自理', bestFor: ['solo', 'friends'] },
+      { id: 'ber-potsdam', name: '波茨坦無憂宮', nameDe: 'Sanssouci', area: 'Potsdam', stayHours: 4, summary: '日遊首選，宮殿花園氣勢十足。', tags: ['must', 'photo', 'culture'], ticket: '花園可免 / 宮殿另購', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'ber-dome', name: '柏林大教堂', nameDe: 'Berliner Dom', area: 'Mitte', stayHours: 1.5, summary: '博物館島旁穹頂，可登頂看河景。', tags: ['photo', 'culture'], ticket: '約 €10', bestFor: ['couple', 'family'] },
+      { id: 'ber-wallmuseum', name: '圍牆紀念館', nameDe: 'Gedenkstätte Berliner Mauer', area: 'Bernauer Str.', stayHours: 1.5, summary: '比檢查哨更完整的圍牆敘事。', tags: ['culture', 'must'], ticket: '免費', bestFor: ['solo', 'couple', 'family'] },
+      { id: 'ber-spree', name: '施普雷河遊船', nameDe: 'Spree River Cruise', area: 'Mitte', stayHours: 1.5, summary: '從水面看博物館島與國會區。', tags: ['popular', 'photo'], ticket: '約 €20', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'ber-markthalle', name: 'Markthalle Neun', nameDe: 'Markthalle Neun', area: 'Kreuzberg', stayHours: 1.5, summary: '市場與 Street Food Thursday 氛圍。', tags: ['food'], ticket: '餐費自理', bestFor: ['solo', 'friends', 'couple'] },
+      { id: 'ber-olympia', name: '奧林匹克體育場外觀', nameDe: 'Olympiastadion', area: 'Westend', stayHours: 1.5, summary: '建築尺度震撼，足球迷加分。', tags: ['photo', 'culture'], ticket: '外觀免費 / 導覽另計', bestFor: ['friends', 'family'] },
+    ],
   },
   {
     id: 'munich',
@@ -290,7 +217,7 @@ export const destinations: Destination[] = [
     nameDe: 'München',
     tagline: '巴伐利亞王國氣質，啤酒、皇宮與阿爾卑斯門戶',
     intro:
-      '慕尼黑把華麗宮殿、傳統啤酒文化與近郊湖山收進同一個節奏。城市本身適合三到四天；若想加新天鵝堡或國王湖，理想是五到六天。',
+      '慕尼黑把華麗宮殿、傳統啤酒文化與近郊湖山收進同一個節奏。城市本身適合三到四天；若想加新天鵝堡，理想是五到六天。',
     bestSeason: '5–10 月；9 月底啤酒節熱鬧但擁擠',
     recommendedDays: {
       min: 3,
@@ -304,7 +231,6 @@ export const destinations: Destination[] = [
       autumn: '5–15°C，楓色與啤酒節交疊',
       winter: '-3–4°C，聖誕市集與室內美術館友好',
     },
-    highlights: ['瑪麗恩廣場', '寧芬堡宮', '英式花園', '新天鵝堡日遊', '維克圖阿連市場'],
     hotels: [
       {
         name: 'Hotel Torbräu',
@@ -339,106 +265,28 @@ export const destinations: Destination[] = [
         styles: ['clean', 'standard', 'value'],
       },
     ],
-    itineraries: {
-      3: [
-        {
-          theme: '老城巴伐利亞',
-          stayArea: 'Altstadt',
-          schedule: [
-            { time: '10:30', title: '瑪麗恩廣場', detail: '新市政廳木偶報時' },
-            { time: '12:00', title: '聖母教堂與老城步行', detail: '感受巴伐利亞節奏' },
-            { time: '13:30', title: '維克圖阿連市場午餐', detail: '白腸、椒鹽麵包、啤酒' },
-            { time: '16:00', title: ' Residualenz 皇宮', detail: '擇重點廳堂參觀' },
-            { time: '19:00', title: '啤酒館晚餐', detail: 'Hofbräuhaus 或在地小館' },
-          ],
-          budget: '€70–115 / 人',
-          tip: '市場攤位現金較方便。',
-        },
-        {
-          theme: '宮殿與花園',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '寧芬堡宮', detail: '宮殿與花園半日' },
-            { time: '13:30', title: '午餐', detail: '宮殿附近餐廳' },
-            { time: '15:30', title: '英式花園', detail: '見習衝浪者與啤酒花園' },
-            { time: '19:00', title: '晚餐', detail: 'Maxvorstadt 現代德菜' },
-          ],
-          budget: '€65–105 / 人',
-          tip: '宮殿花園免費，室內另購票。',
-        },
-        {
-          theme: '美術館或離境緩衝',
-          stayArea: '退房',
-          schedule: [
-            { time: '10:00', title: '老繪畫陳列館', detail: '雨天優選' },
-            { time: '13:00', title: '午餐與伴手禮', detail: '巧克力、芥末、啤酒杯' },
-            { time: '16:00', title: '離境', detail: 'S-Bahn 往機場約 45 分鐘' },
-          ],
-          budget: '€50–90 / 人',
-          tip: '若想去新天鵝堡，請改選 5 天方案。',
-        },
-      ],
-      5: [
-        {
-          theme: '抵達慕尼黑',
-          stayArea: 'Altstadt',
-          schedule: [
-            { time: '11:00', title: '入住', detail: '先熟悉老城方位' },
-            { time: '13:00', title: '瑪麗恩廣場', detail: '經典開場' },
-            { time: '16:00', title: '市場與咖啡', detail: 'Viktualienmarkt' },
-            { time: '19:00', title: '啤酒館', detail: '第一晚沉浸式體驗' },
-          ],
-          budget: '€65–100 / 人',
-          tip: '第一天步行即可，不必購日票。',
-        },
-        {
-          theme: '皇宮藝文',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: 'Residenz', detail: '寶物廳與廳堂' },
-            { time: '13:30', title: '午餐', detail: '老城餐廳' },
-            { time: '15:30', title: '美術館區', detail: '擇一館參觀' },
-            { time: '19:00', title: '晚餐', detail: '輕鬆義式或德菜' },
-          ],
-          budget: '€75–120 / 人',
-          tip: '博物館週一可能休館，出發前確認。',
-        },
-        {
-          theme: '寧芬堡與英式花園',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '寧芬堡宮', detail: '半日宮殿' },
-            { time: '14:30', title: '英式花園', detail: '散步與啤酒花園' },
-            { time: '19:00', title: '晚餐', detail: '回到市區' },
-          ],
-          budget: '€60–100 / 人',
-          tip: '夏天可把野餐當午餐。',
-        },
-        {
-          theme: '新天鵝堡一日遊',
-          stayArea: '同前',
-          schedule: [
-            { time: '07:30', title: '出發 Füssen', detail: '火車或一日遊巴士' },
-            { time: '11:00', title: '新天鵝堡', detail: '務必預先訂時段票' },
-            { time: '15:30', title: '回程', detail: '傍晚返慕尼黑' },
-            { time: '20:00', title: '輕食晚餐', detail: '別安排太重' },
-          ],
-          budget: '€90–150 / 人',
-          tip: '城堡票與交通是當天最大支出。',
-        },
-        {
-          theme: '收尾與離境',
-          stayArea: '退房',
-          schedule: [
-            { time: '10:00', title: '最後購物', detail: '老城伴手禮' },
-            { time: '12:30', title: '午餐', detail: '白腸告別' },
-            { time: '15:00', title: '離境', detail: '預留機場時間' },
-          ],
-          budget: '€45–80 / 人',
-          tip: 'BMW Welt 適合喜歡汽車的旅客加訪。',
-        },
-      ],
-    },
+    spots: [
+      { id: 'muc-marien', name: '瑪麗恩廣場', nameDe: 'Marienplatz', area: 'Altstadt', stayHours: 1.5, summary: '新市政廳與木偶報時，慕尼黑門面。', tags: ['must', 'photo', 'popular'], ticket: '免費', bestFor: ['solo', 'couple', 'family', 'friends'] },
+      { id: 'muc-frauen', name: '聖母教堂', nameDe: 'Frauenkirche', area: 'Altstadt', stayHours: 1, summary: '城市天際線象徵，可登塔。', tags: ['photo', 'culture'], ticket: '登塔另計', bestFor: ['solo', 'couple', 'family'] },
+      { id: 'muc-viktualien', name: '維克圖阿連市場', nameDe: 'Viktualienmarkt', area: 'Altstadt', stayHours: 1.5, summary: '白腸、啤酒與攤販美食核心。', tags: ['must', 'food', 'popular'], ticket: '餐費自理', bestFor: ['solo', 'couple', 'friends', 'family'] },
+      { id: 'muc-residenz', name: ' Residualenz 皇宮', nameDe: 'Residenz', area: 'Altstadt', stayHours: 2.5, summary: '巴伐利亞王室宮殿與寶物廳。', tags: ['must', 'culture'], ticket: '約 €9–15', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'muc-nymph', name: '寧芬堡宮', nameDe: 'Schloss Nymphenburg', area: 'Neuhausen', stayHours: 3, summary: '宮殿加花園，半日行程首選。', tags: ['must', 'photo', 'culture'], ticket: '花園免 / 宮殿另購', bestFor: ['couple', 'family'] },
+      { id: 'muc-english', name: '英式花園', nameDe: 'Englischer Garten', area: 'Schwabing', stayHours: 2, summary: '見習衝浪與啤酒花園，城市綠洲。', tags: ['nature', 'photo', 'popular'], ticket: '免費', bestFor: ['solo', 'couple', 'friends', 'family'] },
+      { id: 'muc-hofbrau', name: 'Hofbräuhaus 啤酒館', nameDe: 'Hofbräuhaus', area: 'Altstadt', stayHours: 1.5, summary: '最經典啤酒體驗，氣氛滿載。', tags: ['food', 'popular', 'must'], ticket: '餐費自理', bestFor: ['friends', 'couple', 'family'] },
+      { id: 'muc-neuschwanstein', name: '新天鵝堡', nameDe: 'Neuschwanstein', area: 'Füssen 日遊', stayHours: 8, summary: '童話城堡，務必預訂時段票。', tags: ['must', 'photo', 'popular'], ticket: '約 €21 + 交通', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'muc-bmw', name: 'BMW Welt / 博物館', nameDe: 'BMW Welt', area: 'Olympiapark', stayHours: 2, summary: '汽車迷必訪，建築本身也好拍。', tags: ['popular', 'photo'], ticket: 'Welt 免費 / 博物館另計', bestFor: ['friends', 'family', 'solo'] },
+      { id: 'muc-pinakothek', name: '老繪畫陳列館', nameDe: 'Alte Pinakothek', area: 'Maxvorstadt', stayHours: 2.5, summary: '歐洲古典繪畫重鎮，雨天優選。', tags: ['culture'], ticket: '約 €7–9', bestFor: ['solo', 'couple'] },
+      { id: 'muc-olympia', name: '奧林匹克公園', nameDe: 'Olympiapark', area: 'Olympiapark', stayHours: 2, summary: '1972 建築群與展望台。', tags: ['photo', 'nature'], ticket: '公園免費', bestFor: ['family', 'friends', 'couple'] },
+      { id: 'muc-dachau', name: '達豪紀念館', nameDe: 'Dachau', area: '近郊', stayHours: 4, summary: '重要歷史教育行程，氣氛沉重。', tags: ['culture', 'must'], ticket: '免費（導覽另計）', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'muc-asamak', name: '阿薩姆教堂', nameDe: 'Asamkirche', area: 'Altstadt', stayHours: 0.75, summary: '巴洛克華麗小教堂，好拍到驚人。', tags: ['photo', 'culture'], ticket: '免費/樂捐', bestFor: ['couple', 'solo'] },
+      { id: 'muc-deutsches', name: '德意志博物館', nameDe: 'Deutsches Museum', area: 'Museumsinsel', stayHours: 3, summary: '科技博物館巨無霸，親子友善。', tags: ['culture', 'popular'], ticket: '約 €15', bestFor: ['family', 'friends'] },
+      { id: 'muc-stachus', name: '卡爾斯廣場購物', nameDe: 'Stachus / Kaufinger', area: 'Altstadt', stayHours: 2, summary: '步行街購物與伴手禮。', tags: ['shopping'], ticket: '免費', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'muc-isartor', name: '伊薩爾門與河岸', nameDe: 'Isartor / Isar', area: 'Altstadt', stayHours: 1.5, summary: '老城邊緣河岸散步。', tags: ['nature', 'photo'], ticket: '免費', bestFor: ['solo', 'couple'] },
+      { id: 'muc-schwabing', name: '施瓦本街區', nameDe: 'Schwabing', area: 'Schwabing', stayHours: 2, summary: '文青咖啡與商店街漫遊。', tags: ['food', 'shopping'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'muc-hellabrunn', name: '地獄布魯恩動物園', nameDe: 'Tierpark Hellabrunn', area: 'Harlaching', stayHours: 3, summary: '親子行程穩定選項。', tags: ['nature', 'popular'], ticket: '約 €15–19', bestFor: ['family'] },
+      { id: 'muc-allianz', name: '安聯球場外觀', nameDe: 'Allianz Arena', area: 'Fröttmaning', stayHours: 1.5, summary: '拜仁球迷打卡點。', tags: ['photo', 'popular'], ticket: '外觀免費 / 博物館另計', bestFor: ['friends', 'family'] },
+      { id: 'muc-chateau', name: '布倫能堡日遊備案', nameDe: 'Schloss Blutenburg', area: '近郊', stayHours: 3, summary: '較安靜的城堡替代方案。', tags: ['culture', 'photo'], ticket: '視開放而定', bestFor: ['couple', 'solo'] },
+    ],
   },
   {
     id: 'cologne',
@@ -446,7 +294,7 @@ export const destinations: Destination[] = [
     nameDe: 'Köln & Rhein',
     tagline: '哥德大教堂、萊茵河岸與葡萄酒小鎮節奏',
     intro:
-      '科隆適合當萊茵流域基地：白天看大教堂與博物館，再以一日遊串起波昂、科布倫茨或葡萄酒小鎮。短假期三天夠用，想慢慢坐船看河景就留四到五天。',
+      '科隆適合當萊茵流域基地：白天看大教堂與博物館，再以一日遊串起波昂或葡萄酒小鎮。',
     bestSeason: '4–10 月河岸活動多；12 月聖誕市集很有名',
     recommendedDays: {
       min: 2,
@@ -460,7 +308,6 @@ export const destinations: Destination[] = [
       autumn: '7–16°C，葡萄收成季氛圍佳',
       winter: '0–6°C，濕冷，市集熱紅酒暖身',
     },
-    highlights: ['科隆大教堂', '老城啤酒屋', '萊茵遊船', '巧克力博物館', '雙子城波昂'],
     hotels: [
       {
         name: 'Hotel Mondial am Dom Cologne',
@@ -495,91 +342,28 @@ export const destinations: Destination[] = [
         styles: ['luxury'],
       },
     ],
-    itineraries: {
-      3: [
-        {
-          theme: '大教堂與老城',
-          stayArea: 'Dom',
-          schedule: [
-            { time: '10:30', title: '科隆大教堂', detail: '可登南塔俯瞰萊茵' },
-            { time: '13:00', title: '老城午餐', detail: 'Kölsch 啤酒與 Rheinischer Sauerbraten' },
-            { time: '15:00', title: '河岸散步', detail: 'Hohenzollern 橋掛鎖景觀' },
-            { time: '18:30', title: '啤酒屋晚餐', detail: '體驗在地侍者文化' },
-          ],
-          budget: '€60–100 / 人',
-          tip: '登塔階梯多，穿舒適鞋。',
-        },
-        {
-          theme: '博物館與河景',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '羅馬日耳曼博物館或巧克力博物館', detail: '擇一深入' },
-            { time: '13:00', title: '午餐', detail: '河岸餐廳' },
-            { time: '15:00', title: '萊茵短程遊船', detail: '看城市天際線' },
-            { time: '19:00', title: '晚餐', detail: '比利時區氛圍餐廳' },
-          ],
-          budget: '€70–110 / 人',
-          tip: '遊船季節與班次差異大，當日確認。',
-        },
-        {
-          theme: '波昂半日與離境',
-          stayArea: '退房',
-          schedule: [
-            { time: '09:30', title: '火車往波昂', detail: '約 25 分鐘' },
-            { time: '10:30', title: '舊市政廳與貝多芬故居外觀', detail: '輕鬆半日' },
-            { time: '14:00', title: '返回科隆離境', detail: '或直接轉車' },
-          ],
-          budget: '€45–85 / 人',
-          tip: '想深度萊茵谷請選 4–5 天。',
-        },
-      ],
-      4: [
-        {
-          theme: '科隆開場',
-          stayArea: 'Dom',
-          schedule: [
-            { time: '11:00', title: '入住', detail: '先放大教堂' },
-            { time: '13:00', title: '老城午餐', detail: 'Kölsch 入門' },
-            { time: '15:30', title: '河岸與橋', detail: '黃昏拍照' },
-            { time: '19:00', title: '晚餐', detail: '啤酒屋' },
-          ],
-          budget: '€60–95 / 人',
-          tip: '車站與大教堂極近，拖行李很輕鬆。',
-        },
-        {
-          theme: '藝文日',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '博物館', detail: '巧克力或當代藝術' },
-            { time: '14:00', title: '比利時區', detail: '咖啡與設計店' },
-            { time: '19:00', title: '晚餐', detail: '現代菜' },
-          ],
-          budget: '€65–105 / 人',
-          tip: '雨天把遊船改到晴天。',
-        },
-        {
-          theme: '萊茵河谷日遊',
-          stayArea: '同前',
-          schedule: [
-            { time: '08:30', title: '前往 Bacharach / St. Goar', detail: '火車或遊船組合' },
-            { time: '11:00', title: '古堡與小鎮', detail: '萊茵浪漫段' },
-            { time: '16:30', title: '返回科隆', detail: '晚上休息' },
-          ],
-          budget: '€80–130 / 人',
-          tip: '這天是行程精華，建議預留整天。',
-        },
-        {
-          theme: '離境緩衝',
-          stayArea: '退房',
-          schedule: [
-            { time: '10:00', title: '最後散步', detail: '伴手禮：香水 4711、巧克力' },
-            { time: '13:00', title: '離境', detail: '機場或 ICE 轉乘' },
-          ],
-          budget: '€40–70 / 人',
-          tip: '科隆/波昂機場與市區有 S-Bahn 連結。',
-        },
-      ],
-    },
+    spots: [
+      { id: 'cgn-dom', name: '科隆大教堂', nameDe: 'Kölner Dom', area: 'Dom', stayHours: 2, summary: '哥德式巨構，可登南塔俯瞰萊茵。', tags: ['must', 'photo', 'popular'], ticket: '教堂免費 / 登塔另計', bestFor: ['solo', 'couple', 'family', 'friends'] },
+      { id: 'cgn-oldtown', name: '科隆老城', nameDe: 'Altstadt', area: 'Altstadt', stayHours: 2, summary: '彩色屋與啤酒屋巷弄。', tags: ['must', 'photo', 'food'], ticket: '免費', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'cgn-bridge', name: '霍亨索倫橋', nameDe: 'Hohenzollernbrücke', area: 'Rhein', stayHours: 1, summary: '愛情鎖與河景經典取景。', tags: ['photo', 'popular'], ticket: '免費', bestFor: ['couple', 'friends'] },
+      { id: 'cgn-choco', name: '巧克力博物館', nameDe: 'Schokoladenmuseum', area: 'Rheinau', stayHours: 2, summary: '親子與甜點控友好。', tags: ['popular', 'food'], ticket: '約 €15', bestFor: ['family', 'couple'] },
+      { id: 'cgn-roman', name: '羅馬日耳曼博物館', nameDe: 'Römisch-Germanisches Museum', area: 'Dom', stayHours: 2, summary: '羅馬時期科隆史。', tags: ['culture'], ticket: '約 €6–10', bestFor: ['solo', 'couple'] },
+      { id: 'cgn-cruise', name: '萊茵短程遊船', nameDe: 'Rhein Cruise', area: 'Rhein', stayHours: 1.5, summary: '從水面看大教堂天際線。', tags: ['popular', 'photo'], ticket: '約 €15–25', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'cgn-belgian', name: '比利時區', nameDe: 'Belgisches Viertel', area: 'Belgisches Viertel', stayHours: 2, summary: '設計店、咖啡與年輕街區。', tags: ['shopping', 'food', 'photo'], ticket: '免費', bestFor: ['solo', 'friends', 'couple'] },
+      { id: 'cgn-beer', name: 'Kölsch 啤酒屋巡禮', nameDe: 'Brauhaus', area: 'Altstadt', stayHours: 1.5, summary: '在地啤酒文化必體驗。', tags: ['food', 'must'], ticket: '餐費自理', bestFor: ['friends', 'couple'] },
+      { id: 'cgn-ludwig', name: '路德維希博物館', nameDe: 'Museum Ludwig', area: 'Dom', stayHours: 2, summary: '現當代藝術與畢卡索收藏。', tags: ['culture'], ticket: '約 €12', bestFor: ['solo', 'couple'] },
+      { id: 'cgn-bonn', name: '波昂半日遊', nameDe: 'Bonn', area: '近郊', stayHours: 4, summary: '舊首都與貝多芬故居氛圍。', tags: ['culture', 'popular'], ticket: '交通另計', bestFor: ['couple', 'friends', 'solo'] },
+      { id: 'cgn-rheinvalley', name: '萊茵河谷古堡段', nameDe: 'Rheintal', area: '日遊', stayHours: 8, summary: 'Bacharach / St. Goar 浪漫河段。', tags: ['must', 'photo', 'nature'], ticket: '交通+餐飲', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'cgn-4711', name: '4711 香水店', nameDe: '4711', area: 'Glockengasse', stayHours: 0.75, summary: '科隆水經典伴手禮。', tags: ['shopping'], ticket: '免費入場', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'cgn-rheinpark', name: '萊茵公園與纜車', nameDe: 'Rheinpark', area: 'Deutz', stayHours: 2, summary: '過河看大教堂正面全景。', tags: ['photo', 'nature'], ticket: '纜車另計', bestFor: ['family', 'couple'] },
+      { id: 'cgn-flora', name: '植物園 Flora', nameDe: 'Flora Köln', area: 'Riehl', stayHours: 2, summary: '溫室與花園，節奏放慢。', tags: ['nature'], ticket: '約 €5–8', bestFor: ['couple', 'family', 'solo'] },
+      { id: 'cgn-hohenzollern', name: '大教堂珍寶館', nameDe: 'Domschatzkammer', area: 'Dom', stayHours: 1, summary: '宗教藝術與金工細節。', tags: ['culture'], ticket: '約 €6', bestFor: ['solo', 'couple'] },
+      { id: 'cgn-hohenz', name: '萊茵河自行車道散步', nameDe: 'Rheinufer', area: 'Rhein', stayHours: 1.5, summary: '黃昏最美的免費行程。', tags: ['nature', 'photo'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'cgn-ehrenfeld', name: 'Ehrenfeld 街頭藝術', nameDe: 'Ehrenfeld', area: 'Ehrenfeld', stayHours: 2, summary: '壁畫與年輕酒吧區。', tags: ['photo', 'food'], ticket: '免費', bestFor: ['solo', 'friends'] },
+      { id: 'cgn-phano', name: '當代藝術媒體中心', nameDe: 'Kölnischer Kunstverein 周邊', area: '市中心', stayHours: 1.5, summary: '小型藝文備案。', tags: ['culture'], ticket: '視展覽', bestFor: ['solo', 'couple'] },
+      { id: 'cgn-market', name: '農夫市場採買', nameDe: 'Wochenmarkt', area: '各區', stayHours: 1, summary: '乳酪、麵包與水果野餐材料。', tags: ['food'], ticket: '自理', bestFor: ['family', 'couple'] },
+      { id: 'cgn-xmas', name: '聖誕市集（季節）', nameDe: 'Weihnachtsmarkt', area: 'Dom / Altstadt', stayHours: 2, summary: '冬季限定熱紅酒氛圍。', tags: ['popular', 'photo', 'food'], ticket: '免費入場', bestFor: ['couple', 'family', 'friends'] },
+    ],
   },
   {
     id: 'hamburg',
@@ -587,7 +371,7 @@ export const destinations: Destination[] = [
     nameDe: 'Hamburg',
     tagline: '港口都會、倉庫城與易北河現代建築',
     intro:
-      '漢堡是德國的水上門面：倉庫城磚牆、易北愛樂廳曲線、港口夕陽構成主畫面。節奏偏都市與設計感，兩到四天都能安排得舒服，不急著塞太多景點。',
+      '漢堡是德國的水上門面：倉庫城磚牆、易北愛樂廳曲線、港口夕陽構成主畫面。',
     bestSeason: '5–9 月港口活動豐富',
     recommendedDays: {
       min: 2,
@@ -601,7 +385,6 @@ export const destinations: Destination[] = [
       autumn: '6–14°C，多雲有雨機率',
       winter: '0–5°C，濕冷，室內展演友好',
     },
-    highlights: ['倉庫城', '易北愛樂廳', '港口遊船', '市政廳', '聖保利街區'],
     hotels: [
       {
         name: 'Henri Hotel Hamburg Downtown',
@@ -613,7 +396,7 @@ export const destinations: Destination[] = [
       },
       {
         name: 'Generator Hamburg',
-        area: 'Stadtpark 方向 / 交通便利區',
+        area: '交通便利區',
         nightsHint: '2–3 晚',
         pricePerNight: '€40–85',
         highlight: '年輕高性價比，房間清潔穩定',
@@ -636,46 +419,28 @@ export const destinations: Destination[] = [
         styles: ['clean', 'standard', 'value'],
       },
     ],
-    itineraries: {
-      3: [
-        {
-          theme: '港口第一印象',
-          stayArea: 'Neustadt / 市中心',
-          schedule: [
-            { time: '11:00', title: '入住', detail: '安頓後往內阿爾斯特湖' },
-            { time: '13:00', title: '市政廳與舊城', detail: '午餐後步行' },
-            { time: '16:00', title: '倉庫城外觀', detail: '磚紅建築群拍照' },
-            { time: '19:00', title: '晚餐', detail: '海鮮或現代北德菜' },
-          ],
-          budget: '€70–110 / 人',
-          tip: '倉庫城夜間燈光很美。',
-        },
-        {
-          theme: '易北與港灣',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '港口遊船', detail: '理解城市水系結構' },
-            { time: '12:30', title: '午餐', detail: '魚市或碼頭區' },
-            { time: '14:30', title: '易北愛樂廳廣場', detail: '廣場免費，演奏廳需票' },
-            { time: '17:30', title: '聖保利漫遊', detail: '傍晚氛圍剛好' },
-            { time: '19:30', title: '晚餐', detail: 'Reeperbahn 周邊選擇多' },
-          ],
-          budget: '€75–120 / 人',
-          tip: '愛樂廳導覽票建議提前訂。',
-        },
-        {
-          theme: '設計與離境',
-          stayArea: '退房',
-          schedule: [
-            { time: '10:00', title: '小型美術館或設計店', detail: '依天氣彈性' },
-            { time: '12:30', title: '最後午餐', detail: '伴手禮可買茶與巧克力' },
-            { time: '15:00', title: '離境', detail: '機場 S-Bahn 約 25 分鐘' },
-          ],
-          budget: '€45–80 / 人',
-          tip: '雨天把遊船改室內展。',
-        },
-      ],
-    },
+    spots: [
+      { id: 'ham-speicher', name: '倉庫城', nameDe: 'Speicherstadt', area: 'HafenCity', stayHours: 2, summary: '世界遺產磚牆水道，必拍紅點。', tags: ['must', 'photo', 'popular'], ticket: '免費外觀', bestFor: ['solo', 'couple', 'family', 'friends'] },
+      { id: 'ham-elphi', name: '易北愛樂廳', nameDe: 'Elbphilharmonie', area: 'HafenCity', stayHours: 1.5, summary: '廣場免費，建築曲線是打卡王。', tags: ['must', 'photo', 'popular'], ticket: '廣場免費 / 演出另計', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'ham-harbor', name: '港口遊船', nameDe: 'Hafenrundfahrt', area: 'Landungsbrücken', stayHours: 1.5, summary: '理解港口城市最好方式。', tags: ['must', 'popular'], ticket: '約 €18–25', bestFor: ['family', 'couple', 'friends'] },
+      { id: 'ham-rathaus', name: '市政廳', nameDe: 'Rathaus', area: 'Rathausmarkt', stayHours: 1.5, summary: '華麗市政建築與廣場。', tags: ['photo', 'culture'], ticket: '外觀免費', bestFor: ['solo', 'couple', 'family'] },
+      { id: 'ham-alster', name: '內阿爾斯特湖', nameDe: 'Binnenalster', area: 'Neustadt', stayHours: 1.5, summary: '湖岸散步與天鵝取景。', tags: ['photo', 'nature'], ticket: '免費', bestFor: ['couple', 'solo'] },
+      { id: 'ham-stpauli', name: '聖保利街區', nameDe: 'St. Pauli', area: 'St. Pauli', stayHours: 2, summary: '夜生活與港口邊緣氛圍。', tags: ['popular', 'food'], ticket: '免費', bestFor: ['friends', 'solo'] },
+      { id: 'ham-mini', name: '微縮景觀世界', nameDe: 'Miniatur Wunderland', area: 'Speicherstadt', stayHours: 2.5, summary: '親子與攝影都愛上的室內點。', tags: ['popular', 'photo', 'must'], ticket: '約 €20', bestFor: ['family', 'friends', 'couple'] },
+      { id: 'ham-fish', name: '魚市', nameDe: 'Fischmarkt', area: 'Altona', stayHours: 1.5, summary: '週末早晨限定活力市集。', tags: ['food', 'popular'], ticket: '免費入場', bestFor: ['solo', 'friends', 'family'] },
+      { id: 'ham-reeper', name: 'Reeperbahn 夜景', nameDe: 'Reeperbahn', area: 'St. Pauli', stayHours: 1.5, summary: '燈火街道，適合晚間短暫停留。', tags: ['photo', 'popular'], ticket: '免費', bestFor: ['friends', 'couple'] },
+      { id: 'ham-kunsthalle', name: '漢堡美術館', nameDe: 'Hamburger Kunsthalle', area: 'Altstadt', stayHours: 2.5, summary: '藝術收藏深厚，雨天備案。', tags: ['culture'], ticket: '約 €14', bestFor: ['solo', 'couple'] },
+      { id: 'ham-hafencity', name: 'HafenCity 現代建築', nameDe: 'HafenCity', area: 'HafenCity', stayHours: 2, summary: '新港灣都市設計漫遊。', tags: ['photo', 'culture'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'ham-michel', name: '聖米迦勒教堂', nameDe: 'Michel', area: 'Neustadt', stayHours: 1.5, summary: '漢堡精神象徵，可登塔。', tags: ['photo', 'culture'], ticket: '登塔另計', bestFor: ['couple', 'family'] },
+      { id: 'ham-blankenese', name: 'Blankenese 山城階梯', nameDe: 'Blankenese', area: '西郊', stayHours: 3, summary: '階梯聚落與易北河視野。', tags: ['photo', 'nature'], ticket: '免費', bestFor: ['couple', 'solo'] },
+      { id: 'ham-chilehaus', name: '智利館', nameDe: 'Chilehaus', area: 'Kontorhaus', stayHours: 0.75, summary: '表現主義磚建築船頭造型。', tags: ['photo', 'culture'], ticket: '免費外觀', bestFor: ['solo', 'couple'] },
+      { id: 'ham-planten', name: '植物園與公園', nameDe: 'Planten un Blomen', area: 'St. Pauli 旁', stayHours: 2, summary: '綠地放空與音樂噴泉（季節）。', tags: ['nature'], ticket: '免費', bestFor: ['family', 'couple'] },
+      { id: 'ham-shopping', name: 'Jungfernstieg 購物', nameDe: 'Jungfernstieg', area: 'Neustadt', stayHours: 2, summary: '湖畔購物大道。', tags: ['shopping'], ticket: '免費', bestFor: ['couple', 'friends'] },
+      { id: 'ham-uebers', name: '易北河隧道老段', nameDe: 'Alter Elbtunnel', area: 'St. Pauli', stayHours: 1, summary: '走入河底的特殊體驗。', tags: ['popular', 'photo'], ticket: '免費', bestFor: ['friends', 'family', 'solo'] },
+      { id: 'ham-museum', name: '國際海事博物館', nameDe: 'Internationales Maritimes Museum', area: 'HafenCity', stayHours: 2, summary: '航海史深度館。', tags: ['culture'], ticket: '約 €15', bestFor: ['family', 'solo'] },
+      { id: 'ham-schanzen', name: 'Schanzenviertel', nameDe: 'Sternschanze', area: 'Schanze', stayHours: 2, summary: '街頭感咖啡與商店。', tags: ['food', 'shopping'], ticket: '免費', bestFor: ['solo', 'friends'] },
+      { id: 'ham-sunset', name: '碼頭日落', nameDe: 'Landungsbrücken Sunset', area: 'Landungsbrücken', stayHours: 1, summary: '港口金色時刻，免費打卡。', tags: ['photo', 'must'], ticket: '免費', bestFor: ['couple', 'friends', 'solo'] },
+    ],
   },
   {
     id: 'heidelberg',
@@ -683,7 +448,7 @@ export const destinations: Destination[] = [
     nameDe: 'Heidelberg',
     tagline: '城堡、老橋與大學城的浪漫縮影',
     intro:
-      '海德堡適合放慢：城堡俯瞰內卡河、哲學家步道看日落、老城巷弄喝咖啡。兩到三天最甜；也可與法蘭克福進出港搭配成短假期。',
+      '海德堡適合放慢：城堡俯瞰內卡河、哲學家步道看日落、老城巷弄喝咖啡。',
     bestSeason: '4–10 月；夏季大學城活力高',
     recommendedDays: {
       min: 2,
@@ -697,11 +462,10 @@ export const destinations: Destination[] = [
       autumn: '7–16°C，城堡與山丘色調佳',
       winter: '0–6°C，安靜、適合室內咖啡館',
     },
-    highlights: ['海德堡城堡', '老橋', '哲學家步道', '主街購物', '學生監獄'],
     hotels: [
       {
         name: 'Hotel Anlage',
-        area: 'Bahnstadt / 車站可達',
+        area: '車站可達',
         nightsHint: '2–3 晚',
         pricePerNight: '€100–150',
         highlight: '乾淨舒適，性價比高',
@@ -724,70 +488,28 @@ export const destinations: Destination[] = [
         styles: ['clean', 'value'],
       },
     ],
-    itineraries: {
-      2: [
-        {
-          theme: '城堡與老城',
-          stayArea: 'Altstadt',
-          schedule: [
-            { time: '10:30', title: '海德堡城堡', detail: '纜車或步行上山' },
-            { time: '13:30', title: '老城午餐', detail: '主街餐廳' },
-            { time: '15:30', title: '老橋與河岸', detail: '經典取景' },
-            { time: '18:30', title: '晚餐', detail: '大學城酒館' },
-          ],
-          budget: '€60–95 / 人',
-          tip: '城堡庭院可先免費感受視野。',
-        },
-        {
-          theme: '哲學家步道與離境',
-          stayArea: '退房',
-          schedule: [
-            { time: '09:30', title: '哲學家步道', detail: '俯瞰紅屋頂與城堡' },
-            { time: '12:30', title: '午餐', detail: '最後一次老城漫遊' },
-            { time: '15:00', title: '前往法蘭克福機場', detail: '火車約 1 小時' },
-          ],
-          budget: '€45–75 / 人',
-          tip: '步道晴天最值得。',
-        },
-      ],
-      3: [
-        {
-          theme: '抵達海德堡',
-          stayArea: 'Altstadt',
-          schedule: [
-            { time: '12:00', title: '入住', detail: '午後老城漫步' },
-            { time: '14:00', title: '主街與教堂', detail: '認識尺度' },
-            { time: '17:00', title: '老橋日落', detail: '黃金時段拍照' },
-            { time: '19:00', title: '晚餐', detail: '慢食' },
-          ],
-          budget: '€55–90 / 人',
-          tip: '第一天不急著上城堡。',
-        },
-        {
-          theme: '城堡全日感',
-          stayArea: '同前',
-          schedule: [
-            { time: '10:00', title: '城堡', detail: '展區與藥劑博物館' },
-            { time: '13:30', title: '午餐', detail: '山上或回老城' },
-            { time: '16:00', title: '學生監獄 / 大學廣場', detail: '輕鬆文化點' },
-            { time: '19:00', title: '晚餐', detail: '葡萄酒搭配' },
-          ],
-          budget: '€65–105 / 人',
-          tip: '週末城堡較擠，早到更好。',
-        },
-        {
-          theme: '步道與離境',
-          stayArea: '退房',
-          schedule: [
-            { time: '09:00', title: '哲學家步道', detail: '晨光最乾淨' },
-            { time: '12:00', title: '午餐', detail: '伴手禮：學生之吻巧克力' },
-            { time: '14:30', title: '離境', detail: '轉法蘭克福' },
-          ],
-          budget: '€40–70 / 人',
-          tip: '可與萊茵或黑森林行程串聯。',
-        },
-      ],
-    },
+    spots: [
+      { id: 'hd-castle', name: '海德堡城堡', nameDe: 'Schloss Heidelberg', area: 'Altstadt', stayHours: 2.5, summary: '紅砂巖城堡，城市必去第一名。', tags: ['must', 'photo', 'popular'], ticket: '庭院可體驗 / 套票另計', bestFor: ['solo', 'couple', 'family', 'friends'] },
+      { id: 'hd-bridge', name: '老橋', nameDe: 'Alte Brücke', area: 'Altstadt', stayHours: 1, summary: '內卡河經典視角，日落超美。', tags: ['must', 'photo'], ticket: '免費', bestFor: ['couple', 'solo', 'friends'] },
+      { id: 'hd-philo', name: '哲學家步道', nameDe: 'Philosophenweg', area: '北岸山丘', stayHours: 2, summary: '俯瞰紅屋頂與城堡的散步道。', tags: ['must', 'photo', 'nature'], ticket: '免費', bestFor: ['couple', 'solo'] },
+      { id: 'hd-haupt', name: '主街', nameDe: 'Hauptstraße', area: 'Altstadt', stayHours: 2, summary: '德國最長步行街之一，購物用餐。', tags: ['shopping', 'food', 'popular'], ticket: '免費', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'hd-church', name: '聖靈教堂', nameDe: 'Heiliggeistkirche', area: 'Altstadt', stayHours: 1, summary: '市集廣場旁哥德教堂。', tags: ['culture', 'photo'], ticket: '免費/樂捐', bestFor: ['solo', 'couple'] },
+      { id: 'hd-uni', name: '大學廣場與學生監獄', nameDe: 'Studentenkarzer', area: 'Altstadt', stayHours: 1.5, summary: '大學城獨特文化點。', tags: ['culture', 'popular'], ticket: '約 €3–5', bestFor: ['friends', 'solo', 'couple'] },
+      { id: 'hd-funicular', name: '城堡纜車', nameDe: 'Bergbahn', area: 'Altstadt', stayHours: 1, summary: '省力上山並可續往國王寶座。', tags: ['popular'], ticket: '套票約 €9–15', bestFor: ['family', 'couple'] },
+      { id: 'hd-koenig', name: '國王寶座展望', nameDe: 'Königstuhl', area: '山區', stayHours: 2, summary: '更高視野，適合晴天。', tags: ['nature', 'photo'], ticket: '含纜車', bestFor: ['couple', 'friends'] },
+      { id: 'hd-neckar', name: '內卡河遊船', nameDe: 'Neckar Cruise', area: '河岸', stayHours: 1.5, summary: '從水面看城堡與老橋。', tags: ['popular', 'photo'], ticket: '約 €12–18', bestFor: ['couple', 'family'] },
+      { id: 'hd-market', name: '市集廣場', nameDe: 'Marktplatz', area: 'Altstadt', stayHours: 1, summary: '噴泉、教堂與露天座椅。', tags: ['photo', 'food'], ticket: '免費', bestFor: ['solo', 'couple', 'family'] },
+      { id: 'hd-pharmacy', name: '德國藥劑博物館', nameDe: 'Deutsches Apotheken-Museum', area: '城堡內', stayHours: 1, summary: '城堡內意外有趣的專題館。', tags: ['culture'], ticket: '含城堡票', bestFor: ['solo', 'couple', 'family'] },
+      { id: 'hd-kiss', name: '學生之吻巧克力店', nameDe: 'Studentenkuss', area: 'Altstadt', stayHours: 0.5, summary: '經典伴手禮與甜點。', tags: ['food', 'shopping'], ticket: '餐費自理', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'hd-jesuit', name: '耶穌會教堂', nameDe: 'Jesuitenkirche', area: 'Altstadt', stayHours: 0.75, summary: '巴洛克白淨空間好拍。', tags: ['photo', 'culture'], ticket: '免費', bestFor: ['couple', 'solo'] },
+      { id: 'hd-schwetzingen', name: '施韋欽根宮花園', nameDe: 'Schwetzingen', area: '近郊', stayHours: 4, summary: '日遊級花園宮殿。', tags: ['nature', 'culture', 'photo'], ticket: '另計', bestFor: ['couple', 'family'] },
+      { id: 'hd-thing', name: 'Thingstätte 露天劇場', nameDe: 'Thingstätte', area: '山區', stayHours: 1.5, summary: '林間遺跡，較少人但特別。', tags: ['culture', 'nature'], ticket: '免費', bestFor: ['solo', 'friends'] },
+      { id: 'hd-neuenheim', name: 'Neuenheim 河岸咖啡', nameDe: 'Neuenheim', area: '北岸', stayHours: 1.5, summary: '當地人節奏的咖啡漫遊。', tags: ['food'], ticket: '餐費自理', bestFor: ['solo', 'couple'] },
+      { id: 'hd-karls', name: '卡爾門', nameDe: 'Karlstor', area: 'Altstadt', stayHours: 0.5, summary: '老城東門地標。', tags: ['photo'], ticket: '免費', bestFor: ['solo', 'couple'] },
+      { id: 'hd-garden', name: '城堡花園散步', nameDe: 'Stückgarten', area: '城堡', stayHours: 1, summary: '城堡邊視野開闊的花園。', tags: ['nature', 'photo'], ticket: '視票種', bestFor: ['couple', 'family'] },
+      { id: 'hd-shopping', name: '老城手工藝店', nameDe: 'Craft shops', area: 'Altstadt', stayHours: 1.5, summary: '木藝、明信片與小物。', tags: ['shopping'], ticket: '免費', bestFor: ['friends', 'couple', 'family'] },
+      { id: 'hd-sunset', name: '老橋城堡日落組', nameDe: 'Sunset combo', area: 'Altstadt', stayHours: 1, summary: '把老橋與城堡金光一次拍完。', tags: ['photo', 'must'], ticket: '免費', bestFor: ['couple', 'friends', 'solo'] },
+    ],
   },
   {
     id: 'romantic',
@@ -795,7 +517,7 @@ export const destinations: Destination[] = [
     nameDe: 'Romantische Straße',
     tagline: '中世紀城牆、童話城堡與巴伐利亞小鎮連線',
     intro:
-      '浪漫之路不是單一座城市，而是羅騰堡、諾德林根到新天鵝堡一帶的故事線。適合喜歡老城牆、半木造屋與城堡的旅人；建議用一到兩個基地住宿，避免天天換宿。',
+      '浪漫之路不是單一座城市，而是羅騰堡到新天鵝堡一帶的故事線。建議用一到兩個基地住宿，避免天天換宿。',
     bestSeason: '4–10 月自駕或巴士最舒適',
     recommendedDays: {
       min: 4,
@@ -809,7 +531,6 @@ export const destinations: Destination[] = [
       autumn: '5–15°C，最有童話氛圍',
       winter: '-2–4°C，部分小鎮靜謐，注意交通',
     },
-    highlights: ['羅騰堡', '諾德林根', '新天鵝堡', '富森', '丁克爾斯比爾'],
     hotels: [
       {
         name: 'Hotel Eisenhut',
@@ -844,126 +565,30 @@ export const destinations: Destination[] = [
         styles: ['luxury', 'luxuryValue'],
       },
     ],
-    itineraries: {
-      4: [
-        {
-          theme: '進入羅騰堡',
-          stayArea: 'Rothenburg',
-          schedule: [
-            { time: '12:00', title: '抵達入住', detail: '建議住城牆內' },
-            { time: '14:00', title: '市集廣場與市政廳塔', detail: '建立方位' },
-            { time: '16:30', title: '城牆步行', detail: '環城視野' },
-            { time: '19:00', title: '晚餐', detail: 'Schneeballen 甜點可當飯後' },
-          ],
-          budget: '€55–90 / 人',
-          tip: '日落後老城更安靜好拍。',
-        },
-        {
-          theme: '羅騰堡深度',
-          stayArea: 'Rothenburg',
-          schedule: [
-            { time: '09:30', title: '中世紀犯罪博物館', detail: '室內備案也好' },
-            { time: '12:30', title: '午餐', detail: '老城餐廳' },
-            { time: '14:30', title: 'Plönlein 街角', detail: '經典明信片取景' },
-            { time: '19:30', title: '夜巡（季節限定）', detail: '若有場次值得參加' },
-          ],
-          budget: '€60–95 / 人',
-          tip: '白天遊客多，早晚才是精華。',
-        },
-        {
-          theme: '南下富森',
-          stayArea: 'Füssen',
-          schedule: [
-            { time: '09:00', title: '前往富森', detail: '火車/自駕，預留交通日' },
-            { time: '14:00', title: '富森老城', detail: '安頓後輕鬆走走' },
-            { time: '17:30', title: '湖區散步', detail: '為明天城堡暖身' },
-            { time: '19:00', title: '晚餐', detail: '早點休息' },
-          ],
-          budget: '€50–85 / 人（不含長程交通）',
-          tip: '這天以移動為主，別塞景點。',
-        },
-        {
-          theme: '新天鵝堡與收尾',
-          stayArea: '退房或再住一晚',
-          schedule: [
-            { time: '08:30', title: '新天鵝堡', detail: '預訂時段票' },
-            { time: '12:30', title: '午餐', detail: 'Hohenschwangau 區' },
-            { time: '14:30', title: '舊天鵝堡外觀或回程', detail: '依體力選擇' },
-          ],
-          budget: '€70–120 / 人',
-          tip: '城堡內禁拍，外觀馬里亞橋是經典視角。',
-        },
-      ],
-      5: [
-        {
-          theme: '羅騰堡抵達',
-          stayArea: 'Rothenburg',
-          schedule: [
-            { time: '12:00', title: '入住', detail: '午後入城' },
-            { time: '14:00', title: '市集與城牆', detail: '慢節奏開場' },
-            { time: '19:00', title: '晚餐', detail: '老城' },
-          ],
-          budget: '€50–85 / 人',
-          tip: '住兩晚比一天閃現值得。',
-        },
-        {
-          theme: '羅騰堡全日',
-          stayArea: 'Rothenburg',
-          schedule: [
-            { time: '09:30', title: '經典街景', detail: 'Plönlein、商店街' },
-            { time: '13:00', title: '午餐', detail: '地區料理' },
-            { time: '15:00', title: '博物館', detail: '雨備方案' },
-            { time: '19:30', title: '夜巡', detail: '季節有開再參加' },
-          ],
-          budget: '€60–95 / 人',
-          tip: '雪球酥很甜，一人一個就夠。',
-        },
-        {
-          theme: '小鎮連線',
-          stayArea: '往富森移動或中途住',
-          schedule: [
-            { time: '09:00', title: '丁克爾斯比爾或諾德林根', detail: '擇一停留 2–3 小時' },
-            { time: '15:00', title: '續行富森', detail: '傍晚抵達' },
-            { time: '19:00', title: '晚餐', detail: '早休息' },
-          ],
-          budget: '€55–90 / 人',
-          tip: '自駕最自由；大眾運輸需精算班次。',
-        },
-        {
-          theme: '城堡日',
-          stayArea: 'Füssen',
-          schedule: [
-            { time: '08:30', title: '新天鵝堡', detail: '重點行程' },
-            { time: '13:00', title: '午餐', detail: '城堡山下' },
-            { time: '15:00', title: '阿爾卑斯湖', detail: '若體力允許' },
-            { time: '19:00', title: '慶祝晚餐', detail: '收束浪漫之路' },
-          ],
-          budget: '€75–125 / 人',
-          tip: '票務與交通是成敗關鍵。',
-        },
-        {
-          theme: '緩衝離境',
-          stayArea: '退房',
-          schedule: [
-            { time: '09:30', title: '富森老城', detail: '最後散步' },
-            { time: '12:00', title: '前往慕尼黑/機場', detail: '預留充足時間' },
-          ],
-          budget: '€35–60 / 人',
-          tip: '回慕尼黑再飛出最常見。',
-        },
-      ],
-    },
+    spots: [
+      { id: 'rom-ploenlein', name: '普倫萊恩街角', nameDe: 'Plönlein', area: 'Rothenburg', stayHours: 0.75, summary: '浪漫之路第一打卡紅點。', tags: ['must', 'photo', 'popular'], ticket: '免費', bestFor: ['couple', 'friends', 'family', 'solo'] },
+      { id: 'rom-wall', name: '羅騰堡城牆步行', nameDe: 'Stadtmauer', area: 'Rothenburg', stayHours: 1.5, summary: '環城視野，理解中世紀尺度。', tags: ['must', 'photo'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
+      { id: 'rom-market', name: '羅騰堡市集廣場', nameDe: 'Marktplatz', area: 'Rothenburg', stayHours: 1, summary: '市政廳塔與噴泉核心。', tags: ['must', 'popular', 'photo'], ticket: '登塔另計', bestFor: ['family', 'couple', 'friends'] },
+      { id: 'rom-crime', name: '中世紀犯罪博物館', nameDe: 'Kriminalmuseum', area: 'Rothenburg', stayHours: 1.5, summary: '室內深度點，雨備優選。', tags: ['culture', 'popular'], ticket: '約 €8', bestFor: ['solo', 'friends', 'couple'] },
+      { id: 'rom-night', name: '夜巡人導覽', nameDe: 'Night Watchman', area: 'Rothenburg', stayHours: 1, summary: '季節限定，氣氛拔群。', tags: ['popular', 'culture'], ticket: '約 €10', bestFor: ['friends', 'couple', 'family'] },
+      { id: 'rom-snowball', name: '雪球酥店', nameDe: 'Schneeballen', area: 'Rothenburg', stayHours: 0.5, summary: '甜點伴手禮，一人一個就夠。', tags: ['food', 'shopping'], ticket: '餐費自理', bestFor: ['family', 'couple', 'friends'] },
+      { id: 'rom-dinkels', name: '丁克爾斯比爾', nameDe: 'Dinkelsbühl', area: '中段小鎮', stayHours: 2.5, summary: '相對安靜的半木造老城。', tags: ['photo', 'culture'], ticket: '免費', bestFor: ['couple', 'family', 'solo'] },
+      { id: 'rom-nordlingen', name: '諾德林根城牆', nameDe: 'Nördlingen', area: '中段小鎮', stayHours: 2.5, summary: '隕石坑上的圓形古城。', tags: ['photo', 'culture', 'popular'], ticket: '城牆免費', bestFor: ['friends', 'couple', 'solo'] },
+      { id: 'rom-neuschwanstein', name: '新天鵝堡', nameDe: 'Neuschwanstein', area: 'Hohenschwangau', stayHours: 4, summary: '童話城堡本尊，務必訂票。', tags: ['must', 'photo', 'popular'], ticket: '約 €21', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'rom-hohen', name: '舊天鵝堡', nameDe: 'Hohenschwangau', area: 'Hohenschwangau', stayHours: 2, summary: '路德維希童年城堡，可搭配。', tags: ['culture', 'photo'], ticket: '約 €18', bestFor: ['couple', 'family'] },
+      { id: 'rom-mariabridge', name: '馬里亞橋展望', nameDe: 'Marienbrücke', area: '新天鵝堡', stayHours: 0.75, summary: '城堡最經典正面視角。', tags: ['must', 'photo'], ticket: '免費', bestFor: ['couple', 'friends', 'family', 'solo'] },
+      { id: 'rom-fuessen', name: '富森老城', nameDe: 'Füssen Altstadt', area: 'Füssen', stayHours: 2, summary: '城堡行程的舒適基地。', tags: ['food', 'shopping', 'photo'], ticket: '免費', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'rom-alpsee', name: '阿爾卑斯湖', nameDe: 'Alpsee', area: 'Hohenschwangau', stayHours: 1.5, summary: '城堡下山湖景散步。', tags: ['nature', 'photo'], ticket: '免費', bestFor: ['couple', 'family', 'solo'] },
+      { id: 'rom-wies', name: '維斯教堂', nameDe: 'Wieskirche', area: '近郊', stayHours: 1.5, summary: '洛可可世界遺產教堂。', tags: ['culture', 'photo'], ticket: '免費/樂捐', bestFor: ['couple', 'solo'] },
+      { id: 'rom-augsburg', name: '奧格斯堡老城', nameDe: 'Augsburg', area: '中段', stayHours: 3, summary: '可作為移動日停留點。', tags: ['culture', 'food'], ticket: '免費', bestFor: ['friends', 'couple'] },
+      { id: 'rom-tauber', name: '陶伯河河谷眺望', nameDe: 'Tauber Valley', area: 'Rothenburg', stayHours: 1, summary: '城牆外開闊視野。', tags: ['nature', 'photo'], ticket: '免費', bestFor: ['solo', 'couple'] },
+      { id: 'rom-kathe', name: 'Käthe Wohlfahrt 聖誕博物館', nameDe: 'Käthe Wohlfahrt', area: 'Rothenburg', stayHours: 1, summary: '全年聖誕氣氛商店。', tags: ['shopping', 'popular'], ticket: '博物館另計', bestFor: ['family', 'couple'] },
+      { id: 'rom-castlepath', name: '城堡花園步道', nameDe: 'Burggarten', area: 'Rothenburg', stayHours: 1, summary: '看老城全景的安靜角落。', tags: ['photo', 'nature'], ticket: '免費', bestFor: ['couple', 'solo'] },
+      { id: 'rom-drive', name: '浪漫之路風景段駕駛/巴士', nameDe: 'Scenic stretch', area: '沿線', stayHours: 3, summary: '移動本身就是風景。', tags: ['nature', 'popular'], ticket: '交通費', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'rom-forgensee', name: '弗根湖展望', nameDe: 'Forggensee', area: 'Füssen', stayHours: 1.5, summary: '阿爾卑斯前的湖光收尾。', tags: ['nature', 'photo'], ticket: '免費', bestFor: ['couple', 'family', 'solo'] },
+    ],
   },
 ]
-
-export function pickDays(dest: Destination, requested?: number): number {
-  if (requested && dest.itineraries[requested]) return requested
-  if (dest.itineraries[dest.recommendedDays.ideal]) return dest.recommendedDays.ideal
-  const available = Object.keys(dest.itineraries)
-    .map(Number)
-    .sort((a, b) => a - b)
-  return available[0]
-}
 
 export function hotelsForStyle(dest: Destination, style: HotelStyle): HotelOption[] {
   const matched = dest.hotels.filter((h) => h.styles.includes(style))
@@ -975,4 +600,251 @@ export function seasonKey(month: number): keyof Destination['weather'] {
   if (month >= 6 && month <= 8) return 'summer'
   if (month >= 9 && month <= 11) return 'autumn'
   return 'winter'
+}
+
+export function defaultSelectedSpotIds(spots: ScenicSpot[]): string[] {
+  const must = spots.filter((s) => s.tags.includes('must')).map((s) => s.id)
+  const photo = spots.filter((s) => s.tags.includes('photo') && !must.includes(s.id)).map((s) => s.id)
+  const popular = spots
+    .filter((s) => s.tags.includes('popular') && !must.includes(s.id) && !photo.includes(s.id))
+    .map((s) => s.id)
+  const rest = spots
+    .filter((s) => !must.includes(s.id) && !photo.includes(s.id) && !popular.includes(s.id))
+    .map((s) => s.id)
+  return [...must, ...photo.slice(0, 6), ...popular.slice(0, 4), ...rest].slice(0, 12)
+}
+
+function sortSpotsForTraveler(
+  spots: ScenicSpot[],
+  companion: Companion,
+  specialNeeds: string[],
+): ScenicSpot[] {
+  const wantsPhoto = specialNeeds.some((n) => n.includes('打卡'))
+  const wantsCulture = specialNeeds.some((n) => n.includes('歷史'))
+  const wantsFood = specialNeeds.some((n) => n.includes('美食'))
+  const wantsNature = specialNeeds.some((n) => n.includes('自然'))
+  const wantsShopping = specialNeeds.some((n) => n.includes('購物'))
+  const avoidCrowd = specialNeeds.some((n) => n.includes('人潮'))
+
+  return [...spots].sort((a, b) => score(b) - score(a))
+
+  function score(s: ScenicSpot): number {
+    let n = 0
+    if (s.tags.includes('must')) n += 8
+    if (s.tags.includes('photo')) n += wantsPhoto ? 6 : 3
+    if (s.tags.includes('popular')) n += avoidCrowd ? -2 : 2
+    if (s.tags.includes('culture') && wantsCulture) n += 4
+    if (s.tags.includes('food') && wantsFood) n += 4
+    if (s.tags.includes('nature') && wantsNature) n += 4
+    if (s.tags.includes('shopping') && wantsShopping) n += 3
+    if (s.bestFor.includes(companion)) n += 2
+    if (s.stayHours >= 6) n += 1
+    return n
+  }
+}
+
+function groupByArea(spots: ScenicSpot[]): Map<string, ScenicSpot[]> {
+  const map = new Map<string, ScenicSpot[]>()
+  for (const spot of spots) {
+    const list = map.get(spot.area) ?? []
+    list.push(spot)
+    map.set(spot.area, list)
+  }
+  return map
+}
+
+function timeLabel(hour: number, minute = 0): string {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+export function buildItinerary(options: {
+  destinations: Destination[]
+  selectedSpotIds: string[]
+  days: number
+  pace: TripPace
+  companion: Companion
+  specialNeeds: string[]
+  hotelAreaHint: string
+}): DayPlan[] {
+  const { destinations: dests, selectedSpotIds, days, pace, companion, specialNeeds, hotelAreaHint } =
+    options
+  const spotsPerDay = tripPaces.find((p) => p.id === pace)?.spotsPerDay ?? 3
+  const startHour = specialNeeds.some((n) => n.includes('少走路')) ? 10 : 9
+
+  const allSpots = dests.flatMap((d) => d.spots)
+  const selected = sortSpotsForTraveler(
+    allSpots.filter((s) => selectedSpotIds.includes(s.id)),
+    companion,
+    specialNeeds,
+  )
+
+  if (!selected.length) {
+    return Array.from({ length: days }, (_, i) => ({
+      theme: `Day ${i + 1} · 自由活動`,
+      stayArea: hotelAreaHint || dests[0]?.nameZh || '市區',
+      schedule: [
+        {
+          time: '10:00',
+          title: '尚未選擇景點',
+          detail: '請回到景點步驟勾選想去的地方，再重新產生行程。',
+        },
+      ],
+      budget: '視當日安排',
+      tip: '至少選擇 2–3 個景點，行程會更完整。',
+      spotIds: [],
+    }))
+  }
+
+  // Keep day-trip scale spots on their own day when possible
+  const longSpots = selected.filter((s) => s.stayHours >= 6)
+  const shortSpots = selected.filter((s) => s.stayHours < 6)
+
+  const areaGroups = [...groupByArea(shortSpots).entries()].sort(
+    (a, b) => b[1].length - a[1].length,
+  )
+  const orderedShort: ScenicSpot[] = []
+  for (const [, group] of areaGroups) orderedShort.push(...group)
+
+  const dayBuckets: ScenicSpot[][] = Array.from({ length: days }, () => [])
+
+  // Place long spots first on middle/later days
+  longSpots.forEach((spot, idx) => {
+    const dayIndex = Math.min(days - 1, Math.max(1, idx + 1))
+    dayBuckets[dayIndex].push(spot)
+  })
+
+  let cursor = 0
+  for (const spot of orderedShort) {
+    // find a day with capacity, prefer same-area clustering by scanning
+    let placed = false
+    for (let offset = 0; offset < days; offset++) {
+      const i = (cursor + offset) % days
+      const bucket = dayBuckets[i]
+      const usedHours = bucket.reduce((sum, s) => sum + s.stayHours, 0)
+      const countLimit = bucket.some((s) => s.stayHours >= 6) ? 1 : spotsPerDay
+      if (bucket.length < countLimit && usedHours + spot.stayHours <= spotsPerDay * 2.8) {
+        bucket.push(spot)
+        cursor = (i + (bucket.length >= countLimit ? 1 : 0)) % days
+        placed = true
+        break
+      }
+    }
+    if (!placed) {
+      const fallback = dayBuckets.reduce(
+        (best, bucket, i) => (bucket.length < dayBuckets[best].length ? i : best),
+        0,
+      )
+      dayBuckets[fallback].push(spot)
+    }
+  }
+
+  // Ensure first/last days aren't empty if possible
+  for (let i = 0; i < days; i++) {
+    if (dayBuckets[i].length === 0) {
+      const donor = dayBuckets.findIndex((b, j) => j !== i && b.length > 1 && b[0].stayHours < 6)
+      if (donor >= 0) dayBuckets[i].push(dayBuckets[donor].pop()!)
+    }
+  }
+
+  return dayBuckets.map((bucket, index) => {
+    const isFirst = index === 0
+    const isLast = index === days - 1
+    const area = bucket[0]?.area || hotelAreaHint || '市區'
+    const themeCore =
+      bucket.length === 0
+        ? '彈性休息'
+        : bucket.some((s) => s.stayHours >= 6)
+          ? bucket[0].name
+          : `${area} 精華`
+
+    const schedule: ScheduleItem[] = []
+    let hour = isFirst ? Math.max(startHour, 10) : startHour
+    if (isFirst) {
+      schedule.push({
+        time: timeLabel(Math.max(9, hour - 1)),
+        title: '抵達 / 入住安頓',
+        detail: `建議住在 ${hotelAreaHint || area}，先放行李再出門。`,
+      })
+    } else {
+      schedule.push({
+        time: timeLabel(hour),
+        title: '出發',
+        detail: specialNeeds.includes('避開人潮')
+          ? '稍早出門，熱門點比較好拍。'
+          : '吃完早餐後依路線前往第一站。',
+      })
+      hour += 1
+    }
+
+    bucket.forEach((spot, spotIndex) => {
+      if (spotIndex === 1 || (spotIndex === 0 && hour >= 12 && hour <= 13)) {
+        schedule.push({
+          time: timeLabel(Math.min(hour, 13)),
+          title: '午餐',
+          detail: specialNeeds.includes('想多吃在地美食')
+            ? '優先選在地小館，避開純觀光菜單。'
+            : `在 ${spot.area} 附近用餐，再續行程。`,
+        })
+        hour = Math.max(hour, 13) + 1
+      }
+
+      schedule.push({
+        time: timeLabel(Math.min(hour, 18)),
+        title: spot.name,
+        detail: `${spot.summary} 建議停留約 ${spot.stayHours} 小時${spot.ticket ? `｜${spot.ticket}` : ''}。${
+          spot.tags.includes('photo') ? ' 記得留打卡時間。' : ''
+        }`,
+        spotId: spot.id,
+      })
+      hour += Math.max(1, Math.ceil(spot.stayHours))
+    })
+
+    if (isLast) {
+      schedule.push({
+        time: timeLabel(Math.min(hour, 16)),
+        title: '伴手禮 / 前往機場或車站',
+        detail: '預留 60–90 分鐘交通緩衝，別排太滿。',
+      })
+    } else {
+      schedule.push({
+        time: timeLabel(Math.min(Math.max(hour, 18), 20)),
+        title: '晚餐與回飯店',
+        detail: `今晚住 ${hotelAreaHint || area}，整理明天路線。`,
+      })
+    }
+
+    const tickety = bucket.filter((s) => s.ticket && !s.ticket.includes('免費')).length
+    const budgetLow = 45 + bucket.length * 15 + tickety * 10
+    const budgetHigh = budgetLow + 40 + (pace === 'packed' ? 20 : 0)
+
+    return {
+      theme: `${isFirst ? '抵達 · ' : isLast ? '收尾 · ' : ''}${themeCore}`,
+      stayArea: hotelAreaHint || area,
+      schedule,
+      budget: `€${budgetLow}–${budgetHigh} / 人（不含住宿）`,
+      tip: buildDayTip(bucket, specialNeeds, pace),
+      spotIds: bucket.map((s) => s.id),
+    }
+  })
+}
+
+function buildDayTip(bucket: ScenicSpot[], specialNeeds: string[], pace: TripPace): string {
+  if (!bucket.length) return '這天可當雨備或購物彈性日。'
+  if (bucket.some((s) => s.stayHours >= 6)) return '長程日遊：交通與門票請前一晚確認。'
+  if (specialNeeds.includes('避開人潮')) return '熱門點盡量開館就到，午后改逛巷弄。'
+  if (pace === 'relaxed') return '今天偏鬆，景點間可插入咖啡時間。'
+  if (bucket.every((s) => s.area === bucket[0].area)) return '同區域串連，減少交通折返。'
+  return '已依區域盡量順路；若太趕可刪掉最後一站。'
+}
+
+export function nightsFromDays(days: number): number {
+  return Math.max(days - 1, 1)
+}
+
+export function daysBetween(start: string, end: string): number | null {
+  if (!start || !end) return null
+  const a = new Date(start)
+  const b = new Date(end)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return null
+  return Math.floor((b.getTime() - a.getTime()) / 86400000) + 1
 }
