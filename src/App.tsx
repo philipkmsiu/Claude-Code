@@ -988,16 +988,18 @@ function App() {
       <FloatingEmojiField />
       <header className="topbar">
         <button type="button" className="brand" onClick={reset}>
-          <img
-            className="brand-logo"
-            src="/km-logo.png"
-            alt="KM Travel Planner"
-            width={48}
-            height={48}
-          />
+          <span className="brand-logo-wrap">
+            <img
+              className="brand-logo"
+              src="/km-logo.png"
+              alt="KM"
+              width={48}
+              height={48}
+            />
+          </span>
           <span className="brand-text">
             KM Travel Planner
-            <small>KM Building Company · AI 旅遊規劃 ✨</small>
+            <small>AI 旅遊規劃 ✨</small>
           </span>
         </button>
         {step !== 'home' && (
@@ -1022,17 +1024,19 @@ function App() {
           <section className="hero">
             <div className="hero-copy">
               <BounceBadge>🎉 開心出發模式 ON</BounceBadge>
-              <img
-                className="hero-logo"
-                src="/km-logo.png"
-                alt="KM Building Company"
-                width={120}
-                height={120}
-              />
+              <span className="hero-logo-wrap">
+                <img
+                  className="hero-logo"
+                  src="/km-logo.png"
+                  alt="KM"
+                  width={128}
+                  height={128}
+                />
+              </span>
               <h1 className="hero-brand">KM Travel Planner</h1>
               <p className="eyebrow">
                 <IconSpark size={16} className="inline-icon" />
-                KM Building Company · 互動式 AI 旅程地圖 🌈
+                互動式 AI 旅程地圖 🌈
               </p>
               <p className="hero-lead">
                 先輸入目的地，看最短／最舒服要幾天；也可以自己輸入天數（到{' '}
@@ -2586,9 +2590,9 @@ function App() {
 
       <footer className="footer">
         <span className="footer-brand">
-          <img src="/km-logo.png" alt="" width={28} height={28} />
+          <img src="/km-logo.png" alt="" width={32} height={32} />
           KM Travel Planner
-          <small>by KM Building Company ❤️</small>
+          <small>開心規劃每一程 ❤️</small>
         </span>
         <span className="footer-flow">
           <span aria-hidden>📍</span>
