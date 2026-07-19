@@ -72,12 +72,25 @@ export function JourneyMap({
     )
       .then((rows) => {
         if (cancelled) return
-        // Live landmark photos first; handbook gallery as fallback.
-        const merged = rows.map((url, index) => {
-          if (url) return url
-          if (photoSrcs.length) return photoSrcs[index % photoSrcs.length]
-          return null
+        // Unique live photos only — never cycle handbook gallery (that reused the same wall shot).
+        const used = new Set<string>()
+        const merged = rows.map((url) => {
+          if (!url || used.has(url)) return null
+          used.add(url)
+          return url
         })
+        // Fill remaining gaps with unused handbook shots (each at most once).
+        if (photoSrcs.length) {
+          const unusedLocal = photoSrcs.filter((src) => !used.has(src))
+          let localIdx = 0
+          for (let i = 0; i < merged.length; i += 1) {
+            if (merged[i] || localIdx >= unusedLocal.length) continue
+            const next = unusedLocal[localIdx]
+            localIdx += 1
+            used.add(next)
+            merged[i] = next
+          }
+        }
         setDayPhotos(merged)
       })
       .finally(() => {
@@ -430,103 +443,70 @@ function dayBullets(day: DayPlan): string[] {
   return [day.theme].filter(Boolean)
 }
 
+/** Painted watercolor bases shipped with the app (Gemini scrapbook look — never photos). */
+const WATERCOLOR_BASE: Record<string, string> = {
+  heritage: '/poster/poster-scene-heritage.png',
+  landscape: '/poster/poster-scene-landscape.png',
+  lake: '/poster/poster-scene-lake.png',
+  street: '/poster/poster-scene-street.png',
+  city: '/poster/poster-scene-street.png',
+  rest: '/poster/poster-scene-lake.png',
+  travel: '/poster/poster-scene-landscape.png',
+}
+
 /** Gemini-style unique watercolor scene — never a photograph. */
 function GeminiDayArt({ day, index }: { day: DayPlan; index: number }) {
   const kind = sceneKind(day)
-  const palette = [
-    ['#7ea896', '#d9b27c', '#f3e7d4'],
-    ['#c17a5a', '#e8c97a', '#efe4d0'],
-    ['#6b8fa8', '#9bb7a5', '#f0e8d8'],
-    ['#8a6b4a', '#c4a574', '#f7f1e6'],
-    ['#5c7a6e', '#b08a5a', '#e7efe9'],
-    ['#9a6b3f', '#7a9e8e', '#f3ebe0'],
-  ][index % 6]
-  const [a, b, paper] = palette
-  const variant = index % 3
+  const motif = landmarkMotif(day)
+  const base = WATERCOLOR_BASE[kind] || WATERCOLOR_BASE.city
+  // Distinct crop / wash per day so even same scene-kind never looks identical.
+  const positions = [
+    '28% 32%',
+    '68% 38%',
+    '42% 62%',
+    '58% 24%',
+    '34% 70%',
+    '72% 52%',
+    '48% 44%',
+    '22% 48%',
+  ]
+  const washes = [
+    'hue-rotate(-8deg) saturate(0.82) contrast(0.94) brightness(1.04)',
+    'hue-rotate(14deg) saturate(0.78) contrast(0.96) brightness(1.02)',
+    'hue-rotate(-18deg) saturate(0.88) contrast(0.92) brightness(1.05)',
+    'hue-rotate(22deg) saturate(0.8) contrast(0.95) brightness(1.01)',
+    'hue-rotate(6deg) saturate(0.85) sepia(0.12) contrast(0.93)',
+    'hue-rotate(-22deg) saturate(0.76) contrast(0.97) brightness(1.03)',
+  ]
+  const paperTints = ['#f6ecdc', '#e8f0e6', '#f3e4d4', '#e7ebe8', '#f0e8d8', '#ebe4d8']
+  const pos = positions[index % positions.length]
+  const filter = washes[index % washes.length]
+  const tint = paperTints[index % paperTints.length]
 
   return (
     <div className="day-scene circular gemini-art" aria-hidden>
-      <svg viewBox="0 0 120 120" className="scene-svg">
+      <div className="gemini-wash" style={{ background: tint }} />
+      <img
+        className="gemini-scene-img"
+        src={base}
+        alt=""
+        draggable={false}
+        style={{ objectPosition: pos, filter }}
+      />
+      <svg viewBox="0 0 120 120" className="gemini-overlay">
         <defs>
-          <radialGradient id={`paper-${index}`} cx="40%" cy="30%" r="75%">
-            <stop offset="0%" stopColor="#fffaf2" />
-            <stop offset="100%" stopColor={paper} />
+          <radialGradient id={`vignette-${index}`} cx="50%" cy="45%" r="60%">
+            <stop offset="55%" stopColor="transparent" />
+            <stop offset="100%" stopColor="rgba(90,70,50,0.28)" />
           </radialGradient>
-          <filter id={`paint-${index}`}>
-            <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" />
+          <filter id={`ink-${index}`}>
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" />
           </filter>
         </defs>
-        <circle cx="60" cy="60" r="58" fill={`url(#paper-${index})`} />
-        <g filter={`url(#paint-${index})`}>
-          <ellipse cx="30" cy="28" rx="14" ry="7" fill="#fff8ee" opacity="0.75" />
-          <circle cx="92" cy="26" r="9" fill="#e8c97a" opacity="0.55" />
-          {kind === 'lake' ? (
-            <>
-              <path
-                d={
-                  variant === 0
-                    ? 'M8 78 Q40 58 70 76 T114 74 L114 112 L8 112 Z'
-                    : 'M6 82 Q50 62 90 80 T116 78 L116 112 L6 112 Z'
-                }
-                fill={a}
-                opacity="0.7"
-              />
-              <path d="M10 86 Q55 72 100 86" fill="none" stroke="#fff8ee" strokeWidth="1.6" opacity="0.55" />
-              <path d="M20 54 Q40 40 55 55" fill={b} opacity="0.55" />
-            </>
-          ) : kind === 'heritage' ? (
-            <>
-              <rect x="34" y="48" width="52" height="38" rx="2" fill={a} opacity="0.78" />
-              <polygon
-                points={variant === 1 ? '28,48 60,22 92,48' : '30,50 60,26 90,50'}
-                fill={b}
-              />
-              <rect x="52" y="62" width="16" height="24" fill="#f7f1e6" opacity="0.9" />
-              <rect x="40" y="56" width="8" height="8" fill="#f7f1e6" opacity="0.55" />
-              <rect x="72" y="56" width="8" height="8" fill="#f7f1e6" opacity="0.55" />
-            </>
-          ) : kind === 'landscape' ? (
-            <>
-              <path
-                d={
-                  variant === 2
-                    ? 'M4 92 L28 40 L48 70 L72 28 L96 66 L116 42 L116 112 L4 112 Z'
-                    : 'M2 96 L34 44 L58 78 L82 32 L116 88 L116 112 L2 112 Z'
-                }
-                fill={a}
-                opacity="0.75"
-              />
-              <path d="M2 100 L50 62 L84 90 L116 70 L116 112 L2 112 Z" fill={b} opacity="0.4" />
-            </>
-          ) : kind === 'street' ? (
-            <>
-              <rect x="16" y="50" width="24" height="36" fill={a} opacity="0.7" />
-              <rect x="46" y="40" width="28" height="46" fill={b} opacity="0.65" />
-              <rect x="80" y="54" width="22" height="32" fill={a} opacity="0.75" />
-              <circle cx="28" cy="92" r="3" fill="#e8c97a" />
-              <circle cx="60" cy="92" r="3" fill="#e8c97a" />
-              <circle cx="90" cy="92" r="3" fill="#e8c97a" />
-            </>
-          ) : kind === 'rest' ? (
-            <>
-              <ellipse cx="60" cy="78" rx="36" ry="14" fill={a} opacity="0.28" />
-              <path d="M38 66 Q60 40 82 66" fill="none" stroke={b} strokeWidth="4" />
-              <circle cx="60" cy="54" r="10" fill="#e8c97a" opacity="0.85" />
-            </>
-          ) : kind === 'travel' ? (
-            <>
-              <path d="M18 70 L72 48 L102 58 L72 66 L54 90 Z" fill={a} opacity="0.8" />
-              <rect x="20" y="78" width="14" height="18" fill={b} opacity="0.65" />
-            </>
-          ) : (
-            <>
-              <rect x="20" y="46" width="20" height="40" fill={a} opacity="0.7" />
-              <rect x="48" y="36" width="24" height="50" fill={b} opacity="0.6" />
-              <rect x="80" y="50" width="20" height="36" fill={a} opacity="0.75" />
-              <path d="M8 96 Q60 84 112 96" fill="none" stroke={b} strokeWidth="2.2" />
-            </>
-          )}
+        <circle cx="60" cy="60" r="58" fill={`url(#vignette-${index})`} />
+        <g filter={`url(#ink-${index})`} opacity="0.92">
+          <LandmarkSketch motif={motif} index={index} />
         </g>
         <text
           x="60"
@@ -536,10 +516,215 @@ function GeminiDayArt({ day, index }: { day: DayPlan; index: number }) {
           fill="#5c6b63"
           fontFamily="Georgia, serif"
         >
-          {sceneLabel(kind)}
+          {motifLabel(motif)}
         </text>
       </svg>
     </div>
+  )
+}
+
+type LandmarkMotif =
+  | 'wall'
+  | 'pagoda'
+  | 'terracotta'
+  | 'mountain'
+  | 'mosque'
+  | 'lake'
+  | 'museum'
+  | 'street'
+  | 'plane'
+  | 'garden'
+  | 'default'
+
+function landmarkMotif(day: DayPlan): LandmarkMotif {
+  const text = `${day.theme} ${day.stayCity || ''} ${day.mainPlan || ''} ${day.schedule
+    .map((s) => s.title)
+    .join(' ')}`
+  if (/兵馬俑|秦俑|terracotta/i.test(text)) return 'terracotta'
+  if (/華山|登山|峰|山岳|秦嶺/.test(text)) return 'mountain'
+  if (/雁塔|塔|pagoda/i.test(text)) return 'pagoda'
+  if (/城牆|古城|關城|鼓樓|鐘樓/.test(text)) return 'wall'
+  if (/清真|回民|清真寺|mosque/i.test(text)) return 'mosque'
+  if (/湖|海|泉|灣|護城河/.test(text)) return 'lake'
+  if (/博物館|博物院|碑林|美術館/.test(text)) return 'museum'
+  if (/芙蓉|園|公園|園林/.test(text)) return 'garden'
+  if (/機場|飛|返程/.test(text)) return 'plane'
+  if (/街|市|夜|美食|吃/.test(text)) return 'street'
+  return 'default'
+}
+
+function motifLabel(motif: LandmarkMotif): string {
+  const map: Record<LandmarkMotif, string> = {
+    wall: '城垣',
+    pagoda: '古塔',
+    terracotta: '俑陣',
+    mountain: '山脊',
+    mosque: '坊巷',
+    lake: '湖光',
+    museum: '文博',
+    street: '市井',
+    plane: '啟程',
+    garden: '園林',
+    default: '風景',
+  }
+  return map[motif]
+}
+
+/** Hand-ink landmark silhouette layered on watercolor — unique per motif + day index. */
+function LandmarkSketch({ motif, index }: { motif: LandmarkMotif; index: number }) {
+  const ink = ['#5c5348', '#6f5b45', '#4a5c52', '#7a5340'][index % 4]
+  const accent = ['#9a6b3f', '#6f8f7f', '#8a5a6a', '#5b8fa8'][index % 4]
+  const shift = (index % 5) * 2 - 4
+
+  if (motif === 'wall') {
+    return (
+      <>
+        <path
+          d={`M${12 + shift} 78 H${108 + shift} V92 H${12 + shift} Z`}
+          fill={ink}
+          opacity="0.55"
+        />
+        <path
+          d={`M${20 + shift} 52 H${40 + shift} V78 H${20 + shift} Z M${48 + shift} 40 H${72 + shift} V78 H${48 + shift} Z M${80 + shift} 56 H${98 + shift} V78 H${80 + shift} Z`}
+          fill={ink}
+          opacity="0.7"
+        />
+        <path
+          d={`M${48 + shift} 40 L${60 + shift} 26 L${72 + shift} 40`}
+          fill={accent}
+          opacity="0.85"
+        />
+      </>
+    )
+  }
+  if (motif === 'pagoda') {
+    return (
+      <>
+        <rect x={54 + shift} y="70" width="12" height="22" fill={ink} opacity="0.65" />
+        {[0, 1, 2, 3].map((tier) => (
+          <polygon
+            key={tier}
+            points={`${40 + shift + tier},${68 - tier * 12} ${60 + shift},${52 - tier * 12} ${80 + shift - tier},${68 - tier * 12}`}
+            fill={tier % 2 ? accent : ink}
+            opacity={0.75 - tier * 0.08}
+          />
+        ))}
+      </>
+    )
+  }
+  if (motif === 'terracotta') {
+    return (
+      <>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <g key={i} transform={`translate(${18 + i * 18 + shift} 0)`}>
+            <ellipse cx="8" cy="58" rx="7" ry="4" fill={ink} opacity="0.35" />
+            <rect x="4" y="46" width="8" height="14" rx="2" fill={accent} opacity="0.8" />
+            <circle cx="8" cy="40" r="5" fill={ink} opacity="0.75" />
+          </g>
+        ))}
+      </>
+    )
+  }
+  if (motif === 'mountain') {
+    return (
+      <>
+        <path
+          d={`M${6 + shift} 96 L${34 + shift} 40 L${52 + shift} 68 L${78 + shift} 22 L${116 + shift} 90 L${116 + shift} 108 L${6 + shift} 108 Z`}
+          fill={ink}
+          opacity="0.55"
+        />
+        <path
+          d={`M${70 + shift} 30 L${78 + shift} 22 L${86 + shift} 34`}
+          fill="none"
+          stroke="#fff8ee"
+          strokeWidth="2"
+        />
+      </>
+    )
+  }
+  if (motif === 'mosque') {
+    return (
+      <>
+        <path
+          d={`M${36 + shift} 78 Q${60 + shift} 28 ${84 + shift} 78 Z`}
+          fill={accent}
+          opacity="0.75"
+        />
+        <rect x={52 + shift} y="70" width="16" height="24" fill={ink} opacity="0.65" />
+        <circle cx={60 + shift} cy="36" r="4" fill="#e8c97a" />
+      </>
+    )
+  }
+  if (motif === 'lake') {
+    return (
+      <>
+        <path
+          d={`M${8 + shift} 78 Q${40 + shift} 58 ${70 + shift} 76 T${112 + shift} 74 L${112 + shift} 108 L${8 + shift} 108 Z`}
+          fill={accent}
+          opacity="0.55"
+        />
+        <path
+          d={`M${16 + shift} 84 Q${60 + shift} 70 ${104 + shift} 86`}
+          fill="none"
+          stroke="#fff8ee"
+          strokeWidth="1.8"
+          opacity="0.7"
+        />
+      </>
+    )
+  }
+  if (motif === 'museum') {
+    return (
+      <>
+        <rect x={28 + shift} y="48" width="64" height="40" fill={ink} opacity="0.55" />
+        <polygon
+          points={`${22 + shift},48 ${60 + shift},28 ${98 + shift},48`}
+          fill={accent}
+          opacity="0.8"
+        />
+        <rect x={54 + shift} y="62" width="12" height="26" fill="#f7f1e6" opacity="0.85" />
+      </>
+    )
+  }
+  if (motif === 'garden') {
+    return (
+      <>
+        <ellipse cx={60 + shift} cy="78" rx="36" ry="14" fill={accent} opacity="0.35" />
+        <circle cx={44 + shift} cy="58" r="12" fill={ink} opacity="0.45" />
+        <circle cx={72 + shift} cy="52" r="14" fill={accent} opacity="0.5" />
+        <rect x={58 + shift} y="60" width="5" height="24" fill={ink} opacity="0.6" />
+      </>
+    )
+  }
+  if (motif === 'plane') {
+    return (
+      <path
+        d={`M${18 + shift} 70 L${72 + shift} 48 L${102 + shift} 58 L${72 + shift} 66 L${54 + shift} 90 Z`}
+        fill={accent}
+        opacity="0.8"
+      />
+    )
+  }
+  if (motif === 'street') {
+    return (
+      <>
+        <rect x={16 + shift} y="50" width="22" height="36" fill={ink} opacity="0.55" />
+        <rect x={46 + shift} y="40" width="26" height="46" fill={accent} opacity="0.6" />
+        <rect x={80 + shift} y="54" width="20" height="32" fill={ink} opacity="0.65" />
+      </>
+    )
+  }
+  return (
+    <>
+      <path
+        d={`M${10 + shift} 88 Q${60 + shift} 40 ${110 + shift} 88`}
+        fill="none"
+        stroke={ink}
+        strokeWidth="3"
+        opacity="0.55"
+      />
+      <circle cx={60 + shift} cy="52" r="10" fill={accent} opacity="0.65" />
+    </>
   )
 }
 
@@ -572,13 +757,22 @@ function DayScene({
 }
 
 function sceneKind(day: DayPlan): string {
+  const motif = landmarkMotif(day)
+  if (motif === 'lake' || motif === 'garden') return 'lake'
+  if (
+    motif === 'wall' ||
+    motif === 'pagoda' ||
+    motif === 'terracotta' ||
+    motif === 'mosque' ||
+    motif === 'museum'
+  ) {
+    return 'heritage'
+  }
+  if (motif === 'mountain') return 'landscape'
+  if (motif === 'plane') return 'travel'
+  if (motif === 'street') return 'street'
   const text = `${day.theme} ${day.stayCity || ''} ${day.mainPlan || ''}`
-  if (/湖|海|泉|灣/.test(text)) return 'lake'
-  if (/古城|城牆|關|寺|廟|窟|宮|博物館/.test(text)) return 'heritage'
-  if (/山|峰|峽谷|高原|公路|沙漠|雅丹/.test(text)) return 'landscape'
-  if (/機場|飛|返程/.test(text)) return 'travel'
   if (/休息|自由|洗衣|咖啡/.test(text)) return 'rest'
-  if (/街|市|夜|美食|吃/.test(text)) return 'street'
   return 'city'
 }
 
@@ -723,17 +917,14 @@ function AirportMark() {
 
 function CamelMascot({ small = false }: { small?: boolean }) {
   return (
-    <div className={`camel-art ${small ? 'small' : ''}`} aria-hidden>
-      <svg viewBox="0 0 80 64" width={small ? 40 : 72} height={small ? 32 : 58}>
-        <ellipse cx="40" cy="42" rx="22" ry="12" fill="#c4a574" />
-        <circle cx="58" cy="28" r="10" fill="#c4a574" />
-        <circle cx="62" cy="26" r="1.6" fill="#2c3a34" />
-        <path d="M20 40 Q16 22 28 18" fill="none" stroke="#8a6b4a" strokeWidth="3" />
-        <path d="M30 30 Q36 16 44 28" fill="#b08a5a" />
-        <path d="M44 30 Q50 14 56 28" fill="#b08a5a" />
-        <rect x="54" y="18" width="10" height="6" rx="2" fill="#6f8f7f" />
-        <circle cx="28" cy="36" r="4" fill="#e8c97a" />
-      </svg>
+    <div className={`camel-art painted ${small ? 'small' : ''}`} aria-hidden>
+      <img
+        src="/poster/poster-mascot-camel.png"
+        alt=""
+        draggable={false}
+        width={small ? 44 : 88}
+        height={small ? 44 : 88}
+      />
     </div>
   )
 }

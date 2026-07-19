@@ -226,6 +226,19 @@ function App() {
       recommendedDays = Math.min(Math.max(recommendedDays, minDays), 9)
       comfortableDays = Math.min(Math.max(comfortableDays, recommendedDays), 11)
     }
+    const rawMessage = [aiReview.message, ...(aiReview.adjustments || [])]
+      .filter(Boolean)
+      .join(' ')
+    // Replace leftover AI prose that still claims 15–21 day city expeditions.
+    const message = !longHaul
+      ? sanitizeCityDayMessage(rawMessage, {
+          chosenDays: planDays,
+          minDays,
+          recommendedDays,
+          comfortableDays,
+        }) || durationFit.message
+      : rawMessage || durationFit.message
+
     return {
       ...durationFit,
       status:
@@ -242,10 +255,10 @@ function App() {
       title:
         !longHaul && planDays < recommendedDays
           ? '景點偏多：可加天或刪減景點（城市遊不必拉到 20 天）'
-          : aiReview.title || durationFit.title,
-      message: [aiReview.message, ...(aiReview.adjustments || [])]
-        .filter(Boolean)
-        .join(' '),
+          : !longHaul && /21|20\s*天/.test(aiReview.title || '')
+            ? durationFit.title
+            : aiReview.title || durationFit.title,
+      message,
     }
   }, [aiReview, durationFit, selectedDestinations, primary?.nameZh, planDays])
 
@@ -2428,6 +2441,26 @@ function SeasonGuidePanel({
       </p>
     </aside>
   )
+}
+
+/** Strip AI prose that still claims absurd multi-week city trips after we capped the numbers. */
+function sanitizeCityDayMessage(
+  raw: string,
+  days: {
+    chosenDays: number
+    minDays: number
+    recommendedDays: number
+    comfortableDays: number
+  },
+): string {
+  if (!raw.trim()) return ''
+  const claimsLongExpedition = /1[2-9]\s*天|2[0-9]\s*天|兩週|三週|二十/.test(raw)
+  if (!claimsLongExpedition) {
+    return raw
+      .replace(/理想安排[為是]?\s*\d+\s*天/g, `理想安排為 ${days.recommendedDays} 天`)
+      .replace(/最少[約]?\s*\d+\s*天/g, `最少約 ${days.minDays} 天`)
+  }
+  return `城市深度遊不必拉成遠征：以目前景點量，正常完成約 ${days.recommendedDays} 天（最少 ${days.minDays}、舒服 ${days.comfortableDays}）。你現在選 ${days.chosenDays} 天時，優先刪遠程／重複景點，或小幅加到 ${days.recommendedDays} 天即可——不必拉到 20 天以上。`
 }
 
 function DurationFitPanel({

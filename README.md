@@ -33,7 +33,7 @@ After picking a place, AI reviews the destination and suggests:
 - **最舒服天數**
 - **建議最長**
 
-Or type your own length (2–21 days). On the spots/result steps, AI checks whether your selected spots fit those days.
+Or type your own length (2–32 days). On the spots/result steps, AI checks whether your selected spots fit those days. City breaks (e.g. Xi’an) stay in a sensible range (~4–9 days recommended); only long-haul routes like Xinjiang / Qinggan can stretch toward 2–3 weeks.
 
 ## Best / worst months
 
@@ -59,10 +59,12 @@ On preferences, choose **包司機 / 自駕 / 大眾運輸**:
 
 Every journey gets **two** Stage-4 posters (toggle on the result page):
 
-1. **相片版** — real destination photos on the winding path (when a photo library exists)
-2. **插畫海報版** — watercolor scrapbook / planning-book style (circular day art, postage stamp, multi-colour path)
+1. **相片版** — unique real landmark photos per day (no reused wall shots)
+2. **插畫海報版** — Gemini-style watercolor scrapbook (painted scene bases + hand-ink landmark silhouettes; never photographs)
 
 Both include 必吃美食 · 必喝飲品 · 旅行小貼士, and each can be **downloaded as PNG**.
+
+Landmark photos for the photo edition resolve via `/api/place-photo` (Wikimedia Commons, proxied). Illustration edition uses assets under `public/poster/`. Use `npm run dev` or `npm run preview` so the proxy is available.
 
 ## Planning handbook (青甘 / 新疆)
 

@@ -2628,11 +2628,52 @@ a.btn {
 }
 
 .gemini-art {
+  position: relative;
   background: transparent !important;
+}
+
+.gemini-wash {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.gemini-scene-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.gemini-overlay {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
 }
 
 .gemini-art .scene-svg {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.camel-art.painted img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 5.5rem;
+  filter: drop-shadow(0 4px 8px rgba(60, 50, 40, 0.18));
+}
+
+.camel-art.painted.small img {
+  max-width: 2.6rem;
 }

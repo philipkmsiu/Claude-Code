@@ -299,12 +299,28 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
     if (chosenDays < recommendedDays) status = 'too_packed'
     else if (chosenDays > lightThreshold) status = 'too_light'
 
-    const title =
-      status === 'too_packed'
+    const title = !longHaul
+      ? status === 'too_packed'
+        ? '景點偏多：可加天或刪減景點（城市遊不必拉到 20 天）'
+        : status === 'too_light'
+          ? '行程天數偏多，可適度縮短'
+          : '天數與景點搭配合理'
+      : status === 'too_packed'
         ? '行程過於緊湊，建議延長天數'
         : status === 'too_light'
           ? '行程天數偏多，可適度縮短'
           : '天數與景點搭配合理'
+
+    let message = typeof parsed.message === 'string' ? parsed.message : ''
+    if (
+      !longHaul &&
+      (/1[2-9]\s*天|2[0-9]\s*天|兩週|三週|二十/.test(message) || !message.trim())
+    ) {
+      message =
+        status === 'too_packed'
+          ? `城市深度遊正常完成約 ${recommendedDays} 天即可（最少 ${minDays}、舒服 ${comfortableDays}）。不必拉到兩週以上；偏趕時優先刪遠程／重複景點，或小幅加到 ${recommendedDays} 天。`
+          : `以目前景點量，城市遊約 ${recommendedDays} 天可正常完成（舒服 ${comfortableDays} 天）。`
+    }
 
     sendJson(res, 200, {
       source: 'crazyrouter',
@@ -313,7 +329,7 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
       minDays,
       comfortableDays,
       title,
-      message: parsed.message || '',
+      message,
       adjustments: Array.isArray(parsed.adjustments) ? parsed.adjustments : [],
     })
   } catch (error) {
