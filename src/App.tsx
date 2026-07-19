@@ -18,12 +18,14 @@ import {
   deriveFitStatus,
   destinationNeedsAiSpots,
   destinations as presetDestinations,
+  endDateFromStart,
   ensureSpotsForDays,
   findKnownDestination,
   fitStatusTitle,
   applyHotelStayPlan,
   assessTripMonth,
   buildHotelStayPlan,
+  formatDateZh,
   formatMonthsZh,
   getSeasonGuide,
   hotelBookingAdvice,
@@ -134,14 +136,22 @@ function App() {
   )
 
   const primary = selectedDestinations[0] ?? null
-  const dateDays = daysBetween(startDate, endDate)
   const planDays = clampDays(days)
-  const weatherMonth = startDate ? new Date(startDate).getMonth() + 1 : 2
+  const computedEndDate = endDateFromStart(startDate, planDays)
+  const dateDays = daysBetween(startDate, computedEndDate)
+  const weatherMonth = startDate ? new Date(`${startDate}T12:00:00`).getMonth() + 1 : 2
   const weather = primary ? primary.weather[seasonKey(weatherMonth)] : ''
   const seasonGuide = primary ? getSeasonGuide(primary) : null
   const monthFit = seasonGuide
     ? assessTripMonth(seasonGuide, weatherMonth)
     : 'fair'
+
+  // Keep stored end date aligned with start + duration.
+  useEffect(() => {
+    if (!startDate || !planDays) return
+    const nextEnd = endDateFromStart(startDate, planDays)
+    if (nextEnd !== endDate) setEndDate(nextEnd)
+  }, [startDate, planDays, endDate])
   const hotels = primary
     ? primary.curatedPlans
       ? primary.hotels
@@ -533,6 +543,12 @@ function App() {
     setDays(clamped)
     setDaysInput(String(clamped))
     setHotelNights(nightsFromDays(clamped))
+    if (startDate) setEndDate(endDateFromStart(startDate, clamped))
+  }
+
+  function setJourneyStart(nextStart: string) {
+    setStartDate(nextStart)
+    if (nextStart) setEndDate(endDateFromStart(nextStart, planDays))
   }
 
   function toggleDestination(id: DestinationId) {
@@ -621,10 +637,14 @@ function App() {
   }
 
   function applyDateRange(nextStart: string, nextEnd: string) {
-    setStartDate(nextStart)
-    setEndDate(nextEnd)
+    // If user edits return date, duration follows the inclusive span.
     const span = daysBetween(nextStart, nextEnd)
-    if (span) setTripDays(span)
+    setStartDate(nextStart)
+    if (span) {
+      setTripDays(span)
+    } else {
+      setEndDate(endDateFromStart(nextStart, planDays))
+    }
   }
 
   function goToPreferences() {
@@ -1224,27 +1244,35 @@ function App() {
               </div>
             </div>
 
+            <JourneyWindow
+              startDate={startDate}
+              endDate={computedEndDate}
+              days={planDays}
+              nights={nightsFromDays(planDays)}
+            />
+
             <div className="preference-grid">
               <div className="field-block">
-                <label htmlFor="start">出發日期（紅字選項）</label>
+                <label htmlFor="start">出發／開始日期</label>
                 <input
                   id="start"
                   type="date"
                   value={startDate}
-                  onChange={(e) => applyDateRange(e.target.value, endDate)}
+                  onChange={(e) => setJourneyStart(e.target.value)}
                 />
               </div>
               <div className="field-block">
-                <label htmlFor="end">返回日期</label>
+                <label htmlFor="end">結束／返回日期（由天數自動計算）</label>
                 <input
                   id="end"
                   type="date"
-                  value={endDate}
+                  value={computedEndDate}
                   onChange={(e) => applyDateRange(startDate, e.target.value)}
                 />
-                {dateDays ? (
-                  <p className="range-value">日期跨度 {dateDays} 天（可再手動改上面天數）</p>
-                ) : null}
+                <p className="range-value">
+                  行程 {planDays} 天 {nightsFromDays(planDays)} 夜
+                  {dateDays ? `・含首尾共 ${dateDays} 個日曆日` : ''}
+                </p>
               </div>
             </div>
 
@@ -1426,6 +1454,13 @@ function App() {
               </p>
             </div>
 
+            <JourneyWindow
+              startDate={startDate}
+              endDate={computedEndDate}
+              days={planDays}
+              nights={nightsFromDays(planDays)}
+            />
+
             <aside className="ai-panel ready party-logistics">
               <strong>人數對應的訂房／交通</strong>
               <p>
@@ -1573,6 +1608,13 @@ function App() {
                 AI 會依目的地推薦真實景點（不是「經典地標」這類空泛分類）。紅色標籤是必去／打卡紅點／熱門；不想去就取消，確認後再依你的天數產生行程。
               </p>
             </div>
+
+            <JourneyWindow
+              startDate={startDate}
+              endDate={computedEndDate}
+              days={planDays}
+              nights={nightsFromDays(planDays)}
+            />
 
             <aside
               className={`ai-panel ${aiSpotsLoading ? 'loading' : aiSpotsError ? '' : allSpots.some((s) => s.id.startsWith('ai-spot-')) || !selectedDestinations.some(destinationNeedsAiSpots) ? 'ready' : ''}`}
@@ -1777,11 +1819,19 @@ function App() {
               </p>
               <h2>{selectedDestinations.map((d) => d.nameZh).join('、')}</h2>
               <p className="result-tagline">
-                {startDate} → {endDate} · 已排入{' '}
+                出發 {formatDateZh(startDate)} → 結束 {formatDateZh(computedEndDate)} · 共{' '}
+                {planDays} 天 {nightsFromDays(planDays)} 夜 · 已排入{' '}
                 {itinerary.reduce((n, d) => n + d.spotIds.length, 0)} 個真實景點 ·{' '}
                 {styleLabel} · 約 {hotelAdvice.rooms} 間房
               </p>
             </div>
+
+            <JourneyWindow
+              startDate={startDate}
+              endDate={computedEndDate}
+              days={planDays}
+              nights={nightsFromDays(planDays)}
+            />
 
             {(daysTrimmed || hollowDayCount > 0) && (
               <aside className="ai-panel ready">
@@ -1829,7 +1879,15 @@ function App() {
                   {aiDayRec ? '（AI）' : ''}
                 </p>
                 <p>
-                  <strong>你目前選擇：</strong>
+                  <strong>出發：</strong>
+                  {formatDateZh(startDate)}
+                </p>
+                <p>
+                  <strong>結束：</strong>
+                  {formatDateZh(computedEndDate)}
+                </p>
+                <p>
+                  <strong>行程長度：</strong>
                   {planDays} 天 {nightsFromDays(planDays)} 夜
                 </p>
                 <p>
@@ -2112,6 +2170,43 @@ function App() {
 
 function StepPill({ active, label }: { active: boolean; label: string }) {
   return <span className={`step-pill ${active ? 'active' : ''}`}>{label}</span>
+}
+
+function JourneyWindow({
+  startDate,
+  endDate,
+  days,
+  nights,
+}: {
+  startDate: string
+  endDate: string
+  days: number
+  nights: number
+}) {
+  return (
+    <aside className="journey-window">
+      <strong>行程日期總覽</strong>
+      <div className="journey-window-grid">
+        <div>
+          <span>開始日期</span>
+          <em>{formatDateZh(startDate)}</em>
+        </div>
+        <div>
+          <span>行程天數</span>
+          <em>
+            {days} 天 {nights} 夜
+          </em>
+        </div>
+        <div>
+          <span>結束日期</span>
+          <em>{formatDateZh(endDate)}</em>
+        </div>
+      </div>
+      <p>
+        {formatDateZh(startDate)} 出發，行程 {days} 天，於 {formatDateZh(endDate)} 結束。
+      </p>
+    </aside>
+  )
 }
 
 function SeasonGuidePanel({

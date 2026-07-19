@@ -315,6 +315,61 @@ main {
   box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.12);
 }
 
+.journey-window {
+  margin: 0 0 1.15rem;
+  padding: 1.05rem 1.15rem;
+  border-radius: 1.15rem;
+  background: rgba(31, 61, 54, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.16);
+}
+
+.journey-window > strong {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-family: var(--display);
+  color: var(--forest);
+}
+
+.journey-window-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.55rem;
+}
+
+.journey-window-grid div {
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.journey-window-grid span {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.journey-window-grid em {
+  display: block;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--forest);
+  line-height: 1.35;
+}
+
+.journey-window p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .journey-window-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .season-guide-panel {
   margin: 0 0 1.2rem;
   padding: 1.05rem 1.15rem;

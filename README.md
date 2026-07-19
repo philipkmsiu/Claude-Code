@@ -39,6 +39,14 @@ Or type your own length (2–21 days). On the spots/result steps, AI checks whet
 
 Each destination shows **最適合** and **最不建議** months with reasons (not “fine all year”). Custom places get AI season guidance via `/api/ai/season-guide`. Your start-date month is checked against that guide.
 
+## Daily plan table
+
+Result view includes a planning-book style table:
+
+| 日次 | 日期 | 住宿地 | 主要安排 | 節奏／車程 | 住宿方向 | 天氣／降雨 |
+
+Weather uses Open-Meteo (live forecast when near-term; otherwise same-date climate from last year).
+
 ## Flow
 
 1. Destination  

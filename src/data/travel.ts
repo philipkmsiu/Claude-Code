@@ -1430,10 +1430,30 @@ export function applyHotelStayPlan(
 
 export function daysBetween(start: string, end: string): number | null {
   if (!start || !end) return null
-  const a = new Date(start)
-  const b = new Date(end)
+  const a = new Date(`${start}T12:00:00`)
+  const b = new Date(`${end}T12:00:00`)
   if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return null
   return Math.floor((b.getTime() - a.getTime()) / 86400000) + 1
+}
+
+/** End date inclusive: start + (days - 1). */
+export function endDateFromStart(start: string, days: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return start
+  const d = new Date(`${start}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return start
+  d.setDate(d.getDate() + Math.max(clampDays(days) - 1, 0))
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+export function formatDateZh(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso
+  const d = new Date(`${iso}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return iso
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六']
+  return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日（周${weekdays[d.getDay()]}）`
 }
 
 export function aggregateDayAdvice(dests: Destination[]) {
