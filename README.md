@@ -2,8 +2,6 @@
 
 Interactive **AI** travel planner by **KM Building Company**, powered by **Crazyrouter** (OpenAI-compatible).
 
-**GitHub repository name:** rename the remote from `Claude-Code` to **`KM-Travel-Planner`** in GitHub → Settings → General → Repository name (API tokens in this environment cannot rename repos).
-
 ## Branding
 
 - App / product: **KM Travel Planner**
