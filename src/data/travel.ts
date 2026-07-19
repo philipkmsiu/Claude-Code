@@ -1414,15 +1414,17 @@ export function applyHotelStayPlan(
         detail: `今晚住 ${stayLabel}${consecutiveNote}`,
       }
     })
-    return {
+    return enrichDayPlanRow({
       ...day,
       stayArea: stayLabel,
+      stayCity: block.base || hotelAreaBase(block.area),
+      hotelDirection: `${block.hotelName}（${block.area}）${block.nights >= 2 ? '・連住' : ''}`,
       schedule,
       tip:
         block.nights >= 2
           ? `${day.tip}（${block.reason}）`
           : day.tip,
-    }
+    })
   })
 }
 
@@ -1816,7 +1818,9 @@ export function buildItinerary(options: {
   if (dests.length === 1) {
     const curated = dests[0].curatedPlans?.[requestedDays]
     if (curated?.length) {
-      return applySpotFilterToCurated(curated, selectedSpotIds)
+      return applySpotFilterToCurated(curated, selectedSpotIds).map((day) =>
+        enrichDayPlanRow(day),
+      )
     }
   }
 
@@ -1841,20 +1845,26 @@ export function buildItinerary(options: {
   const flexIdeas = dests.flatMap((d) => d.flexDayIdeas)
 
   if (!selected.length) {
-    return Array.from({ length: Math.min(requestedDays, 3) }, (_, i) => ({
-      theme: `Day ${i + 1} · 自由活動`,
-      stayArea: hotelAreaHint || dests[0]?.nameZh || '市區',
-      schedule: [
-        {
-          time: '10:00',
-          title: '尚未選擇景點',
-          detail: '請回到景點步驟勾選想去的地方，再重新產生行程。',
-        },
-      ],
-      budget: '視當日安排',
-      tip: '至少選擇 2–3 個景點，行程會更完整。',
-      spotIds: [],
-    }))
+    return Array.from({ length: Math.min(requestedDays, 3) }, (_, i) =>
+      enrichDayPlanRow({
+        theme: `Day ${i + 1} · 自由活動`,
+        stayArea: hotelAreaHint || dests[0]?.nameZh || '市區',
+        stayCity: hotelAreaBase(hotelAreaHint || dests[0]?.nameZh || '市區'),
+        mainPlan: '尚未選擇景點，請先勾選真實景點。',
+        paceNote: '先完成景點選擇再排節奏。',
+        hotelDirection: hotelAreaHint || dests[0]?.nameZh || '市區',
+        schedule: [
+          {
+            time: '10:00',
+            title: '尚未選擇景點',
+            detail: '請回到景點步驟勾選想去的地方，再重新產生行程。',
+          },
+        ],
+        budget: '視當日安排',
+        tip: '至少選擇 2–3 個景點，行程會更完整。',
+        spotIds: [],
+      }),
+    )
   }
 
   // Size the trip to content: avoid many blank「彈性日」with no real destinations.
@@ -1927,7 +1937,7 @@ export function buildItinerary(options: {
   })
   if (!trimmedBuckets.length) trimmedBuckets.push(dayBuckets[0] ?? [])
 
-  return trimmedBuckets.map((bucket, index) => {
+  const plannedDays = trimmedBuckets.map((bucket, index) => {
     const isFirst = index === 0
     const isLast = index === trimmedBuckets.length - 1
     const flexIdea = flexIdeas[index % Math.max(flexIdeas.length, 1)] || '街區慢遊與咖啡'
@@ -1967,14 +1977,18 @@ export function buildItinerary(options: {
           detail: `住 ${hotelAreaHint || area}`,
         },
       )
-      return {
+      return enrichDayPlanRow({
         theme: themeCore,
         stayArea: hotelAreaHint || area,
+        stayCity: hotelAreaBase(hotelAreaHint || area),
+        mainPlan: buildMainPlan([], themeCore, true),
+        paceNote: buildPaceNote([], pace, isFirst, isLast),
+        hotelDirection: hotelAreaHint || area,
         schedule,
         budget: '€/¥/NT$ 視當日消費，通常低於觀光日',
         tip: '若你其實想多看景點，請回景點步驟多勾真實景點，或縮短天數。',
         spotIds: [],
-      }
+      })
     }
 
     if (isFirst) {
@@ -2037,13 +2051,32 @@ export function buildItinerary(options: {
     const budgetLow = 40 + bucket.length * 12 + tickety * 8
     const budgetHigh = budgetLow + 45 + (pace === 'packed' ? 20 : 0)
 
-    return {
-      theme: `${isFirst ? '抵達 · ' : isLast ? '收尾 · ' : ''}${themeCore}`,
+    const theme = `${isFirst ? '抵達 · ' : isLast ? '收尾 · ' : ''}${themeCore}`
+    return enrichDayPlanRow({
+      theme,
       stayArea: hotelAreaHint || area,
+      stayCity: hotelAreaBase(area),
+      mainPlan: buildMainPlan(bucket, theme, false),
+      paceNote: buildPaceNote(bucket, pace, isFirst, isLast),
+      hotelDirection: hotelAreaHint || area,
       schedule,
       budget: `當日約 ${budgetLow}–${budgetHigh} 單位（不含住宿，幣別依目的地）`,
       tip: buildDayTip(bucket, specialNeeds, pace),
       spotIds: bucket.map((s) => s.id),
+    })
+  })
+
+  return plannedDays.map((day, index, arr) => {
+    if (index === 0) return day
+    const prev = arr[index - 1]
+    if ((day.stayCity || '') === (prev.stayCity || '')) return day
+    return {
+      ...day,
+      paceNote: `轉住 ${day.stayCity}；${day.paceNote || ''}`.trim(),
+      mainPlan:
+        day.mainPlan && !day.mainPlan.includes('→')
+          ? `${prev.stayCity} → ${day.stayCity}；${day.mainPlan}`
+          : day.mainPlan,
     }
   })
 }
@@ -2055,4 +2088,49 @@ function buildDayTip(bucket: ScenicSpot[], specialNeeds: string[], pace: TripPac
   if (pace === 'relaxed') return '今天偏鬆，景點間可插入咖啡時間。'
   if (bucket.every((s) => s.area === bucket[0].area)) return '同區域串連，減少交通折返。'
   return '已依區域盡量順路；若太趕可刪掉最後一站。'
+}
+
+function buildPaceNote(
+  bucket: ScenicSpot[],
+  pace: TripPace,
+  isFirst: boolean,
+  isLast: boolean,
+): string {
+  if (!bucket.length) return '不趕行程；保留休息與彈性。'
+  const hours = bucket.reduce((sum, s) => sum + s.stayHours, 0)
+  const long = bucket.some((s) => s.stayHours >= 6)
+  if (isFirst) return '抵達日偏鬆；先入住再出门。'
+  if (isLast) return '收尾日預留交通緩衝。'
+  if (long) return `含全日級行程，車程／活動約 ${Math.round(hours)} 小時；中途宜休息。`
+  if (pace === 'relaxed') return `慢遊節奏，重點約 ${bucket.length} 站，下午可回飯店。`
+  if (pace === 'packed') return `行程較滿（約 ${bucket.length} 站），盡量同區串連。`
+  return `平衡節奏，約 ${bucket.length} 個重點；單段車程盡量控制。`
+}
+
+function buildMainPlan(bucket: ScenicSpot[], theme: string, isRest: boolean): string {
+  if (isRest) return '休息日：散步、咖啡、洗衣或補眠，不新增長途景點。'
+  if (!bucket.length) return theme
+  return bucket.map((s) => s.name).join('、')
+}
+
+/** Ensure day rows have table fields (住宿地／主要安排／節奏／住宿方向). */
+export function enrichDayPlanRow(day: DayPlan, hotelFallback?: string): DayPlan {
+  const stayCity = day.stayCity || hotelAreaBase(day.stayArea)
+  const titles = day.schedule
+    .filter((item) => item.spotId || (!/出發|午餐|晚餐|抵達|回飯店|晚起/.test(item.title)))
+    .map((item) => item.title)
+  const mainPlan =
+    day.mainPlan ||
+    (day.spotIds.length
+      ? titles.filter(Boolean).slice(0, 4).join('、') || day.theme
+      : day.theme.includes('休息')
+        ? '休息日：不排新增長途景點。'
+        : day.theme)
+  return {
+    ...day,
+    stayCity,
+    mainPlan,
+    paceNote: day.paceNote || day.tip || '按當日節奏安排',
+    hotelDirection: day.hotelDirection || hotelFallback || day.stayArea,
+  }
 }

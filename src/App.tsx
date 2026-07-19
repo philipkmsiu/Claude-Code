@@ -55,6 +55,8 @@ import {
   type AiPlanReview,
 } from './lib/aiClient'
 import { readClipboardText } from './lib/clipboard'
+import { formatWeatherLine, loadDayWeather } from './lib/weather'
+import type { DayWeather } from './data/types'
 import './App.css'
 
 type Step =
@@ -86,6 +88,8 @@ function App() {
   const [hotelNights, setHotelNights] = useState(6)
   const [preferConsecutiveStays, setPreferConsecutiveStays] = useState(true)
   const [preferredHotelName, setPreferredHotelName] = useState('')
+  const [dayWeather, setDayWeather] = useState<(DayWeather | null)[]>([])
+  const [weatherLoading, setWeatherLoading] = useState(false)
   const [selectedSpotIds, setSelectedSpotIds] = useState<string[]>([])
   const [planVersion, setPlanVersion] = useState(0)
   const [customSpotName, setCustomSpotName] = useState('')
@@ -483,6 +487,47 @@ function App() {
   )
   const daysTrimmed = itinerary.length > 0 && itinerary.length < planDays
 
+  const datedItinerary = useMemo(() => {
+    return itinerary.map((day, index) => {
+      const date = new Date(`${startDate}T12:00:00`)
+      if (!Number.isNaN(date.getTime())) date.setDate(date.getDate() + index)
+      const dateLabel = Number.isNaN(date.getTime())
+        ? `第 ${index + 1} 日`
+        : `${date.getMonth() + 1} 月 ${date.getDate()} 日`
+      return {
+        ...day,
+        dateLabel,
+        weather: dayWeather[index] ?? day.weather,
+      }
+    })
+  }, [itinerary, startDate, dayWeather])
+
+  useEffect(() => {
+    if (step !== 'result' || !datedItinerary.length || !startDate) return
+    let cancelled = false
+    setWeatherLoading(true)
+    void loadDayWeather({
+      startDate,
+      places: datedItinerary.map(
+        (day) => day.stayCity || day.stayArea || primary?.nameZh || '',
+      ),
+    })
+      .then((rows) => {
+        if (!cancelled) setDayWeather(rows)
+      })
+      .finally(() => {
+        if (!cancelled) setWeatherLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    step,
+    startDate,
+    itinerary.map((d) => d.stayCity || d.stayArea).join('|'),
+    primary?.nameZh,
+  ])
+
   function setTripDays(next: number) {
     const clamped = clampDays(next)
     setDays(clamped)
@@ -771,6 +816,7 @@ function App() {
     setPartySizeInput('2')
     setPreferConsecutiveStays(true)
     setPreferredHotelName('')
+    setDayWeather([])
   }
 
   useEffect(() => {
@@ -1936,15 +1982,55 @@ function App() {
 
             <div className="itinerary">
               <div className="section-head">
-                <h3>每日行程</h3>
+                <h3>每日行程總表</h3>
+                <p>
+                  仿照完整規劃書格式：每日列出住宿地、主要安排、節奏／車程、住宿方向，並附天氣與降雨機率
+                  {weatherLoading ? '（天氣載入中…）' : ''}。
+                  {dayWeather.some((w) => w?.source === 'climate')
+                    ? ' 出發日較遠時，天氣顯示往年同期參考。'
+                    : ''}
+                </p>
+              </div>
+
+              <div className="plan-table-wrap">
+                <table className="plan-table">
+                  <thead>
+                    <tr>
+                      <th>日次</th>
+                      <th>日期</th>
+                      <th>住宿地</th>
+                      <th>主要安排</th>
+                      <th>節奏／車程</th>
+                      <th>住宿方向</th>
+                      <th>天氣／降雨</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {datedItinerary.map((day, index) => (
+                      <tr key={`row-${index}-${planVersion}`}>
+                        <td>第 {index + 1} 日</td>
+                        <td>{day.dateLabel}</td>
+                        <td>{day.stayCity || day.stayArea}</td>
+                        <td>{day.mainPlan || day.theme}</td>
+                        <td>{day.paceNote || day.tip}</td>
+                        <td>{day.hotelDirection || day.stayArea}</td>
+                        <td>{formatWeatherLine(day.weather)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="section-head" style={{ marginTop: '1.4rem' }}>
+                <h3>每日詳細時段</h3>
                 <p>
                   {primary.curatedPlans?.[planDays]
                     ? `這是 ${primary.nameZh} 的 ${planDays} 日完整舒服版行程；取消勾選景點後可精簡對應日。`
-                    : `目前實際排出 ${itinerary.length} 天，其中 ${itinerary.length - hollowDayCount} 天有真實景點。空白日最多保留 ${pace === 'relaxed' ? 2 : 1} 天休息，不會再用「近郊加點」這類空名稱湊天數。`}
+                    : `目前實際排出 ${itinerary.length} 天，其中 ${itinerary.length - hollowDayCount} 天有真實景點。`}
                 </p>
               </div>
               <div className="day-list">
-                {itinerary.map((day, index) => (
+                {datedItinerary.map((day, index) => (
                   <article
                     key={`${day.theme}-${index}-${planVersion}`}
                     className="day-card"
@@ -1952,9 +2038,25 @@ function App() {
                   >
                     <header>
                       <span className="day-badge">Day {index + 1}</span>
-                      <h4>{day.theme}</h4>
-                      <p>住宿區域：{day.stayArea}</p>
+                      <h4>
+                        {day.dateLabel} · {day.theme}
+                      </h4>
+                      <p>
+                        住宿地：{day.stayCity || day.stayArea} ｜{' '}
+                        {day.hotelDirection || day.stayArea}
+                      </p>
+                      <p className="day-weather-line">
+                        {formatWeatherLine(day.weather)}
+                      </p>
                     </header>
+                    <p className="day-meta-line">
+                      <strong>主要安排：</strong>
+                      {day.mainPlan || day.theme}
+                    </p>
+                    <p className="day-meta-line">
+                      <strong>節奏／車程：</strong>
+                      {day.paceNote || day.tip}
+                    </p>
                     <ol>
                       {day.schedule.map((item) => (
                         <li key={`${item.time}-${item.title}`}>

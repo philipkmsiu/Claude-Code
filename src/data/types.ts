@@ -56,13 +56,33 @@ export interface ScheduleItem {
   spotId?: string
 }
 
+export interface DayWeather {
+  date: string
+  label: string
+  tempMin: number
+  tempMax: number
+  /** 0–100 */
+  rainChance: number
+  rainMm: number
+  source: 'forecast' | 'climate'
+}
+
 export interface DayPlan {
   theme: string
   stayArea: string
+  /** City / base for overnight stay (表：住宿地). */
+  stayCity?: string
+  /** One-line main arrangement (表：主要安排). */
+  mainPlan?: string
+  /** Pace / drive note (表：節奏／車程). */
+  paceNote?: string
+  /** Hotel direction (表：住宿方向). */
+  hotelDirection?: string
   schedule: ScheduleItem[]
   budget: string
   tip: string
   spotIds: string[]
+  weather?: DayWeather
 }
 
 export interface BudgetSummary {
