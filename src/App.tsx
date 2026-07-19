@@ -2333,7 +2333,9 @@ function App() {
                     key={d.id}
                     destination={d}
                     highlightSpots={d.spots.filter((spot) =>
-                      selectedSpotIds.includes(spot.id),
+                      selectedSpotIds.length
+                        ? selectedSpotIds.includes(spot.id)
+                        : true,
                     )}
                   />
                 ))}
