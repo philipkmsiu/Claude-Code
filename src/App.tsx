@@ -2469,6 +2469,11 @@ function App() {
                     {spot.souvenirs ? (
                       <p className="spot-gift-tip">🎁 手信：{spot.souvenirs}</p>
                     ) : null}
+                    {spot.shoppingOutlet ? (
+                      <p className="spot-shop-tip">
+                        🛍 購物／Outlet：{spot.shoppingOutlet}
+                      </p>
+                    ) : null}
                     <div className="tag-row">
                       {spot.tags.map((tag) => (
                         <span
@@ -2873,6 +2878,11 @@ function App() {
                           {day.souvenirNote ? (
                             <small className="day-gift-inline">🎁 手信：{day.souvenirNote}</small>
                           ) : null}
+                          {day.shoppingNote ? (
+                            <small className="day-shop-inline">
+                              🛍 購物／Outlet：{day.shoppingNote}
+                            </small>
+                          ) : null}
                         </td>
                         <td>{day.paceNote || day.tip}</td>
                         <td>{day.hotelDirection || day.stayArea}</td>
@@ -2931,6 +2941,12 @@ function App() {
                       <p className="day-meta-line day-gift-line">
                         <strong>特色手信（伴手禮／禮物）：</strong>
                         {day.souvenirNote}
+                      </p>
+                    ) : null}
+                    {day.shoppingNote ? (
+                      <p className="day-meta-line day-shop-line">
+                        <strong>購物／Outlet：</strong>
+                        {day.shoppingNote}
                       </p>
                     ) : null}
                     <p className="day-meta-line">

@@ -216,6 +216,11 @@ export function DestinationLore({
                         🎁 手信：{spot.souvenirs}
                       </small>
                     ) : null}
+                    {spot.shoppingOutlet ? (
+                      <small className="dest-scene-extra">
+                        🛍 購物／Outlet：{spot.shoppingOutlet}
+                      </small>
+                    ) : null}
                   </li>
                 ))}
               </ul>

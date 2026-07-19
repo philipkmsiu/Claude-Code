@@ -30,6 +30,8 @@ export interface ScenicSpot {
   nearbyFood?: string
   /** Characteristic souvenirs / gifts (手信) tied to this area. */
   souvenirs?: string
+  /** Nearby outlet / shopping street / mall worth a stop (購物／奧特萊斯). */
+  shoppingOutlet?: string
   tags: SpotTag[]
   ticket?: string
   bestFor: Companion[]
@@ -104,6 +106,8 @@ export interface DayPlan {
   foodNote?: string
   /** Characteristic souvenirs / gifts (手信) for today's areas. */
   souvenirNote?: string
+  /** Nearby outlet / shopping tips for today's areas. */
+  shoppingNote?: string
   /** Pace / drive note (表：節奏／車程). */
   paceNote?: string
   /** Hotel direction (表：住宿方向). */

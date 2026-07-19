@@ -1181,11 +1181,20 @@ main {
 }
 
 .spot-food-tip,
-.spot-gift-tip {
+.spot-gift-tip,
+.spot-shop-tip {
   margin: 0.35rem 0 0;
   font-size: 0.86rem;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.day-shop-inline {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
 }
 
 .day-story-inline {

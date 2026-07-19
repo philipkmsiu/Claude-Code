@@ -26,6 +26,7 @@ export type AiSuggestedSpot = {
   summary: string
   nearbyFood?: string
   souvenirs?: string
+  shoppingOutlet?: string
   tags: string[]
   ticket: string
 }

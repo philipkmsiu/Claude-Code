@@ -419,17 +419,20 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       "summary": string,
       "nearbyFood": string,
       "souvenirs": string,
+      "shoppingOutlet": string,
       "tags": ("must"|"photo"|"popular"|"culture"|"nature"|"food"|"shopping")[],
       "ticket": string
     }
   ]
 }
 硬性規則（任何目的地都一樣，禁止偷懶套模板、禁止等使用者補充）：
-- 先在內部完成：地理／城市結構、季節氣候、交通節奏、必去真實景點、在地飲食與手信、住宿分區、天數尺度分析；再填 JSON
+- 先在內部完成：地理／城市結構、季節氣候、交通節奏、必去真實景點、在地飲食與手信、購物／Outlet、住宿分區、天數尺度分析；再填 JSON
 - 必須給 ${targetCount}–${targetCount + 4} 個真實景點
 - name 必須是真實景點／街區／體驗名稱；禁止「經典地標」「老城／歷史區」「XX經典地標」
 - summary 2–3 句繁體中文：歷史／場景氛圍＋為何值得去＋怎麼排
 - nearbyFood、souvenirs（手信／伴手禮）每個景點必填，要具體菜名／店型／特產
+- shoppingOutlet 每個景點必填：附近購物街／百貨／Outlet／市集名稱（例如英國 Bicester Village、心齋橋、明洞）；沒有大型 Outlet 就寫最近可信的購物區
+- 若 specialNeeds 含「購物」或目的地以購物聞名：至少 2–3 個景點 tags 含 shopping，並優先寫真實 Outlet／名牌村／購物街
 - background 3–4 句；memorable 4–6 條完整句子
 - hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
 - 若目的地含多個城市（如英國多城、德南＋柏林），hotels 必須覆蓋主要過夜城市各至少 1 間，不可全部擠在同一城
@@ -450,7 +453,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
-          ask: '請先自行完整調研並分析這個目的地（無需使用者再提示），再輸出：季節氣候、歷史背景、難忘之處、真實景點（含附近美食與手信）、分城市住宿、必吃必喝必買、建議天數與實用 tips。禁止空泛類別句。',
+          ask: '請先自行完整調研並分析這個目的地（無需使用者再提示），再輸出：季節氣候、歷史背景、難忘之處、真實景點（含附近美食、手信、購物／Outlet）、分城市住宿、必吃必喝必買、建議天數與實用 tips。禁止空泛類別句。若旅客想購物，務必納入真實 Outlet 或購物街。',
         }),
       },
     ], 0.35)
@@ -500,6 +503,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
         summary?: string
         nearbyFood?: string
         souvenirs?: string
+        shoppingOutlet?: string
         tags?: string[]
         ticket?: string
       }[]
@@ -599,6 +603,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
         summary: String(spot.summary || '').trim(),
         nearbyFood: String(spot.nearbyFood || '').trim(),
         souvenirs: String(spot.souvenirs || '').trim(),
+        shoppingOutlet: String(spot.shoppingOutlet || '').trim(),
         tags: Array.isArray(spot.tags) ? spot.tags : [],
         ticket: String(spot.ticket || '視當地而定').trim(),
       })),

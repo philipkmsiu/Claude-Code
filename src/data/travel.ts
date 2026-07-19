@@ -89,22 +89,27 @@ type SpotSeed = {
   summary: string
   nearbyFood?: string
   souvenirs?: string
+  shoppingOutlet?: string
 }
 
 function spotsFromSeeds(place: string, seeds: SpotSeed[]): ScenicSpot[] {
-  return seeds.map((item, index) => ({
-    id: `custom-spot-${slugifyDestination(place)}-${index + 1}`,
-    name: item.name,
-    nameLocal: place,
-    area: item.area,
-    stayHours: item.hours,
-    summary: item.summary,
-    nearbyFood: item.nearbyFood,
-    souvenirs: item.souvenirs,
-    tags: item.tags,
-    ticket: '視當地而定',
-    bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
-  }))
+  return seeds.map((item, index) => {
+    const fallback = foodAndGiftsForArea(item.area, place)
+    return {
+      id: `custom-spot-${slugifyDestination(place)}-${index + 1}`,
+      name: item.name,
+      nameLocal: place,
+      area: item.area,
+      stayHours: item.hours,
+      summary: item.summary,
+      nearbyFood: item.nearbyFood || fallback.nearbyFood,
+      souvenirs: item.souvenirs || fallback.souvenirs,
+      shoppingOutlet: item.shoppingOutlet || fallback.shoppingOutlet,
+      tags: item.tags,
+      ticket: '視當地而定',
+      bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
+    }
+  })
 }
 
 function cityTemplateSeeds(place: string): SpotSeed[] {
@@ -706,60 +711,81 @@ export function ensureRichSpotCopy(
     summary,
     nearbyFood: spot.nearbyFood?.trim() || fallback.nearbyFood,
     souvenirs: spot.souvenirs?.trim() || fallback.souvenirs,
+    shoppingOutlet: spot.shoppingOutlet?.trim() || fallback.shoppingOutlet,
   }
 }
 
-/** Fallback food / 手信 tips when a spot has none (by city keyword). */
+/** Fallback food / 手信 / 購物 tips when a spot has none (by city keyword). */
 export function foodAndGiftsForArea(
   area: string,
   destinationName = '',
-): { nearbyFood: string; souvenirs: string } {
+): { nearbyFood: string; souvenirs: string; shoppingOutlet: string } {
   const text = `${area} ${destinationName}`
+  if (/英國|UK|倫敦|London|牛津|劍橋|約克|巴斯|卡地夫|愛丁堡/i.test(text)) {
+    return {
+      nearbyFood: 'Fish and Chips、英式早餐或一間在地 Pub 套餐。',
+      souvenirs: '茶葉禮盒、羊毛小物、城市明信片。',
+      shoppingOutlet:
+        /倫敦|London|溫莎|Windsor/i.test(text)
+          ? 'Bicester Village 名牌 Outlet（倫敦出發一日購）；或 Westfield／牛津街補貨。'
+          : /牛津|劍橋|約克|巴斯|卡地夫|愛丁堡/i.test(text)
+            ? '古城高街精品店與市集；若想衝 Outlet 可另排 Bicester Village／McArthurGlen。'
+            : 'Bicester Village 或當地高街／市集購物半日。',
+    }
+  }
   if (/慕尼黑|Munich|巴伐利亞|新天鵝/i.test(text)) {
     return {
       nearbyFood: '啤酒花園套餐、Weisswurst 白腸、Pretzel、烤豬肘；市場攤位最方便。',
       souvenirs: '啤酒杯、巴伐利亞小物、Leberwurst、當地蜂蜜。',
+      shoppingOutlet: 'Ingolstadt Village Outlet，或慕尼黑 Marienplatz／Kaufingerstraße 購物街。',
     }
   }
   if (/柏林|Berlin/i.test(text)) {
     return {
       nearbyFood: 'Currywurst、Döner、德式豬排；市集與早午餐店選擇多。',
       souvenirs: 'Ampelmännchen 綠人、Berliner Bär、圍牆主題明信片。',
+      shoppingOutlet: 'Outletcity Metzingen 一日購，或 Kurfürstendamm／Mall of Berlin。',
     }
   }
   if (/科隆|Cologne|杜塞|萊茵/i.test(text)) {
     return {
       nearbyFood: 'Kölsch 啤酒配 Sauerbraten，或杜塞道夫 Altbier 啤酒館套餐。',
       souvenirs: '4711 古龍水、芥末、萊茵河風景巧克力。',
+      shoppingOutlet: 'Schildergasse 購物街，或附近 Designer Outlet。',
     }
   }
   if (/法蘭克|海德堡|黑森林|巴登/i.test(text)) {
     return {
       nearbyFood: '蘋果酒 Apfelwein、黑森林蛋糕、鄉村煙燻火腿與湯品。',
       souvenirs: '蘋果酒小瓶、迷你咕咕鐘、櫻桃酒、木雕小物。',
+      shoppingOutlet: 'Zeil 購物街或 Wertheim Village Outlet。',
     }
   }
   if (/大阪|道頓堀|難波/i.test(text)) {
     return {
       nearbyFood: '章魚燒、串炸、蟹肉飯；黑門市場可一路串吃。',
       souvenirs: '藥妝、當地零食、大阪燒相關小物。',
+      shoppingOutlet: '心齋橋／道頓堀藥妝與潮流店；亦可去臨空 Premium Outlets。',
     }
   }
   if (/京都|清水|祇園/i.test(text)) {
     return {
       nearbyFood: '湯豆腐、抹茶甜點、京漬物；錦市場最適合邊走邊吃。',
       souvenirs: '抹茶菓子、和紙小物、京扇子。',
+      shoppingOutlet: '四条河原町百貨與寺町通；想 Outlet 可另排大阪臨空。',
     }
   }
   if (/新疆|喀什|喀納斯/i.test(text)) {
     return {
       nearbyFood: '烤包子、抓飯、羊肉串、奶茶；夜市最有氣氛。',
       souvenirs: '葡萄乾、和田玉小件、花帽、杏乾。',
+      shoppingOutlet: '國際大巴扎或古城市集挑選乾果與手工藝。',
     }
   }
   return {
     nearbyFood: '安排一頓在地代表菜或市場小吃，比連鎖餐廳更好記。',
     souvenirs: '當地特色零食、手作小物或城市磁鐵，當手信剛剛好。',
+    shoppingOutlet: '安排半日逛當地購物街、百貨或 Outlet（視城市交通）。',
   }
 }
 
@@ -773,6 +799,7 @@ export function scenicSpotsFromAi(
     summary?: string
     nearbyFood?: string
     souvenirs?: string
+    shoppingOutlet?: string
     tags?: string[]
     ticket?: string
   }[],
@@ -807,6 +834,7 @@ export function scenicSpotsFromAi(
         `${name}是當地值得停留的一站；建議預留體驗與拍照時間，並依天氣彈性調整。`,
       nearbyFood: item.nearbyFood?.trim() || fallback.nearbyFood,
       souvenirs: item.souvenirs?.trim() || fallback.souvenirs,
+      shoppingOutlet: item.shoppingOutlet?.trim() || fallback.shoppingOutlet,
       tags: tags.length ? tags : (['popular'] as SpotTag[]),
       ticket: item.ticket?.trim() || '視當地而定',
       bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
@@ -818,7 +846,7 @@ export function scenicSpotsFromAi(
 function dayFoodAndSouvenirNotes(
   spots: ScenicSpot[],
   destinationName: string,
-): { foodNote?: string; souvenirNote?: string } {
+): { foodNote?: string; souvenirNote?: string; shoppingNote?: string } {
   if (!spots.length) return {}
   const foods = [
     ...new Set(
@@ -834,14 +862,23 @@ function dayFoodAndSouvenirNotes(
         .filter((s): s is string => Boolean(s)),
     ),
   ]
-  if (!foods.length || !gifts.length) {
+  const shops = [
+    ...new Set(
+      spots
+        .map((s) => s.shoppingOutlet?.trim())
+        .filter((s): s is string => Boolean(s)),
+    ),
+  ]
+  if (!foods.length || !gifts.length || !shops.length) {
     const fallback = foodAndGiftsForArea(spots[0]?.area || '', destinationName)
     if (!foods.length) foods.push(fallback.nearbyFood)
     if (!gifts.length) gifts.push(fallback.souvenirs)
+    if (!shops.length) shops.push(fallback.shoppingOutlet)
   }
   return {
     foodNote: foods.slice(0, 2).join(' ／ '),
     souvenirNote: gifts.slice(0, 2).join(' ／ '),
+    shoppingNote: shops.slice(0, 2).join(' ／ '),
   }
 }
 
@@ -4291,10 +4328,11 @@ export function buildItinerary(options: {
       hour += 1
     }
 
-    const { foodNote, souvenirNote } = dayFoodAndSouvenirNotes(
+    const { foodNote, souvenirNote, shoppingNote } = dayFoodAndSouvenirNotes(
       bucket,
       dests.map((d) => d.nameZh).join(' '),
     )
+    const wantsShopping = specialNeeds.some((n) => /購物|Outlet|outlet|逛街/.test(n))
 
     bucket.forEach((spot, spotIndex) => {
       if (spotIndex === 1 || (spotIndex === 0 && hour >= 12 && hour <= 13)) {
@@ -4314,12 +4352,15 @@ export function buildItinerary(options: {
 
       const foodBit = spot.nearbyFood ? ` 附近可吃：${spot.nearbyFood}` : ''
       const giftBit = spot.souvenirs ? ` 手信：${spot.souvenirs}` : ''
+      const shopBit = spot.shoppingOutlet
+        ? ` 購物／Outlet：${spot.shoppingOutlet}`
+        : ''
       schedule.push({
         time: timeLabel(Math.min(hour, 18)),
         title: spot.name,
         detail: `${spot.summary} 建議停留約 ${spot.stayHours} 小時${
           spot.ticket ? `｜${spot.ticket}` : ''
-        }.${spot.tags.includes('photo') ? ' 記得留打卡時間。' : ''}${foodBit}${giftBit}`,
+        }.${spot.tags.includes('photo') ? ' 記得留打卡時間。' : ''}${foodBit}${giftBit}${shopBit}`,
         spotId: spot.id,
       })
       hour += Math.max(1, Math.ceil(Math.min(spot.stayHours, 4)))
@@ -4335,12 +4376,24 @@ export function buildItinerary(options: {
       })
     }
 
+    if (
+      shoppingNote &&
+      (wantsShopping || bucket.some((s) => s.tags.includes('shopping'))) &&
+      !schedule.some((item) => /購物|Outlet/.test(item.title))
+    ) {
+      schedule.splice(Math.min(schedule.length - 1, 3), 0, {
+        time: '15:30',
+        title: '購物／Outlet',
+        detail: shoppingNote,
+      })
+    }
+
     if (isLast) {
       schedule.push({
         time: timeLabel(Math.min(hour, 16)),
         title: '手信／伴手禮・前往機場或車站',
         detail: souvenirNote
-          ? `可帶回：${souvenirNote}。預留 60–90 分鐘交通緩衝。`
+          ? `可帶回：${souvenirNote}${shoppingNote ? `；購物可參考：${shoppingNote}` : ''}。預留 60–90 分鐘交通緩衝。`
           : '預留 60–90 分鐘交通緩衝，順便補當地手信。',
       })
     } else {
@@ -4373,6 +4426,7 @@ export function buildItinerary(options: {
         `${bucket.map((s) => s.name).join('、')}是這天的主角；慢慢看、慢慢吃，比趕打卡名單更值得記住。`,
       foodNote,
       souvenirNote,
+      shoppingNote,
       paceNote: buildPaceNote(bucket, pace, isFirst, isLast),
       hotelDirection: area,
       schedule,
