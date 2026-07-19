@@ -286,7 +286,7 @@ main {
 
 .preference-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
@@ -587,10 +587,6 @@ main {
 
 .field-block.grow {
   width: 100%;
-}
-
-.preference-grid {
-  grid-template-columns: repeat(2, 1fr);
 }
 
 .field-block {

@@ -37,6 +37,7 @@ function App() {
   const [startDate, setStartDate] = useState('2026-02-17')
   const [endDate, setEndDate] = useState('2026-02-23')
   const [days, setDays] = useState(7)
+  const [daysInput, setDaysInput] = useState('7')
   const [pace, setPace] = useState<TripPace>('balanced')
   const [companion, setCompanion] = useState<Companion>('couple')
   const [specialNeeds, setSpecialNeeds] = useState<string[]>([
@@ -100,6 +101,7 @@ function App() {
   function setTripDays(next: number) {
     const clamped = clampDays(next)
     setDays(clamped)
+    setDaysInput(String(clamped))
     setHotelNights(nightsFromDays(clamped))
   }
 
@@ -350,8 +352,26 @@ function App() {
                     type="number"
                     min={MIN_TRIP_DAYS}
                     max={MAX_TRIP_DAYS}
-                    value={days}
-                    onChange={(e) => setTripDays(Number(e.target.value))}
+                    value={daysInput}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      setDaysInput(raw)
+                      if (raw === '') return
+                      const parsed = Number(raw)
+                      if (!Number.isFinite(parsed)) return
+                      // Keep draft text while typing; only store a valid in-range day.
+                      if (parsed >= MIN_TRIP_DAYS && parsed <= MAX_TRIP_DAYS) {
+                        setDays(parsed)
+                        setHotelNights(nightsFromDays(parsed))
+                      }
+                    }}
+                    onBlur={() => {
+                      const parsed = Number(daysInput)
+                      setTripDays(
+                        Number.isFinite(parsed) ? parsed : dayAdvice.comfortable,
+                      )
+                    }}
                   />
                   <button
                     type="button"
