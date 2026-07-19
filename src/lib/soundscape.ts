@@ -1,12 +1,19 @@
 /**
- * Relaxed soundscape: real melodic ambient MP3 loop + tiny sine UI cues.
- * Continuous oscillator drones were removed — they sounded like “ng ng” hum.
+ * Relaxed soundscape: melodic ambient MP3 loop + audible motion / choice SFX.
  */
 
 const STORAGE_KEY = 'km-sound-muted'
 const AMBIENT_SRC = '/audio/relax-ambient.mp3'
 
-type ToneName = 'tick' | 'whoosh' | 'chime' | 'softPop' | 'ready'
+export type ToneName =
+  | 'tick'
+  | 'whoosh'
+  | 'chime'
+  | 'softPop'
+  | 'ready'
+  | 'kick'
+  | 'boom'
+  | 'select'
 
 function canUseAudio(): boolean {
   return typeof window !== 'undefined'
@@ -63,7 +70,7 @@ class Soundscape {
     const audio = new Audio(AMBIENT_SRC)
     audio.loop = true
     audio.preload = 'auto'
-    audio.volume = 0.38
+    audio.volume = 0.32
     audio.setAttribute('playsinline', 'true')
     this.music = audio
   }
@@ -72,7 +79,8 @@ class Soundscape {
     if (this.ctx || typeof AudioContext === 'undefined') return
     const ctx = new AudioContext()
     const sfxGain = ctx.createGain()
-    sfxGain.gain.value = 0.55
+    // Louder than before so clicks cut through ambient music.
+    sfxGain.gain.value = 1
     sfxGain.connect(ctx.destination)
     this.ctx = ctx
     this.sfxGain = sfxGain
@@ -102,7 +110,7 @@ class Soundscape {
       this.music.currentTime = this.music.currentTime || 0
       await this.music.play()
     } catch {
-      // Autoplay blocked until next gesture; mute toggle / next click retries.
+      /* Autoplay blocked until next gesture. */
     } finally {
       this.starting = false
     }
@@ -130,34 +138,53 @@ class Soundscape {
 
   play(name: ToneName) {
     if (this.muted || !canUseAudio()) return
-    void this.unlock().then(() => {
-      if (this.muted || !this.ctx || !this.sfxGain) return
-      switch (name) {
-        case 'tick':
-          this.blip(880, 0.05, 0.03)
-          break
-        case 'softPop':
-          this.blip(698.46, 0.08, 0.028)
-          this.blip(880, 0.1, 0.018, 0.03)
-          break
-        case 'whoosh':
-          // Soft rising tone — no noise bursts.
-          this.blip(330, 0.22, 0.025, 0, 520)
-          break
-        case 'chime':
-          this.blip(659.25, 0.28, 0.032)
-          this.blip(830.61, 0.32, 0.024, 0.06)
-          this.blip(1046.5, 0.36, 0.018, 0.12)
-          break
-        case 'ready':
-          this.blip(523.25, 0.26, 0.03)
-          this.blip(659.25, 0.3, 0.024, 0.08)
-          this.blip(783.99, 0.36, 0.02, 0.16)
-          break
-        default:
-          break
-      }
-    })
+    this.ensureSfx()
+    if (!this.ctx || !this.sfxGain) return
+
+    // Prefer immediate playback once unlocked so clicks feel instant.
+    if (this.ctx.state === 'suspended' || !this.unlocked) {
+      void this.unlock().then(() => {
+        if (!this.muted) this.playNow(name)
+      })
+      return
+    }
+    this.playNow(name)
+  }
+
+  private playNow(name: ToneName) {
+    if (!this.ctx || !this.sfxGain || this.muted) return
+    switch (name) {
+      case 'tick':
+      case 'select':
+        this.blip(988, 0.07, 0.14)
+        this.blip(1318.5, 0.05, 0.08, 0.015)
+        break
+      case 'softPop':
+        this.blip(698.46, 0.1, 0.12)
+        this.blip(880, 0.12, 0.08, 0.03)
+        break
+      case 'whoosh':
+        this.blip(280, 0.28, 0.1, 0, 640)
+        break
+      case 'chime':
+        this.blip(659.25, 0.32, 0.12)
+        this.blip(830.61, 0.36, 0.09, 0.06)
+        this.blip(1046.5, 0.4, 0.07, 0.12)
+        break
+      case 'ready':
+        this.blip(523.25, 0.28, 0.11)
+        this.blip(659.25, 0.32, 0.09, 0.08)
+        this.blip(783.99, 0.38, 0.08, 0.16)
+        break
+      case 'kick':
+        this.playKick()
+        break
+      case 'boom':
+        this.playBoom()
+        break
+      default:
+        break
+    }
   }
 
   private blip(
@@ -171,33 +198,105 @@ class Soundscape {
     const t0 = this.ctx.currentTime + delay
     const osc = this.ctx.createOscillator()
     const gain = this.ctx.createGain()
+    const filter = this.ctx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = Math.min(3200, frequency * 2.4)
     osc.type = 'sine'
     osc.frequency.setValueAtTime(frequency, t0)
     if (endFrequency) {
       osc.frequency.exponentialRampToValueAtTime(endFrequency, t0 + duration)
     }
     gain.gain.setValueAtTime(0.0001, t0)
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + 0.025)
+    gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + 0.012)
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration)
-    osc.connect(gain)
+    osc.connect(filter)
+    filter.connect(gain)
     gain.connect(this.sfxGain)
     osc.start(t0)
     osc.stop(t0 + duration + 0.02)
+  }
+
+  /** Soft thump + bright tap for the logo foot strike. */
+  private playKick() {
+    if (!this.ctx || !this.sfxGain) return
+    const t0 = this.ctx.currentTime
+    // Body thump
+    const thump = this.ctx.createOscillator()
+    const thumpGain = this.ctx.createGain()
+    thump.type = 'sine'
+    thump.frequency.setValueAtTime(140, t0)
+    thump.frequency.exponentialRampToValueAtTime(55, t0 + 0.16)
+    thumpGain.gain.setValueAtTime(0.0001, t0)
+    thumpGain.gain.exponentialRampToValueAtTime(0.42, t0 + 0.01)
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2)
+    thump.connect(thumpGain)
+    thumpGain.connect(this.sfxGain)
+    thump.start(t0)
+    thump.stop(t0 + 0.22)
+
+    // Leather tap
+    this.blip(520, 0.06, 0.16)
+    this.blip(880, 0.04, 0.08, 0.02)
+  }
+
+  /** Mid-air boom / sparkle when the ball pops. */
+  private playBoom() {
+    if (!this.ctx || !this.sfxGain) return
+    const t0 = this.ctx.currentTime
+    const boom = this.ctx.createOscillator()
+    const boomGain = this.ctx.createGain()
+    boom.type = 'triangle'
+    boom.frequency.setValueAtTime(180, t0)
+    boom.frequency.exponentialRampToValueAtTime(70, t0 + 0.22)
+    boomGain.gain.setValueAtTime(0.0001, t0)
+    boomGain.gain.exponentialRampToValueAtTime(0.28, t0 + 0.012)
+    boomGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28)
+    boom.connect(boomGain)
+    boomGain.connect(this.sfxGain)
+    boom.start(t0)
+    boom.stop(t0 + 0.3)
+
+    this.blip(1046.5, 0.18, 0.12)
+    this.blip(1568, 0.22, 0.08, 0.04)
+    this.blip(2093, 0.16, 0.05, 0.08)
   }
 }
 
 export const soundscape = new Soundscape()
 
-/** Ensure audio unlocks on the first user gesture anywhere in the app. */
+const CHOICE_SELECTOR = [
+  'button.chip',
+  'button.style-card',
+  'button.spot-card',
+  'button.dest-card',
+  'button.icon-btn',
+  '.selected-chip button',
+].join(',')
+
+/** Unlock audio on first gesture + play select SFX for choice clicks. */
 export function bindSoundscapeGestures() {
   if (!canUseAudio()) return () => undefined
+
   const unlock = () => {
     void soundscape.unlock()
   }
   window.addEventListener('pointerdown', unlock, { once: true, passive: true })
   window.addEventListener('keydown', unlock, { once: true })
+
+  const onClick = (event: MouseEvent) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    // Don't double-fire from nested brand/nav primary actions.
+    if (target.closest('button.brand, a, .sound-toggle')) return
+    const choice = target.closest(CHOICE_SELECTOR)
+    if (!choice) return
+    soundscape.play('select')
+  }
+  document.addEventListener('click', onClick, true)
+
   return () => {
     window.removeEventListener('pointerdown', unlock)
     window.removeEventListener('keydown', unlock)
+    document.removeEventListener('click', onClick, true)
   }
 }

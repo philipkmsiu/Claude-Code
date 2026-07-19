@@ -1,6 +1,7 @@
 /** Real KM company mark: color-shifting body + kicking foot + football spectacle. */
 
-import type { CSSProperties } from 'react'
+import { useEffect, type CSSProperties } from 'react'
+import { soundscape } from '../lib/soundscape'
 
 type Props = {
   className?: string
@@ -13,6 +14,13 @@ type Props = {
 /** Bump when mask / ball assets change so browsers skip stale cache. */
 const ASSET_V = 'v5'
 const BALL_V = 'v2'
+
+/** Must match `--km-kick-dur` / foot-kick animation in App.css (2.8s). */
+const KICK_CYCLE_MS = 2800
+/** Strike at ~32% of the kick timeline. */
+const KICK_AT_MS = Math.round(KICK_CYCLE_MS * 0.32)
+/** Apex boom at ~48% of the spectacle timeline. */
+const BOOM_AT_MS = Math.round(KICK_CYCLE_MS * 0.48)
 
 const SPARKS = [
   { x: 1.1, y: -1.2 },
@@ -61,6 +69,38 @@ export function KmLogo({
   title = 'KM',
   spectacle = false,
 }: Props) {
+  // Sync thump / boom SFX to the hero ball-kick loop only (avoid stacked brand/footer logos).
+  useEffect(() => {
+    if (!spectacle || typeof window === 'undefined') return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    let cancelled = false
+    const timers: number[] = []
+
+    const runCycle = () => {
+      if (cancelled || soundscape.isMuted) return
+      timers.push(
+        window.setTimeout(() => {
+          if (!cancelled && !soundscape.isMuted) soundscape.play('kick')
+        }, KICK_AT_MS),
+      )
+      timers.push(
+        window.setTimeout(() => {
+          if (!cancelled && !soundscape.isMuted) soundscape.play('boom')
+        }, BOOM_AT_MS),
+      )
+    }
+
+    // Align roughly with CSS animation start on mount.
+    runCycle()
+    const loop = window.setInterval(runCycle, KICK_CYCLE_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(loop)
+      for (const id of timers) window.clearTimeout(id)
+    }
+  }, [spectacle])
+
   return (
     <span
       className={`km-logo-live ${spectacle ? 'km-logo-spectacle' : ''} ${className}`.trim()}

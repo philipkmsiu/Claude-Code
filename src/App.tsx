@@ -704,7 +704,6 @@ function App() {
   }
 
   function toggleDestination(id: DestinationId) {
-    soundscape.play('tick')
     setSelectedDestIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id)
       if (prev.length >= 3) return [...prev.slice(1), id]
@@ -1060,7 +1059,6 @@ function App() {
   }
 
   function toggleSpot(id: string) {
-    soundscape.play('tick')
     setSelectedSpotIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
