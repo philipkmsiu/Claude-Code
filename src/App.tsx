@@ -405,15 +405,12 @@ function App() {
     [],
   )
 
-  // Soft motion cues when the wizard steps change.
+  // Motion SFX only on the first (home) page; later steps keep background music only.
   useEffect(() => {
-    // Ball kick/boom SFX only on the home hero — never on later pages.
-    soundscape.setLogoSfxEnabled(step === 'home')
+    soundscape.setMotionSfxEnabled(step === 'home')
     if (prevStepRef.current === step) return
     prevStepRef.current = step
-    if (step === 'result') soundscape.play('ready')
-    else if (step === 'home') soundscape.play('softPop')
-    else soundscape.play('whoosh')
+    if (step === 'home') soundscape.play('softPop')
   }, [step])
 
   const runAiDayRecommendation = async (

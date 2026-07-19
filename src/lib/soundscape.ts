@@ -1,6 +1,7 @@
 /**
- * Relaxed soundscape: rotating ambient playlist + motion / choice SFX.
- * A different track is chosen each visit, and tracks change during the session.
+ * Relaxed soundscape: rotating ambient playlist + first-page motion / choice SFX.
+ * Motion SFX (kick, whoosh, clicks, etc.) only play on the home page;
+ * after that, only background music continues.
  */
 
 const STORAGE_KEY = 'km-sound-muted'
@@ -84,8 +85,11 @@ class Soundscape {
   private starting = false
   private rotateTimer: number | null = null
   private fadeTimer: number | null = null
-  /** Logo kick/boom only while the home hero spectacle is visible. */
-  private logoSfxEnabled = false
+  /**
+   * All short motion / UI SFX (kick, boom, whoosh, select, …).
+   * Enabled only on the first (home) page; later steps are music-only.
+   */
+  private motionSfxEnabled = false
   private listeners = new Set<(state: { muted: boolean; unlocked: boolean }) => void>()
 
   get isMuted() {
@@ -97,7 +101,11 @@ class Soundscape {
   }
 
   get isLogoSfxEnabled() {
-    return this.logoSfxEnabled
+    return this.motionSfxEnabled
+  }
+
+  get isMotionSfxEnabled() {
+    return this.motionSfxEnabled
   }
 
   get trackLabel() {
@@ -106,9 +114,14 @@ class Soundscape {
     return file.replace(/^relax-/, '').replace(/\.mp3$/, '').replace(/-/g, ' ')
   }
 
-  /** Enable only on the home page; disable as soon as the user continues. */
+  /** Enable motion SFX only on the home page; disable as soon as the user continues. */
+  setMotionSfxEnabled(enabled: boolean) {
+    this.motionSfxEnabled = enabled
+  }
+
+  /** @deprecated Use setMotionSfxEnabled — kept for KmLogo / older call sites. */
   setLogoSfxEnabled(enabled: boolean) {
-    this.logoSfxEnabled = enabled
+    this.motionSfxEnabled = enabled
   }
 
   subscribe(listener: (state: { muted: boolean; unlocked: boolean }) => void) {
@@ -303,7 +316,8 @@ class Soundscape {
 
   private playNow(name: ToneName) {
     if (!this.ctx || !this.sfxGain || this.muted) return
-    if ((name === 'kick' || name === 'boom') && !this.logoSfxEnabled) return
+    // After the first page: ambient music only — no motion / click SFX.
+    if (!this.motionSfxEnabled) return
     switch (name) {
       case 'tick':
       case 'select':
@@ -418,7 +432,7 @@ const CHOICE_SELECTOR = [
   '.selected-chip button',
 ].join(',')
 
-/** Unlock audio on first gesture + play select SFX for choice clicks. */
+/** Unlock audio on first gesture + play select SFX for choice clicks (home only). */
 export function bindSoundscapeGestures() {
   if (!canUseAudio()) return () => undefined
 
@@ -429,6 +443,7 @@ export function bindSoundscapeGestures() {
   window.addEventListener('keydown', unlock, { once: true })
 
   const onClick = (event: MouseEvent) => {
+    if (!soundscape.isMotionSfxEnabled) return
     const target = event.target
     if (!(target instanceof Element)) return
     if (target.closest('button.brand, a, .sound-toggle, .sound-skip')) return
