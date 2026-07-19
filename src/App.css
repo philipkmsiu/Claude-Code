@@ -67,24 +67,39 @@
   background: transparent;
 }
 
-/* KM SVG mark — K foot kicks */
-.km-logo-svg {
-  display: block;
-  overflow: visible;
+/* Real company KM mark — grey K foot kicks */
+.km-logo-live {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
   background: transparent;
+  line-height: 0;
+  overflow: visible;
 }
 
-.km-logo-svg .km-foot-pivot {
-  transform-origin: 74px 66px;
-  animation: km-foot-kick 1.5s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+.km-logo-live .km-logo-base,
+.km-logo-live .km-logo-foot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: transparent;
+  pointer-events: none;
+  user-select: none;
 }
 
-.km-logo-svg .km-cap {
-  transform-origin: 61px 26px;
-  animation: km-cap-nod 1.5s ease-in-out infinite;
+.km-logo-live .km-logo-base {
+  position: relative;
 }
 
-.hero-logo.km-logo-svg {
+.km-logo-live .km-logo-foot {
+  /* hip of the K foot in the square mark */
+  transform-origin: 24.5% 56%;
+  animation: km-foot-kick 1.45s cubic-bezier(0.34, 1.45, 0.64, 1) infinite;
+}
+
+.hero-logo.km-logo-live {
   filter: drop-shadow(0 10px 18px rgba(200, 16, 46, 0.18));
 }
 
@@ -1880,7 +1895,7 @@ main {
 }
 
 .footer-brand img,
-.footer-brand .km-logo-svg {
+.footer-brand .km-logo-live {
   border-radius: 0;
   object-fit: contain;
   background: transparent;
@@ -3454,8 +3469,7 @@ a.btn {
   .brand-logo,
   .hero-logo,
   .footer-brand img,
-  .km-logo-svg .km-foot-pivot,
-  .km-logo-svg .km-cap {
+  .km-logo-live .km-logo-foot {
     animation: none !important;
   }
 }
