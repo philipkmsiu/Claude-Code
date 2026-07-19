@@ -1397,6 +1397,48 @@ export function spotInputExamples(destinationName: string): string {
   return `例如：${name}經典地標、${name}老城／夜市（可直接貼上）`
 }
 
+/** True when poster food list is still placeholder categories. */
+export function isGenericPosterFood(
+  mustEat?: { name: string }[] | null,
+): boolean {
+  if (!mustEat?.length) return true
+  return mustEat.every((item) =>
+    /在地特色|街頭小吃|代表菜|代表性早餐|當地名菜|當地特色早餐/.test(item.name),
+  )
+}
+
+/** Prefer concrete dishes mined from day food notes over generic categories. */
+export function mergePosterFoodFromItinerary(
+  base: VisualPosterContent,
+  itinerary: { foodNote?: string; theme?: string }[],
+): VisualPosterContent {
+  if (!isGenericPosterFood(base.mustEat)) return base
+  const motifs = ['🍣', '🍜', '🍤', '🥩', '🍡', '🍲', '🥞', '🍙']
+  const seen = new Set<string>()
+  const fromDays: VisualPosterContent['mustEat'] = []
+  itinerary.forEach((day, index) => {
+    const note = day.foodNote?.trim()
+    if (!note) return
+    const parts = note.split(/[；;／/|]/).map((p) => p.trim()).filter(Boolean)
+    for (const part of parts) {
+      const name = part.split(/[，,、]/)[0]?.trim()
+      if (!name || name.length < 3 || name.length > 28) continue
+      if (/附近可吃|建議|可以|安排/.test(name)) continue
+      const key = name.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      fromDays.push({
+        name,
+        daysLabel: `DAY ${index + 1}`,
+        motif: motifs[fromDays.length % motifs.length],
+      })
+      if (fromDays.length >= 6) break
+    }
+  })
+  if (fromDays.length < 3) return base
+  return { ...base, mustEat: fromDays }
+}
+
 /** Destination-aware Stage-4 poster side content when handbook has none. */
 export function inferVisualPoster(options: {
   destinationName: string
@@ -1475,18 +1517,155 @@ export function inferVisualPoster(options: {
     }
   }
 
+  if (/關西|大阪|京都|奈良|神戶|Kansai|Osaka|Kyoto/i.test(name)) {
+    return {
+      themeLine,
+      mustEat: [
+        { name: '章魚燒 Takoyaki', daysLabel: '道頓堀', motif: '🐙' },
+        { name: '大阪燒 Okonomiyaki', daysLabel: '難波／新世界', motif: '🥞' },
+        { name: '黑門海鮮丼／串炸', daysLabel: '朝食或午市', motif: '🍤' },
+        { name: '湯豆腐／京料理', daysLabel: '京都東山', motif: '🍲' },
+        { name: '抹茶芭菲／和菓子', daysLabel: '宇治或二年坂', motif: '🍵' },
+        { name: '柿葉壽司／神戶牛', daysLabel: '奈良或神戶日', motif: '🥩' },
+      ],
+      mustDrink: [
+        { name: '生啤酒＋串炸', motif: '🍺' },
+        { name: '抹茶／ほうじ茶', motif: '🍵' },
+        { name: 'ラムネ／サイダー', motif: '🥤' },
+      ],
+      mustBuy: [
+        { name: '藥妝＋面膜', daysLabel: '心齋橋', motif: '🧴' },
+        { name: '抹茶菓子／京漬物', daysLabel: '京都手信', motif: '🎁' },
+        { name: '章魚燒醬／大阪零食', daysLabel: '超市', motif: '📦' },
+        { name: '狐狸御守／清水燒小物', daysLabel: '伏見／東山', motif: '🦊' },
+      ],
+      travelTips: [
+        transportMode === 'public_transit'
+          ? '大阪／京都用ICOCA；同區景點排同一天少扛行李'
+          : '包車時把環球影城與市區拆開，別塞同一天',
+        '伏見稻荷與嵐山建議早到避人潮',
+        '黑門市場適合當朝食，吃飽再出發',
+        '和服體驗預留下午茶屋休息時間',
+        '手信可在車站百貨補齊，比機場便宜',
+        '行程留半日彈性，遇雨改室內展或百貨',
+      ],
+      footerNote: '路線示意；關西人氣店可能排隊，熱門時段請預留緩衝。',
+    }
+  }
+
+  if (/東京|Tokyo|Japan|日本/i.test(name)) {
+    return {
+      themeLine,
+      mustEat: [
+        { name: '築地／豐洲海鮮丼', daysLabel: '朝食', motif: '🍣' },
+        { name: '拉麵（豚骨或醬油）', daysLabel: '市區日', motif: '🍜' },
+        { name: '天婦羅／天丼', daysLabel: '淺草一帶', motif: '🍤' },
+        { name: '便利店早餐組合', daysLabel: '出發日', motif: '🍙' },
+        { name: '和牛燒肉或壽喜燒', daysLabel: '重點晚餐', motif: '🥩' },
+      ],
+      mustDrink: [
+        { name: '抹茶／ほうじ茶', motif: '🍵' },
+        { name: '生啤酒', motif: '🍺' },
+        { name: '自動販賣機咖啡', motif: '☕' },
+      ],
+      mustBuy: [
+        { name: '藥妝＋面膜', daysLabel: '手信', motif: '🧴' },
+        { name: '東京バナナ／菓子', daysLabel: '車站', motif: '🍌' },
+        { name: '零食大禮包', daysLabel: '唐吉訶德', motif: '🍬' },
+      ],
+      travelTips: [
+        '交通卡先備好，跨區預留轉乘時間',
+        'teamLab／迪士尼務必預約或獨立成日',
+        '淺草早去、澀谷夜看，節奏較舒服',
+        '手信最後兩天再買，減少行李負擔',
+        '下雨改百貨地下街與美術館',
+        '行程保留彈性，別每天排滿',
+      ],
+      footerNote: '路線示意；東京熱門店排隊常見，請預留時間。',
+    }
+  }
+
+  if (/台北|臺北|Taiwan|台灣|臺灣/i.test(name)) {
+    return {
+      themeLine,
+      mustEat: [
+        { name: '蛋餅＋豆漿', daysLabel: '每日朝食', motif: '🍳' },
+        { name: '胡椒餅／雞排', daysLabel: '夜市', motif: '🥙' },
+        { name: '牛肉麵', daysLabel: '市區午餐', motif: '🍜' },
+        { name: '小籠包／湯包', daysLabel: '重點餐', motif: '🥟' },
+        { name: '芋圓／豆花', daysLabel: '九份或下午', motif: '🍮' },
+      ],
+      mustDrink: [
+        { name: '手搖飲珍奶', motif: '🧋' },
+        { name: '米漿／豆漿', motif: '🥛' },
+        { name: '愛玉／青草茶', motif: '🧃' },
+      ],
+      mustBuy: [
+        { name: '鳳梨酥／牛軋糖', daysLabel: '手信', motif: '🍍' },
+        { name: '台灣茶葉', daysLabel: '迪化街', motif: '🍵' },
+        { name: '面膜與保養', daysLabel: '藥妝', motif: '🧴' },
+      ],
+      travelTips: [
+        '悠遊卡先備好，捷運＋公車最方便',
+        '夜市別空腹衝太兇，分兩晚吃更開心',
+        '象山夕陽前上樓，光線最好',
+        '九份假日人多，回程預留塞車時間',
+        '盛夏帶陽傘，午後雷雨很常見',
+        '手信可在機場前於市區買齊',
+      ],
+      footerNote: '路線示意；夜市與老街人潮視假日波動。',
+    }
+  }
+
+  if (/首爾|Seoul|韓國|韓国/i.test(name)) {
+    return {
+      themeLine,
+      mustEat: [
+        { name: '韓式烤肉', daysLabel: '重點晚餐', motif: '🥩' },
+        { name: '拌飯／湯飯', daysLabel: '市區午餐', motif: '🍚' },
+        { name: '炸雞＋啤酒', daysLabel: '夜晚', motif: '🍗' },
+        { name: '街頭糖餅／紫菜飯捲', daysLabel: '逛街日', motif: '🍪' },
+        { name: '參雞湯', daysLabel: '補精力日', motif: '🍲' },
+      ],
+      mustDrink: [
+        { name: '燒酒＋啤酒混飲', motif: '🍺' },
+        { name: '大麥茶', motif: '🍵' },
+        { name: '韓系咖啡', motif: '☕' },
+      ],
+      mustBuy: [
+        { name: '藥妝＋面膜', daysLabel: '明洞', motif: '🧴' },
+        { name: '韓式零食禮盒', daysLabel: '手信', motif: '🎁' },
+        { name: '泡菜／醬料（真空）', daysLabel: '超市', motif: '🥬' },
+      ],
+      travelTips: [
+        'T-money 交通卡先備好',
+        '景福宮可搭配韓服，記得尊重拍攝禮儀',
+        '明洞藥妝比價，別第一家就掃貨',
+        '弘大夜晚更有活力，白天偏店鋪',
+        '手信最後再買，減行李',
+        '行程留半日彈性，遇雨改百貨或咖啡',
+      ],
+      footerNote: '路線示意；首爾熱門餐廳可能需排隊或線上候位。',
+    }
+  }
+
   if (/中國|大陸|北京|上海|成都|重慶|杭州|桂林|雲南|西藏|西北/.test(name)) {
     return {
       themeLine,
       mustEat: [
-        { name: '在地代表性早餐', daysLabel: '出發日', motif: '🍳' },
+        { name: '豆漿油條／包子', daysLabel: '出發日早餐', motif: '🥯' },
         { name: '街頭小吃拼盤', daysLabel: '市區日', motif: '🍢' },
         { name: '當地名菜晚餐', daysLabel: '重點日', motif: '🍜' },
+        { name: '火鍋或地方菜', daysLabel: '夜晚', motif: '🍲' },
       ],
       mustDrink: [
         { name: '熱茶／蓋碗茶', motif: '🍵' },
-        { name: '新鮮果汁', motif: '🧃' },
+        { name: '酸梅湯／豆漿', motif: '🧃' },
         { name: '當地特色飲品', motif: '🥤' },
+      ],
+      mustBuy: [
+        { name: '地方特產零食', daysLabel: '手信', motif: '🎁' },
+        { name: '茶葉或糕點禮盒', daysLabel: '機場前', motif: '📦' },
       ],
       travelTips: [
         '證件隨身，方便安檢與購票',

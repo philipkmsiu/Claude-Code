@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import type { DayPlan, TransportMode, VisualPosterContent } from '../data/types'
-import { inferVisualPoster, transportModeLabel } from '../data/travel'
+import {
+  inferVisualPoster,
+  isGenericPosterFood,
+  mergePosterFoodFromItinerary,
+  transportModeLabel,
+} from '../data/travel'
 import { resolveDayPhotos } from '../lib/placePhotos'
 
 type Edition = 'photo' | 'scrapbook'
@@ -48,16 +53,28 @@ export function JourneyMap({
       nights,
       transportMode,
     })
-    if (!visualPoster?.mustEat?.length) return inferred
-    return {
-      ...inferred,
-      ...visualPoster,
-      mustBuy:
-        visualPoster.mustBuy && visualPoster.mustBuy.length
-          ? visualPoster.mustBuy
-          : inferred.mustBuy,
-    }
-  }, [visualPoster, destinationName, days, nights, transportMode])
+    const handbookFoodIsGeneric = isGenericPosterFood(visualPoster?.mustEat)
+    const merged = !visualPoster?.mustEat?.length
+      ? inferred
+      : {
+          ...inferred,
+          ...visualPoster,
+          // Never let handbook/generic placeholders hide real local dishes.
+          mustEat: handbookFoodIsGeneric ? inferred.mustEat : visualPoster.mustEat,
+          mustDrink:
+            visualPoster.mustDrink?.length &&
+            !visualPoster.mustDrink.every((d) =>
+              /當地茶飲|新鮮果汁|溫熱湯品/.test(d.name),
+            )
+              ? visualPoster.mustDrink
+              : inferred.mustDrink,
+          mustBuy:
+            visualPoster.mustBuy && visualPoster.mustBuy.length
+              ? visualPoster.mustBuy
+              : inferred.mustBuy,
+        }
+    return mergePosterFoodFromItinerary(merged, itinerary)
+  }, [visualPoster, destinationName, days, nights, transportMode, itinerary])
 
   const pathGeometry = useMemo(
     () =>
