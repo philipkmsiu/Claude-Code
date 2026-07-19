@@ -15,9 +15,11 @@ import {
   daysBetween,
   defaultPartySize,
   defaultSelectedSpotIds,
+  deriveFitStatus,
   destinationNeedsAiSpots,
   destinations as presetDestinations,
   findKnownDestination,
+  fitStatusTitle,
   hotelBookingAdvice,
   hotelStyles,
   hotelsForStyle,
@@ -90,6 +92,10 @@ function App() {
   const destComposing = useRef(false)
   const reviewTimer = useRef<number | null>(null)
   const aiSpotsInFlight = useRef(false)
+  const aiReviewCache = useRef<{
+    key: string
+    review: AiPlanReview
+  } | null>(null)
 
   const catalog = useMemo(() => {
     const overrides = new Map(customDestinations.map((d) => [d.id, d]))
@@ -287,8 +293,43 @@ function App() {
     // Re-run when destination set changes; preferences page entry triggers via step.
   }, [step, selectedDestKey, selectedDestNames])
 
+  const reviewContentKey = [
+    selectedDestNames,
+    selectedSpotKey,
+    pace,
+    companion,
+    travelers,
+    specialNeeds.join('|'),
+    durationFit.minDays,
+    durationFit.recommendedDays,
+    durationFit.comfortableDays,
+  ].join('::')
+
+  function withChosenDays(review: AiPlanReview, chosen: number): AiPlanReview {
+    const status = deriveFitStatus(
+      chosen,
+      review.minDays,
+      review.recommendedDays,
+      review.comfortableDays,
+    )
+    return {
+      ...review,
+      status,
+      title: fitStatusTitle(status),
+    }
+  }
+
   useEffect(() => {
     if ((step !== 'spots' && step !== 'result') || !primary) return
+
+    // Same spots/conditions → reuse absolute day estimate; only status follows chosen days.
+    // This stops spots-page "16 days" flipping to result-page "10 days".
+    if (aiReviewCache.current?.key === reviewContentKey) {
+      setAiReview(withChosenDays(aiReviewCache.current.review, planDays))
+      setAiReviewLoading(false)
+      return
+    }
+
     if (reviewTimer.current) window.clearTimeout(reviewTimer.current)
     const destinationName = selectedDestNames
     const spotsPayload = selectedSpotObjects.map((s) => ({
@@ -302,6 +343,7 @@ function App() {
       minDays: durationFit.minDays,
       comfortableDays: durationFit.comfortableDays,
     }
+    const contentKey = reviewContentKey
     reviewTimer.current = window.setTimeout(() => {
       setAiReviewLoading(true)
       void reviewPlanWithAi({
@@ -315,7 +357,9 @@ function App() {
         heuristic,
       })
         .then((result) => {
-          setAiReview(result)
+          const stabilized = withChosenDays(result, planDays)
+          aiReviewCache.current = { key: contentKey, review: result }
+          setAiReview(stabilized)
           setAiError('')
         })
         .catch((error: unknown) => {
@@ -327,20 +371,7 @@ function App() {
     return () => {
       if (reviewTimer.current) window.clearTimeout(reviewTimer.current)
     }
-  }, [
-    step,
-    planDays,
-    pace,
-    companion,
-    specialNeeds,
-    selectedSpotKey,
-    selectedDestNames,
-    primary?.id,
-    durationFit.status,
-    durationFit.recommendedDays,
-    durationFit.minDays,
-    durationFit.comfortableDays,
-  ])
+  }, [step, reviewContentKey, planDays, primary?.id])
 
   const itinerary = useMemo(() => {
     void planVersion
@@ -477,22 +508,29 @@ function App() {
   }
 
   async function loadAiSpotsForDestinations(force = false) {
-    const targets = selectedDestinations.filter((dest) => {
-      const alreadyAi = dest.spots.some((spot) => spot.id.startsWith('ai-spot-'))
-      const eligible =
-        dest.id.startsWith('custom-') ||
-        destinationNeedsAiSpots(dest) ||
-        alreadyAi
-      if (!eligible) return false
-      if (force) return true
-      if (aiSpotsLoadedKeys.includes(dest.id)) return false
-      return destinationNeedsAiSpots(dest)
-    })
-    if (!targets.length || aiSpotsInFlight.current) return
+    // Force reload works for presets too (Osaka etc.), not only custom templates.
+    const targets = force
+      ? selectedDestinations
+      : selectedDestinations.filter(
+          (dest) =>
+            destinationNeedsAiSpots(dest) &&
+            !aiSpotsLoadedKeys.includes(dest.id),
+        )
+    if (!targets.length) {
+      if (force) {
+        setAiSpotsError('目前沒有已選目的地，無法請 AI 推薦景點。')
+      }
+      return
+    }
+    if (aiSpotsInFlight.current) {
+      if (force) setAiSpotsError('AI 正在載入景點，請稍候再試。')
+      return
+    }
 
     aiSpotsInFlight.current = true
     setAiSpotsLoading(true)
     setAiSpotsError('')
+    setAiSpotsNote(force ? '正在重新請 AI 推薦真實景點…' : '')
     try {
       const updates: { id: DestinationId; spots: Destination['spots']; intro?: string }[] =
         []
@@ -608,6 +646,7 @@ function App() {
     setAiSpotsError('')
     setAiDayRec(null)
     setAiReview(null)
+    aiReviewCache.current = null
     setCompanion('couple')
     setPartySize(2)
     setPartySizeInput('2')
@@ -696,6 +735,7 @@ function App() {
                     setEndDate('2026-06-28')
                     setPace('relaxed')
                     setCompanion('friends')
+                    setTravelers(6)
                     setSpecialNeeds([
                       '想拍打卡美照',
                       '偏好戶外自然',
@@ -1281,7 +1321,7 @@ function App() {
             </div>
 
             <aside
-              className={`ai-panel ${aiSpotsLoading ? 'loading' : aiSpotsLoadedKeys.length || aiSpotsNote ? 'ready' : ''}`}
+              className={`ai-panel ${aiSpotsLoading ? 'loading' : aiSpotsError ? '' : allSpots.some((s) => s.id.startsWith('ai-spot-')) || !selectedDestinations.some(destinationNeedsAiSpots) ? 'ready' : ''}`}
             >
               <strong>
                 {aiSpotsLoading
@@ -1290,22 +1330,26 @@ function App() {
                     ? 'AI 景點建議暫時失敗'
                     : allSpots.some((s) => s.id.startsWith('ai-spot-'))
                       ? 'AI 已推薦真實景點'
-                      : '準備載入 AI 景點'}
+                      : selectedDestinations.some(destinationNeedsAiSpots)
+                        ? '準備載入 AI 景點'
+                        : '已載入精選景點（仍可請 AI 重薦）'}
               </strong>
               {aiSpotsError ? <p className="input-error">{aiSpotsError}</p> : null}
               {aiSpotsNote && !aiSpotsLoading ? <p>{aiSpotsNote}</p> : null}
-              {!aiSpotsLoading ? (
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => {
-                    setAiSpotsLoadedKeys([])
-                    void loadAiSpotsForDestinations(true)
-                  }}
-                >
-                  重新請 AI 推薦景點
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={aiSpotsLoading || !selectedDestinations.length}
+                onClick={() => {
+                  setAiSpotsError('')
+                  setAiSpotsLoadedKeys([])
+                  // Invalidate day-review cache so new spots get a fresh fit check.
+                  aiReviewCache.current = null
+                  void loadAiSpotsForDestinations(true)
+                }}
+              >
+                {aiSpotsLoading ? 'AI 載入中…' : '重新請 AI 推薦景點'}
+              </button>
             </aside>
 
             <div className="spot-toolbar">

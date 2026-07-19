@@ -189,59 +189,120 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
       return
     }
 
+    const heuristic = payload.heuristic ?? {}
+    const hMin = Number(heuristic.minDays)
+    const hRec = Number(heuristic.recommendedDays)
+    const hCom = Number(heuristic.comfortableDays)
+
     const content = await chatCompletion([
       {
         role: 'system',
-        content: `你是專業旅遊規劃 AI。請審核「已選天數」與「已選景點」是否匹配。
+        content: `你是專業旅遊規劃 AI。請依「已選景點」估算完成這趟行程需要的絕對天數。
+重要：不要被使用者目前選的天數帶偏；先估景點真正需要多久，status 由系統另算。
 只回傳 JSON：
 {
-  "status": "too_packed" | "too_light" | "balanced",
   "recommendedDays": number,
   "minDays": number,
   "comfortableDays": number,
-  "title": string,
   "message": string,
   "adjustments": string[]
 }
 規則：
 - 天數 2-21 整數，且 minDays <= recommendedDays <= comfortableDays
-- 若景點多、區域跨度大、有多個全日行程，不要低估天數
-- 新疆南北疆／長環線即使景點列表不完整，也要按真實地理給長天數
+- recommendedDays = 正常完成（不過度趕、也不故意拖）
+- 一般城市＋1–2 個近郊日遊：多數落在 4–8 天，不要無故估到 14 天以上
+- 只有長線（新疆南北疆／青甘／大環線公路）才給 12 天以上
+- 必須參考 localHeuristicHint，最終數字應落在 heuristic 附近（約 ±2 天），長線可放寬
 - 全文繁體中文，不要 Markdown`,
       },
       {
         role: 'user',
         content: JSON.stringify({
           destinationName,
-          chosenDays,
+          // chosenDays is context only — do not inflate/deflate absolute need to match it
+          currentlySelectedDaysForContextOnly: chosenDays,
           pace: payload.pace ?? 'balanced',
           companions: payload.companions ?? 'friends',
           partySize: Number(payload.partySize) || 2,
           specialNeeds: payload.specialNeeds ?? [],
           spots: payload.spots ?? [],
-          localHeuristicHint: payload.heuristic ?? null,
-          ask: '請用 AI 判斷天數是否夠用，並給出正常完成天數；人數會影響包車與訂房，請一併考量。',
+          localHeuristicHint: {
+            minDays: Number.isFinite(hMin) ? hMin : null,
+            recommendedDays: Number.isFinite(hRec) ? hRec : null,
+            comfortableDays: Number.isFinite(hCom) ? hCom : null,
+          },
+          ask: '請給出完成這些景點的最少／正常／舒服天數（絕對估計，前後一致）。',
         }),
       },
-    ])
+    ], 0.2)
 
     const parsed = extractJson(content) as {
-      status?: string
       recommendedDays?: number
       minDays?: number
       comfortableDays?: number
-      title?: string
       message?: string
       adjustments?: string[]
     }
 
+    const clamp = (n: number, lo: number, hi: number) =>
+      Math.min(hi, Math.max(lo, Math.round(n)))
+
+    let minDays = Number(parsed.minDays)
+    let recommendedDays = Number(parsed.recommendedDays)
+    let comfortableDays = Number(parsed.comfortableDays)
+
+    // Anchor to heuristic so spots/result pages don't drift wildly.
+    if (Number.isFinite(hMin) && Number.isFinite(hRec) && Number.isFinite(hCom)) {
+      if (!Number.isFinite(minDays)) minDays = hMin
+      if (!Number.isFinite(recommendedDays)) recommendedDays = hRec
+      if (!Number.isFinite(comfortableDays)) comfortableDays = hCom
+      minDays = clamp(minDays, Math.max(2, hMin - 1), Math.min(21, hRec + 2))
+      recommendedDays = clamp(
+        Math.round(recommendedDays * 0.4 + hRec * 0.6),
+        Math.max(2, hMin),
+        Math.min(21, hCom + 2),
+      )
+      comfortableDays = clamp(
+        Math.round(comfortableDays * 0.4 + hCom * 0.6),
+        recommendedDays,
+        Math.min(21, hCom + 3),
+      )
+    } else {
+      minDays = clamp(Number.isFinite(minDays) ? minDays : 3, 2, 21)
+      recommendedDays = clamp(
+        Number.isFinite(recommendedDays) ? recommendedDays : minDays + 1,
+        2,
+        21,
+      )
+      comfortableDays = clamp(
+        Number.isFinite(comfortableDays) ? comfortableDays : recommendedDays + 1,
+        2,
+        21,
+      )
+    }
+
+    if (minDays > recommendedDays) minDays = recommendedDays
+    if (comfortableDays < recommendedDays) comfortableDays = recommendedDays
+
+    let status: 'too_packed' | 'too_light' | 'balanced' = 'balanced'
+    const lightThreshold = Math.max(recommendedDays + 2, comfortableDays)
+    if (chosenDays < recommendedDays) status = 'too_packed'
+    else if (chosenDays > lightThreshold) status = 'too_light'
+
+    const title =
+      status === 'too_packed'
+        ? '行程過於緊湊，建議延長天數'
+        : status === 'too_light'
+          ? '行程天數偏多，可適度縮短'
+          : '天數與景點搭配合理'
+
     sendJson(res, 200, {
       source: 'crazyrouter',
-      status: parsed.status || 'balanced',
-      recommendedDays: Number(parsed.recommendedDays),
-      minDays: Number(parsed.minDays),
-      comfortableDays: Number(parsed.comfortableDays),
-      title: parsed.title || 'AI 天數審核',
+      status,
+      recommendedDays,
+      minDays,
+      comfortableDays,
+      title,
       message: parsed.message || '',
       adjustments: Array.isArray(parsed.adjustments) ? parsed.adjustments : [],
     })

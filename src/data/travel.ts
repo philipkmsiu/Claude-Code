@@ -1023,6 +1023,28 @@ export function defaultSelectedSpotIds(
 
 export type DurationFitStatus = 'too_packed' | 'too_light' | 'balanced' | 'empty'
 
+/** Compare chosen days against an absolute min / normal / comfortable estimate. */
+export function deriveFitStatus(
+  chosenDays: number,
+  minDays: number,
+  recommendedDays: number,
+  comfortableDays: number,
+): Exclude<DurationFitStatus, 'empty'> {
+  const chosen = clampDays(chosenDays)
+  const recommended = clampDays(Math.max(recommendedDays, minDays))
+  const comfortable = clampDays(Math.max(comfortableDays, recommended))
+  const lightThreshold = Math.max(recommended + 2, comfortable)
+  if (chosen < recommended) return 'too_packed'
+  if (chosen > lightThreshold) return 'too_light'
+  return 'balanced'
+}
+
+export function fitStatusTitle(status: Exclude<DurationFitStatus, 'empty'>): string {
+  if (status === 'too_packed') return '行程過於緊湊，建議延長天數'
+  if (status === 'too_light') return '行程天數偏多，可適度縮短'
+  return '天數與景點搭配合理'
+}
+
 export interface DurationAssessment {
   status: DurationFitStatus
   chosenDays: number
