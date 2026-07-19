@@ -385,6 +385,8 @@ function App() {
 
   // Soft motion cues when the wizard steps change.
   useEffect(() => {
+    // Ball kick/boom SFX only on the home hero — never on later pages.
+    soundscape.setLogoSfxEnabled(step === 'home')
     if (prevStepRef.current === step) return
     prevStepRef.current = step
     if (step === 'result') soundscape.play('ready')

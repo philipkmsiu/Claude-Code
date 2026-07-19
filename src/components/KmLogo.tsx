@@ -69,35 +69,45 @@ export function KmLogo({
   title = 'KM',
   spectacle = false,
 }: Props) {
-  // Sync thump / boom SFX to the hero ball-kick loop only (avoid stacked brand/footer logos).
+  // Sync thump / boom to the home hero ball-kick only; stop immediately on unmount.
   useEffect(() => {
     if (!spectacle || typeof window === 'undefined') return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
+    soundscape.setLogoSfxEnabled(true)
     let cancelled = false
-    const timers: number[] = []
+    const timers = new Set<number>()
+
+    const clearTimers = () => {
+      for (const id of timers) window.clearTimeout(id)
+      timers.clear()
+    }
 
     const runCycle = () => {
-      if (cancelled || soundscape.isMuted) return
-      timers.push(
+      if (cancelled || soundscape.isMuted || !soundscape.isLogoSfxEnabled) return
+      timers.add(
         window.setTimeout(() => {
-          if (!cancelled && !soundscape.isMuted) soundscape.play('kick')
+          if (!cancelled && soundscape.isLogoSfxEnabled && !soundscape.isMuted) {
+            soundscape.play('kick')
+          }
         }, KICK_AT_MS),
       )
-      timers.push(
+      timers.add(
         window.setTimeout(() => {
-          if (!cancelled && !soundscape.isMuted) soundscape.play('boom')
+          if (!cancelled && soundscape.isLogoSfxEnabled && !soundscape.isMuted) {
+            soundscape.play('boom')
+          }
         }, BOOM_AT_MS),
       )
     }
 
-    // Align roughly with CSS animation start on mount.
     runCycle()
     const loop = window.setInterval(runCycle, KICK_CYCLE_MS)
     return () => {
       cancelled = true
+      soundscape.setLogoSfxEnabled(false)
       window.clearInterval(loop)
-      for (const id of timers) window.clearTimeout(id)
+      clearTimers()
     }
   }, [spectacle])
 

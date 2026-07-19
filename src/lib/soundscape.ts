@@ -42,6 +42,8 @@ class Soundscape {
   private unlocked = false
   private muted = loadMuted()
   private starting = false
+  /** Logo kick/boom only while the home hero spectacle is visible. */
+  private logoSfxEnabled = false
   private listeners = new Set<(state: { muted: boolean; unlocked: boolean }) => void>()
 
   get isMuted() {
@@ -50,6 +52,15 @@ class Soundscape {
 
   get isUnlocked() {
     return this.unlocked
+  }
+
+  get isLogoSfxEnabled() {
+    return this.logoSfxEnabled
+  }
+
+  /** Enable only on the home page; disable as soon as the user continues. */
+  setLogoSfxEnabled(enabled: boolean) {
+    this.logoSfxEnabled = enabled
   }
 
   subscribe(listener: (state: { muted: boolean; unlocked: boolean }) => void) {
@@ -153,6 +164,8 @@ class Soundscape {
 
   private playNow(name: ToneName) {
     if (!this.ctx || !this.sfxGain || this.muted) return
+    // Kick/boom are home-hero only — never after entering later pages.
+    if ((name === 'kick' || name === 'boom') && !this.logoSfxEnabled) return
     switch (name) {
       case 'tick':
       case 'select':
