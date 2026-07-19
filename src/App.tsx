@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   MAX_PARTY_SIZE,
   MAX_TRIP_DAYS,
@@ -56,6 +56,21 @@ import {
   type TripPace,
 } from './data/travel'
 import { FreeTextField } from './components/FreeTextField'
+import {
+  IconArrowRight,
+  IconCalendar,
+  IconCamera,
+  IconCompass,
+  IconHotel,
+  IconMapPin,
+  IconPlane,
+  IconPoster,
+  IconRefresh,
+  IconRoute,
+  IconSpark,
+  IconUsers,
+  IconWallet,
+} from './components/Icons'
 import { JourneyMap } from './components/JourneyMap'
 import { TripHandbookPanel } from './components/TripHandbook'
 import {
@@ -946,12 +961,16 @@ function App() {
     // Intentionally keyed by destination selection + step; loader manages in-flight state.
   }, [step, selectedDestKey])
 
-  const stepItems: { id: Step; label: string }[] = [
-    { id: 'destination', label: '目的地' },
-    { id: 'preferences', label: '天數條件' },
-    { id: 'hotel', label: '住宿' },
-    { id: 'spots', label: '景點' },
-    { id: 'result', label: '行程' },
+  const stepItems: {
+    id: Step
+    label: string
+    icon: ReactNode
+  }[] = [
+    { id: 'destination', label: '目的地', icon: <IconMapPin size={14} /> },
+    { id: 'preferences', label: '天數條件', icon: <IconCalendar size={14} /> },
+    { id: 'hotel', label: '住宿', icon: <IconHotel size={14} /> },
+    { id: 'spots', label: '景點', icon: <IconCamera size={14} /> },
+    { id: 'result', label: '行程', icon: <IconRoute size={14} /> },
   ]
 
   return (
@@ -961,20 +980,25 @@ function App() {
         <button type="button" className="brand" onClick={reset}>
           <img
             className="brand-logo"
-            src="/km-logo.svg"
+            src="/km-logo.png"
             alt="KM Travel Planner"
-            width={40}
-            height={40}
+            width={48}
+            height={48}
           />
           <span className="brand-text">
             KM Travel Planner
-            <small>AI 旅遊規劃</small>
+            <small>KM Building Company · AI 旅遊規劃</small>
           </span>
         </button>
         {step !== 'home' && (
           <nav className="steps" aria-label="規劃步驟">
             {stepItems.map((item) => (
-              <StepPill key={item.id} active={step === item.id} label={item.label} />
+              <StepPill
+                key={item.id}
+                active={step === item.id}
+                label={item.label}
+                icon={item.icon}
+              />
             ))}
           </nav>
         )}
@@ -986,18 +1010,20 @@ function App() {
             <div className="hero-copy">
               <img
                 className="hero-logo"
-                src="/km-logo.svg"
-                alt=""
-                width={88}
-                height={88}
+                src="/km-logo.png"
+                alt="KM Building Company"
+                width={120}
+                height={120}
               />
-              <h1 className="hero-brand">
-                KM Travel Planner
-              </h1>
-              <p className="eyebrow">依 AI 旅遊規劃做成的可互動行程工具</p>
+              <h1 className="hero-brand">KM Travel Planner</h1>
+              <p className="eyebrow">
+                <IconSpark size={16} className="inline-icon" />
+                KM Building Company · 互動式 AI 旅程地圖
+              </p>
               <p className="hero-lead">
-                先輸入你想去的目的地，看最短／最舒服要幾天；也可以自己輸入天數（到{' '}
-                {MAX_TRIP_DAYS} 天）。再勾景點、產生行程，不滿意就改完重跑。
+                先輸入目的地，看最短／最舒服要幾天；也可以自己輸入天數（到{' '}
+                {MAX_TRIP_DAYS} 天）。勾景點、產生行程，再下載 Gemini
+                風格插畫海報。
               </p>
               <div className="cta-row">
                 <button
@@ -1005,17 +1031,19 @@ function App() {
                   className="btn primary"
                   onClick={() => setStep('destination')}
                 >
+                  <IconCompass size={18} />
                   開始規劃
+                  <IconArrowRight size={16} />
                 </button>
                 <button
                   type="button"
                   className="btn ghost"
                   onClick={() => {
                     const dest = presetDestinations.find((d) => d.id === 'qinggan')!
+                    const start = earliestStartDate()
                     setSelectedDestIds(['qinggan'])
                     setTripDays(14)
-                    setStartDate('2026-06-15')
-                    setEndDate('2026-06-28')
+                    setJourneyStart(start)
                     setPace('relaxed')
                     setCompanion('friends')
                     setTravelers(6)
@@ -1032,16 +1060,60 @@ function App() {
                     setPlanVersion((v) => v + 1)
                   }}
                 >
+                  <IconRoute size={18} />
                   看青甘 14 日範例
                 </button>
               </div>
+              <ul className="hero-feature-row" aria-label="產品亮點">
+                <li>
+                  <IconMapPin size={18} />
+                  <span>目的地 AI 建議</span>
+                </li>
+                <li>
+                  <IconCalendar size={18} />
+                  <span>天數智慧校正</span>
+                </li>
+                <li>
+                  <IconPoster size={18} />
+                  <span>插畫海報下載</span>
+                </li>
+              </ul>
             </div>
             <div className="hero-visual" aria-hidden="true">
+              <div className="hero-orbit">
+                <span className="orbit-icon o1">
+                  <IconPlane size={22} />
+                </span>
+                <span className="orbit-icon o2">
+                  <IconCamera size={22} />
+                </span>
+                <span className="orbit-icon o3">
+                  <IconHotel size={22} />
+                </span>
+                <span className="orbit-icon o4">
+                  <IconWallet size={22} />
+                </span>
+                <span className="orbit-icon o5">
+                  <IconUsers size={22} />
+                </span>
+              </div>
               <div className="hero-panel">
-                <span>最短天數</span>
-                <span>最舒服天數</span>
-                <span>自己輸入</span>
-                <span>重跑行程</span>
+                <span>
+                  <IconCalendar size={20} />
+                  最短天數
+                </span>
+                <span>
+                  <IconSpark size={20} />
+                  最舒服天數
+                </span>
+                <span>
+                  <IconRoute size={20} />
+                  自己輸入
+                </span>
+                <span>
+                  <IconRefresh size={20} />
+                  重跑行程
+                </span>
               </div>
             </div>
           </section>
@@ -1050,6 +1122,9 @@ function App() {
         {step === 'destination' && (
           <section className="panel-section enter">
             <div className="section-head">
+              <p className="section-kicker">
+                <IconMapPin size={16} /> Step 1 · Destination
+              </p>
               <h2>輸入你想去的地方</h2>
               <p>
                 直接打目的地名稱即可（可一次輸入多個，用逗號分隔）。若符合內建行程會自動套用；否則 AI 會為你建立可編輯的行程骨架。
@@ -1188,6 +1263,9 @@ function App() {
         {step === 'preferences' && primary && (
           <section className="panel-section enter">
             <div className="section-head">
+              <p className="section-kicker">
+                <IconCalendar size={16} /> Step 2 · Days &amp; pace
+              </p>
               <h2>這個地方建議玩幾天？</h2>
               <p>
                 AI（Crazyrouter）會先審核目的地再給天數。建議最長多半落在{' '}
@@ -1573,6 +1651,9 @@ function App() {
         {step === 'hotel' && primary && (
           <section className="panel-section enter">
             <div className="section-head">
+              <p className="section-kicker">
+                <IconHotel size={16} /> Step 3 · Stay
+              </p>
               <h2>住宿偏好</h2>
               <p>
                 你目前規劃 {planDays} 天 {nightsFromDays(planDays)} 夜 · {travelers}{' '}
@@ -1729,6 +1810,9 @@ function App() {
         {step === 'spots' && (
           <section className="panel-section enter">
             <div className="section-head">
+              <p className="section-kicker">
+                <IconCamera size={16} /> Step 4 · Spots
+              </p>
               <h2>挑選景點</h2>
               <p>
                 AI 會依目的地推薦真實景點（不是「經典地標」這類空泛分類）。紅色標籤是必去／打卡紅點／熱門；不想去就取消，確認後再依你的天數產生行程。
@@ -1942,6 +2026,9 @@ function App() {
         {step === 'result' && primary && (
           <section className="result enter">
             <div className="result-hero">
+              <p className="section-kicker">
+                <IconSpark size={16} /> Your journey · KM Travel Planner
+              </p>
               <p className="eyebrow">
                 {selectedDestinations.map((d) => d.nameLocal).join(' + ')} ·{' '}
                 {itinerary.length || planDays} 天實際行程 · {travelers} 人 ·{' '}
@@ -2376,17 +2463,39 @@ function App() {
 
       <footer className="footer">
         <span className="footer-brand">
-          <img src="/km-logo.svg" alt="" width={22} height={22} />
+          <img src="/km-logo.png" alt="" width={28} height={28} />
           KM Travel Planner
+          <small>by KM Building Company</small>
         </span>
-        <span>地方建議天數 → 自己輸入 → 勾景點 → 重跑行程</span>
+        <span className="footer-flow">
+          <IconMapPin size={14} /> 目的地
+          <IconArrowRight size={12} />
+          <IconCalendar size={14} /> 天數
+          <IconArrowRight size={12} />
+          <IconCamera size={14} /> 景點
+          <IconArrowRight size={12} />
+          <IconPoster size={14} /> 海報
+        </span>
       </footer>
     </div>
   )
 }
 
-function StepPill({ active, label }: { active: boolean; label: string }) {
-  return <span className={`step-pill ${active ? 'active' : ''}`}>{label}</span>
+function StepPill({
+  active,
+  label,
+  icon,
+}: {
+  active: boolean
+  label: string
+  icon?: ReactNode
+}) {
+  return (
+    <span className={`step-pill ${active ? 'active' : ''}`}>
+      {icon}
+      {label}
+    </span>
+  )
 }
 
 function JourneyWindow({

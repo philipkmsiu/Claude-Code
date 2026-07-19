@@ -1,11 +1,15 @@
 # KM Travel Planner
 
-Interactive **AI** travel planner powered by **Crazyrouter** (OpenAI-compatible).
+Interactive **AI** travel planner by **KM Building Company**, powered by **Crazyrouter** (OpenAI-compatible).
+
+> GitHub repo folder may still show an older remote name; the product name is **KM Travel Planner**.
 
 ## Branding
 
-App name: **KM Travel Planner**  
-Logo: `public/km-logo.svg`
+- App name: **KM Travel Planner**
+- Company: **KM Building Company**
+- Logo (source): `public/branding/CompanyLogo_Only.ai`
+- Web logo: `public/km-logo.png` (also `km-logo.svg` / favicon)
 
 ## AI (Crazyrouter)
 
@@ -15,12 +19,12 @@ Required env (see `.env.example`):
 
 - `OPENAI_BASE_URL`
 - `OPENAI_API_KEY`
-- `OPENAI_CHAT_MODEL` (default `gpt-4o`)
+- `OPENAI_CHAT_MODEL` (default `gpt-5.4`)
 
 Endpoints:
 
 - `POST /api/ai/recommend-days` — AI day advice when you enter preferences
-- `POST /api/ai/suggest-spots` — real named attractions for the destination (not category templates)
+- `POST /api/ai/suggest-spots` — real named attractions for the destination
 - `POST /api/ai/review-plan` — AI review of selected spots vs chosen days
 
 Use `npm run dev` or `npm run preview` so the proxy is available.
@@ -33,56 +37,26 @@ After picking a place, AI reviews the destination and suggests:
 - **最舒服天數**
 - **建議最長**
 
-Or type your own length (2–32 days). On the spots/result steps, AI checks whether your selected spots fit those days. City breaks (e.g. Xi’an) stay in a sensible range (~4–9 days recommended); only long-haul routes like Xinjiang / Qinggan can stretch toward 2–3 weeks.
+Or type your own length (2–32 days). City breaks (e.g. Xi’an) stay in a sensible range (~4–9 days recommended); only long-haul routes like Xinjiang / Qinggan can stretch toward 2–3 weeks.
 
-## Best / worst months
-
-Each destination shows **最適合** and **最不建議** months with reasons (not “fine all year”). Custom places get AI season guidance via `/api/ai/season-guide`. Your start-date month is checked against that guide.
-
-## Daily plan table
-
-Result view includes a planning-book style table:
-
-| 日次 | 日期 | 住宿地 | 主要安排 | 節奏／車程 | 住宿方向 | 天氣／降雨 |
-
-Weather uses Open-Meteo (live forecast when near-term; otherwise same-date climate from last year).
-
-## Transport modes
-
-On preferences, choose **包司機 / 自駕 / 大眾運輸**:
-
-- **包司機** — easiest; daily plan focuses on pickup order, not transfers
-- **自駕** — driving segments, parking reminders, road-buffer notes
-- **大眾運輸** — each day lists how to get between places (walk / metro / transfer feel, time, pass tips)
+Departure date is always **at least tomorrow** from the planning day.
 
 ## Visual journey map (Stage 4)
 
-Every journey gets **two** Stage-4 posters (toggle on the result page):
+Every journey gets **two** Stage-4 posters:
 
-1. **相片版** — unique real landmark photos per day (no reused wall shots)
-2. **插畫海報版** — Gemini journey-map sample style: wide S-curve path, hand-painted watercolor day plates (`public/poster/watercolor-*.png`), food/drink/tips sidebars (never real photos)
+1. **相片版** — unique real landmark photos per day
+2. **插畫海報版** — Gemini journey-map sample style with hand-painted watercolor day plates (`public/poster/watercolor-*.png`)
 
 Both include 必吃美食 · 必喝飲品 · 旅行小貼士, and each can be **downloaded as PNG**.
 
-Landmark photos for the photo edition resolve via `/api/place-photo` (Wikimedia Commons, proxied). Illustration edition uses assets under `public/poster/`. Use `npm run dev` or `npm run preview` so the proxy is available.
-
 ## Planning handbook (青甘 / 新疆)
 
-Preset long trips include handbook sections from real planning books:
-
-- Budget lines with **total + per person** (hotel, driver, flights/car, meals, tickets, misc)
-- **酒店建議與價格**, photo/video stops for planner
-- **包車與 planner 要求**, Taobao search terms, quote-comparison checklist
-- **暫不列入主線**, booking checklist, remarks, itinerary summary
-- Qinggan also ships destination reference photos under `public/handbook/`
+Preset long trips include handbook sections from real planning books (budgets, hotels, checklists, photos).
 
 ## Flow
 
-1. Destination  
-2. Days + trip conditions + transport mode (AI day review)  
-3. Hotel style  
-4. Spot picker (AI real spots + fit review)  
-5. Generate / regenerate itinerary + daily routes + journey map  
+Home → Destination → Preferences → Hotel → Spots → Result (table + Stage 4 poster)
 
 ## Develop
 
@@ -90,3 +64,5 @@ Preset long trips include handbook sections from real planning books:
 npm install
 npm run dev
 ```
+
+Default port: **5174** (`strictPort: true`).

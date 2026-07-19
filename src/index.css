@@ -1,4 +1,9 @@
 :root {
+  /* KM Building Company brand + travel planner atmosphere */
+  --brand-red: #c8102e;
+  --brand-red-soft: #e04555;
+  --brand-grey: #6e6e6e;
+  --brand-ink: #2a2a2a;
   --forest: #1f3d36;
   --forest-soft: #3f6b5d;
   --ochre: #c9963a;
@@ -6,6 +11,8 @@
   --ink: #1c2622;
   --ink-soft: #3d4a44;
   --muted: #6a756f;
+  --paper: #f4f1ec;
+  --mist: #e8eef0;
   --display: 'Bricolage Grotesque', 'Noto Sans TC', sans-serif;
   --body: 'Noto Sans TC', 'Bricolage Grotesque', sans-serif;
   font-family: var(--body);
@@ -14,7 +21,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--ink);
-  background: #e7efe9;
+  background: var(--mist);
 }
 
 *,
@@ -42,4 +49,15 @@ select {
 
 a {
   color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
