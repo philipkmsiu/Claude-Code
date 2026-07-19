@@ -3,14 +3,8 @@ export type TripPace = 'relaxed' | 'balanced' | 'packed'
 export type Companion = 'solo' | 'couple' | 'family' | 'friends'
 export type SpotTag = 'must' | 'photo' | 'popular' | 'culture' | 'nature' | 'food' | 'shopping'
 
-export type DestinationId =
-  | 'qinggan'
-  | 'kansai'
-  | 'osaka'
-  | 'kyoto'
-  | 'tokyo'
-  | 'taipei'
-  | 'seoul'
+/** Built-in ids plus runtime custom ids like `custom-paris-…`. */
+export type DestinationId = string
 
 export interface ScenicSpot {
   id: string

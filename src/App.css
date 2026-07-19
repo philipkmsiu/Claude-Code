@@ -929,6 +929,90 @@ main {
   border-radius: 0.35rem;
 }
 
+.destination-input-panel,
+.spot-input-panel {
+  margin-bottom: 1.2rem;
+  padding: 1.05rem 1.15rem;
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.1);
+}
+
+.destination-input-panel label,
+.spot-input-panel label {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-weight: 600;
+  color: var(--forest);
+}
+
+.destination-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.destination-input-row input[type='text'] {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.8rem 1rem;
+  background: #fff;
+  font: inherit;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.12);
+}
+
+.hours-input {
+  width: 4.5rem;
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.8rem 0.5rem;
+  background: #fff;
+  font: inherit;
+  text-align: center;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.12);
+}
+
+.input-error {
+  margin: 0.55rem 0 0;
+  color: #8f3224;
+  font-weight: 600;
+}
+
+.selected-dest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: var(--forest);
+  color: #f4f0e4;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.selected-chip button {
+  border: 0;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1;
+}
+
 .duration-fit {
   margin: 0 0 1.2rem;
   padding: 1.05rem 1.15rem;

@@ -29,6 +29,154 @@ import { qingganDestination } from './qinggan'
 export const MAX_TRIP_DAYS = 21
 export const MIN_TRIP_DAYS = 2
 
+function slugifyDestination(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\u4e00-\u9fff\-]+/g, '')
+    .slice(0, 40) || 'place'
+}
+
+/** Split free text into one or more destination names. */
+export function parseDestinationNames(raw: string): string[] {
+  return raw
+    .split(/[,，、/;；\n]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+export function findKnownDestination(name: string): Destination | undefined {
+  const key = name.trim().toLowerCase()
+  if (!key) return undefined
+  return destinations.find((d) => {
+    const candidates = [d.id, d.nameZh, d.nameLocal, d.tagline]
+    return candidates.some((c) => c.toLowerCase().includes(key) || key.includes(c.toLowerCase()))
+  })
+}
+
+function templateSpotsForPlace(place: string): ScenicSpot[] {
+  const base = [
+    { name: `${place}經典地標`, tags: ['must', 'photo', 'popular'] as SpotTag[], hours: 2.5, area: '市中心', summary: '最代表性的必去地標，建議留拍照時間。' },
+    { name: `${place}老城／歷史區`, tags: ['must', 'culture', 'photo'] as SpotTag[], hours: 3, area: '老城', summary: '歷史街区漫遊，感受在地氛圍。' },
+    { name: `${place}觀景／打卡點`, tags: ['photo', 'popular'] as SpotTag[], hours: 2, area: '觀景', summary: '熱門打卡紅點，日出或日落更佳。' },
+    { name: `${place}在地美食區`, tags: ['food', 'popular'] as SpotTag[], hours: 2, area: '美食', summary: '市場或美食街，安排一頓代表菜。' },
+    { name: `${place}博物館／藝文`, tags: ['culture'] as SpotTag[], hours: 2.5, area: '藝文', summary: '雨備或深度文化日首選。' },
+    { name: `${place}公園／自然`, tags: ['nature', 'photo'] as SpotTag[], hours: 2, area: '綠地', summary: '放慢節奏的戶外時間。' },
+    { name: `${place}購物街`, tags: ['shopping'] as SpotTag[], hours: 2, area: '購物', summary: '伴手禮與逛街半日。' },
+    { name: `${place}夜景`, tags: ['photo', 'popular'] as SpotTag[], hours: 1.5, area: '夜景', summary: '晚上燈光與天際線。' },
+    { name: `${place}近郊日遊`, tags: ['must', 'nature', 'popular'] as SpotTag[], hours: 7, area: '近郊日遊', summary: '全日級近郊行程，需預留整天。' },
+    { name: `${place}隱藏巷弄`, tags: ['photo', 'food'] as SpotTag[], hours: 2, area: '巷弄', summary: '較少人潮的本地感路線。' },
+    { name: `${place}咖啡／甜點`, tags: ['food'] as SpotTag[], hours: 1.5, area: '咖啡', summary: '休息補充，適合穿插行程。' },
+    { name: `${place}特色體驗`, tags: ['popular', 'culture'] as SpotTag[], hours: 3, area: '體驗', summary: '手作、導覽或在地活動。' },
+    { name: `${place}市集`, tags: ['food', 'shopping', 'popular'] as SpotTag[], hours: 2, area: '市集', summary: '週末或晨間市集氣氛。' },
+    { name: `${place}河岸／海濱`, tags: ['nature', 'photo'] as SpotTag[], hours: 2, area: '水岸', summary: '散步與拍照的水岸路線。' },
+    { name: `${place}宗教建築`, tags: ['culture', 'photo'] as SpotTag[], hours: 1.5, area: '文化', summary: '教堂、寺廟或神社類景點。' },
+    { name: `${place}自由彈性點`, tags: ['popular'] as SpotTag[], hours: 2, area: '彈性', summary: '可依當天體力替換的備案點。' },
+    { name: `${place}第二地標`, tags: ['must', 'photo'] as SpotTag[], hours: 2, area: '市中心', summary: '另一個高辨識度必去點。' },
+    { name: `${place}展望台`, tags: ['photo', 'popular'] as SpotTag[], hours: 1.5, area: '展望', summary: '城市制高點或觀景層。' },
+    { name: `${place}親子／室內備案`, tags: ['popular'] as SpotTag[], hours: 3, area: '室內', summary: '下雨或需休息時的室內選項。' },
+    { name: `${place}機場／車站周邊`, tags: ['shopping', 'food'] as SpotTag[], hours: 1.5, area: '交通節點', summary: '抵達或離開日可安排的輕行程。' },
+  ]
+
+  return base.map((item, index) => ({
+    id: `custom-spot-${slugifyDestination(place)}-${index + 1}`,
+    name: item.name,
+    nameLocal: place,
+    area: item.area,
+    stayHours: item.hours,
+    summary: item.summary,
+    tags: item.tags,
+    ticket: '視當地而定',
+    bestFor: ['solo', 'couple', 'family', 'friends'],
+  }))
+}
+
+/** Build a plannable destination from a user-typed place name. */
+export function createCustomDestination(rawName: string): Destination {
+  const name = rawName.trim()
+  const id = `custom-${slugifyDestination(name)}-${Date.now().toString(36)}`
+  const spots = templateSpotsForPlace(name)
+
+  return {
+    id,
+    nameZh: name,
+    nameLocal: name,
+    tagline: '你輸入的目的地・AI 會依景點量建議天數',
+    intro: `${name} 由你自行加入。系統已先帶入常見行程骨架（地標、老城、美食、近郊日遊等），你可刪減或再新增自己的景點，AI 會依選擇估算正常完成天數。`,
+    bestSeason: '請依當地氣候選擇；旺季建議提早訂房與熱門票',
+    recommendedDays: {
+      min: 3,
+      comfortable: 5,
+      suggestedLongest: 12,
+      note: `${name}：先以 3–5 天打底；景點勾選後 AI 會再告訴你是否該加長或縮短。`,
+    },
+    weather: {
+      spring: '請出發前查當地氣溫與降雨',
+      summer: '請出發前查當地氣溫與降雨',
+      autumn: '請出發前查當地氣溫與降雨',
+      winter: '請出發前查當地氣溫與降雨',
+    },
+    hotels: [
+      {
+        name: `${name}市中心高性價比旅店`,
+        area: `${name}・市中心`,
+        nightsHint: '建議連住，少換宿',
+        pricePerNight: '視淡旺季',
+        highlight: '交通方便，適合把預算留給景點與美食',
+        styles: ['value', 'standard', 'clean'],
+      },
+      {
+        name: `${name}精品／度假酒店`,
+        area: `${name}・精華區`,
+        nightsHint: '2–4 晚儀式感',
+        pricePerNight: '中高檔',
+        highlight: '舒服收工，適合情侶或慶祝行程',
+        styles: ['luxury', 'luxuryValue'],
+      },
+      {
+        name: `${name}公寓式／清掃評分高旅宿`,
+        area: `${name}・安靜區`,
+        nightsHint: '長住友善',
+        pricePerNight: '中價',
+        highlight: '清潔優先、空間較大',
+        styles: ['clean', 'value', 'standard'],
+      },
+    ],
+    spots,
+    flexDayIdeas: [
+      `${name}再訪最愛街区`,
+      `${name}購物與伴手禮日`,
+      `${name}雨備室內日`,
+      `${name}近郊加點日`,
+    ],
+    tips: [
+      '這是你自行輸入的目的地：請再確認簽證、交通與最佳季節。',
+      '可在景點步驟新增你真正想去的店家／景點名稱。',
+      '若景點很多，看 AI「正常完成天數」建議再調整行程長度。',
+    ],
+  }
+}
+
+export function createCustomSpot(
+  placeName: string,
+  spotName: string,
+  stayHours = 2,
+): ScenicSpot {
+  const name = spotName.trim()
+  return {
+    id: `user-spot-${slugifyDestination(name)}-${Date.now().toString(36)}`,
+    name,
+    nameLocal: name,
+    area: placeName,
+    stayHours: Math.min(Math.max(stayHours, 0.5), 12),
+    summary: `你新增的景點：${name}`,
+    tags: ['must', 'popular'],
+    ticket: '視當地而定',
+    bestFor: ['solo', 'couple', 'family', 'friends'],
+  }
+}
+
 export const hotelStyles: {
   id: HotelStyle
   label: string

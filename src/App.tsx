@@ -7,17 +7,22 @@ import {
   buildItinerary,
   clampDays,
   companions,
+  createCustomDestination,
+  createCustomSpot,
   daysBetween,
   defaultSelectedSpotIds,
-  destinations,
+  destinations as presetDestinations,
+  findKnownDestination,
   hotelStyles,
   hotelsForStyle,
   nightsFromDays,
+  parseDestinationNames,
   seasonKey,
   specialNeedOptions,
   spotTagLabels,
   tripPaces,
   type Companion,
+  type Destination,
   type DestinationId,
   type HotelStyle,
   type TripPace,
@@ -34,6 +39,8 @@ type Step =
 
 function App() {
   const [step, setStep] = useState<Step>('home')
+  const [customDestinations, setCustomDestinations] = useState<Destination[]>([])
+  const [destinationInput, setDestinationInput] = useState('')
   const [selectedDestIds, setSelectedDestIds] = useState<DestinationId[]>([])
   const [startDate, setStartDate] = useState('2026-02-17')
   const [endDate, setEndDate] = useState('2026-02-23')
@@ -49,10 +56,19 @@ function App() {
   const [hotelNights, setHotelNights] = useState(6)
   const [selectedSpotIds, setSelectedSpotIds] = useState<string[]>([])
   const [planVersion, setPlanVersion] = useState(0)
+  const [customSpotName, setCustomSpotName] = useState('')
+  const [customSpotHours, setCustomSpotHours] = useState(2)
+  const [inputError, setInputError] = useState('')
+
+  const catalog = useMemo(() => {
+    const overrides = new Map(customDestinations.map((d) => [d.id, d]))
+    const presets = presetDestinations.filter((d) => !overrides.has(d.id))
+    return [...customDestinations, ...presets]
+  }, [customDestinations])
 
   const selectedDestinations = useMemo(
-    () => destinations.filter((d) => selectedDestIds.includes(d.id)),
-    [selectedDestIds],
+    () => catalog.filter((d) => selectedDestIds.includes(d.id)),
+    [catalog, selectedDestIds],
   )
 
   const allSpots = useMemo(
@@ -132,9 +148,86 @@ function App() {
   function toggleDestination(id: DestinationId) {
     setSelectedDestIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id)
-      if (prev.length >= 2) return [prev[1], id]
+      if (prev.length >= 3) return [...prev.slice(1), id]
       return [...prev, id]
     })
+  }
+
+  function addDestinationsFromInput() {
+    const names = parseDestinationNames(destinationInput)
+    if (!names.length) {
+      setInputError('請輸入至少一個目的地，例如：巴黎、北海道、青甘大環線')
+      return
+    }
+
+    const nextCustom: Destination[] = []
+    const nextIds: DestinationId[] = [...selectedDestIds]
+
+    for (const name of names) {
+      const known = findKnownDestination(name)
+      const matchName = (d: Destination) =>
+        d.nameZh === name ||
+        d.nameLocal.toLowerCase() === name.toLowerCase() ||
+        d.nameZh.includes(name) ||
+        name.includes(d.nameZh)
+
+      const existingCustom =
+        customDestinations.find(matchName) || nextCustom.find(matchName)
+      const alreadyInCatalog = catalog.find(matchName)
+
+      if (known) {
+        if (!nextIds.includes(known.id)) nextIds.push(known.id)
+        continue
+      }
+      if (existingCustom) {
+        if (!nextIds.includes(existingCustom.id)) nextIds.push(existingCustom.id)
+        continue
+      }
+      if (alreadyInCatalog) {
+        if (!nextIds.includes(alreadyInCatalog.id)) nextIds.push(alreadyInCatalog.id)
+        continue
+      }
+
+      const created = createCustomDestination(name)
+      nextCustom.push(created)
+      nextIds.push(created.id)
+    }
+
+    if (nextCustom.length) {
+      setCustomDestinations((prev) => [...nextCustom, ...prev])
+    }
+    setSelectedDestIds(nextIds.slice(-3))
+    setDestinationInput('')
+    setInputError('')
+  }
+
+  function removeCustomDestination(id: DestinationId) {
+    setCustomDestinations((prev) => prev.filter((d) => d.id !== id))
+    setSelectedDestIds((prev) => prev.filter((x) => x !== id))
+  }
+
+  function addCustomSpotToPrimary() {
+    if (!primary) return
+    const name = customSpotName.trim()
+    if (!name) {
+      setInputError('請輸入景點名稱')
+      return
+    }
+    const spot = createCustomSpot(primary.nameZh, name, customSpotHours)
+
+    setCustomDestinations((prev) => {
+      const existing = prev.find((d) => d.id === primary.id)
+      if (existing) {
+        return prev.map((d) =>
+          d.id === primary.id ? { ...d, spots: [spot, ...d.spots] } : d,
+        )
+      }
+      // Override preset entry with an editable copy (same id).
+      return [{ ...primary, spots: [spot, ...primary.spots] }, ...prev]
+    })
+    setSelectedSpotIds((prev) => [spot.id, ...prev])
+    setCustomSpotName('')
+    setInputError('')
   }
 
   function applyDateRange(nextStart: string, nextEnd: string) {
@@ -145,17 +238,19 @@ function App() {
   }
 
   function goToPreferences() {
-    if (!selectedDestIds.length) return
-    const advice = aggregateDayAdvice(
-      destinations.filter((d) => selectedDestIds.includes(d.id)),
-    )
+    if (!selectedDestIds.length) {
+      setInputError('請先輸入或選擇目的地')
+      return
+    }
+    const advice = aggregateDayAdvice(selectedDestinations)
     const span = daysBetween(startDate, endDate)
     setTripDays(span ?? advice.comfortable)
+    setInputError('')
     setStep('preferences')
   }
 
   function initSpotsAndContinue() {
-    const dests = destinations.filter((d) => selectedDestIds.includes(d.id))
+    const dests = selectedDestinations
     const spots = dests.flatMap((d) => d.spots)
     setSelectedSpotIds(defaultSelectedSpotIds(spots, dests[0]))
     setStep('spots')
@@ -184,6 +279,10 @@ function App() {
     setStep('home')
     setSelectedDestIds([])
     setSelectedSpotIds([])
+    setCustomDestinations([])
+    setDestinationInput('')
+    setCustomSpotName('')
+    setInputError('')
     setPlanVersion(0)
   }
 
@@ -237,8 +336,8 @@ function App() {
               </h1>
               <p className="eyebrow">依 AI 旅遊規劃做成的可互動行程工具</p>
               <p className="hero-lead">
-                先選一個地方，看最短／最舒服要幾天；你也可以自己輸入天數（到 {MAX_TRIP_DAYS}{' '}
-                天）。再勾景點、產生行程，不滿意就改完重跑。
+                先輸入你想去的目的地，看最短／最舒服要幾天；也可以自己輸入天數（到{' '}
+                {MAX_TRIP_DAYS} 天）。再勾景點、產生行程，不滿意就改完重跑。
               </p>
               <div className="cta-row">
                 <button
@@ -252,7 +351,7 @@ function App() {
                   type="button"
                   className="btn ghost"
                   onClick={() => {
-                    const dest = destinations.find((d) => d.id === 'qinggan')!
+                    const dest = presetDestinations.find((d) => d.id === 'qinggan')!
                     setSelectedDestIds(['qinggan'])
                     setTripDays(14)
                     setStartDate('2026-06-15')
@@ -290,14 +389,68 @@ function App() {
         {step === 'destination' && (
           <section className="panel-section enter">
             <div className="section-head">
-              <h2>先選一個特別想去的地方</h2>
+              <h2>輸入你想去的地方</h2>
               <p>
-                選好地點後，下一步會告訴你最少要幾天、最舒服幾天；也可一次選兩個目的地。
+                直接打目的地名稱即可（可一次輸入多個，用逗號分隔）。若符合內建行程會自動套用；否則 AI 會為你建立可編輯的行程骨架。
               </p>
             </div>
+
+            <form
+              className="destination-input-panel"
+              onSubmit={(e) => {
+                e.preventDefault()
+                addDestinationsFromInput()
+              }}
+            >
+              <label htmlFor="dest-input">目的地</label>
+              <div className="destination-input-row">
+                <input
+                  id="dest-input"
+                  type="text"
+                  placeholder="例如：巴黎、北海道、青甘大環線、大阪 京都"
+                  value={destinationInput}
+                  onChange={(e) => {
+                    setDestinationInput(e.target.value)
+                    if (inputError) setInputError('')
+                  }}
+                />
+                <button type="submit" className="btn primary">
+                  加入目的地
+                </button>
+              </div>
+              <p className="range-value">
+                支援一次輸入多個：用逗號、頓號或空白分隔。目前已選 {selectedDestIds.length} 個（最多 3 個）。
+              </p>
+              {inputError && step === 'destination' ? (
+                <p className="input-error">{inputError}</p>
+              ) : null}
+            </form>
+
+            {selectedDestinations.length > 0 && (
+              <div className="selected-dest-chips">
+                {selectedDestinations.map((dest) => (
+                  <span key={dest.id} className="selected-chip">
+                    {dest.nameZh}
+                    <button
+                      type="button"
+                      aria-label={`移除 ${dest.nameZh}`}
+                      onClick={() => {
+                        if (dest.id.startsWith('custom-')) removeCustomDestination(dest.id)
+                        else setSelectedDestIds((prev) => prev.filter((id) => id !== dest.id))
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <h3 className="subhead">或從範例快速選擇</h3>
             <div className="dest-grid">
-              {destinations.map((dest, index) => {
+              {catalog.map((dest, index) => {
                 const active = selectedDestIds.includes(dest.id)
+                const isCustom = dest.id.startsWith('custom-')
                 return (
                   <button
                     key={dest.id}
@@ -306,7 +459,10 @@ function App() {
                     style={{ animationDelay: `${index * 60}ms` }}
                     onClick={() => toggleDestination(dest.id)}
                   >
-                    <span className="dest-de">{dest.nameLocal}</span>
+                    <span className="dest-de">
+                      {dest.nameLocal}
+                      {isCustom ? ' · 自訂' : ''}
+                    </span>
                     <strong>{dest.nameZh}</strong>
                     <span className="dest-tag">{dest.tagline}</span>
                     <span className="dest-meta">
@@ -642,6 +798,42 @@ function App() {
               onApplyComfortable={() => setTripDays(durationFit.comfortableDays)}
               onApplyMin={() => setTripDays(durationFit.minDays)}
             />
+
+            <form
+              className="spot-input-panel"
+              onSubmit={(e) => {
+                e.preventDefault()
+                addCustomSpotToPrimary()
+              }}
+            >
+              <label htmlFor="spot-input">自己加入景點</label>
+              <div className="destination-input-row">
+                <input
+                  id="spot-input"
+                  type="text"
+                  placeholder="例如：艾菲爾鐵塔、北海道白色戀人公園"
+                  value={customSpotName}
+                  onChange={(e) => setCustomSpotName(e.target.value)}
+                />
+                <input
+                  aria-label="停留小時"
+                  type="number"
+                  min={0.5}
+                  max={12}
+                  step={0.5}
+                  value={customSpotHours}
+                  onChange={(e) => setCustomSpotHours(Number(e.target.value) || 2)}
+                  className="hours-input"
+                />
+                <button type="submit" className="btn primary">
+                  加入景點
+                </button>
+              </div>
+              <p className="range-value">右側數字是建議停留小時；加入後會自動勾選並重估天數。</p>
+              {inputError && step === 'spots' ? (
+                <p className="input-error">{inputError}</p>
+              ) : null}
+            </form>
 
             <div className="spot-grid">
               {allSpots.map((spot) => {
