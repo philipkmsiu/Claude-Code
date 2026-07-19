@@ -1,9 +1,23 @@
 /**
- * Relaxed soundscape: melodic ambient MP3 loop + audible motion / choice SFX.
+ * Relaxed soundscape: rotating ambient playlist + motion / choice SFX.
+ * A different track is chosen each visit, and tracks change during the session.
  */
 
 const STORAGE_KEY = 'km-sound-muted'
-const AMBIENT_SRC = '/audio/relax-ambient.mp3'
+const LAST_TRACK_KEY = 'km-ambient-last-track'
+
+/** Soft ambient loops — different mood each visit / rotation. */
+const AMBIENT_PLAYLIST = [
+  '/audio/relax-soft-dawn.mp3',
+  '/audio/relax-warm-breeze.mp3',
+  '/audio/relax-night-harbor.mp3',
+  '/audio/relax-garden-walk.mp3',
+  '/audio/relax-ambient.mp3',
+] as const
+
+/** Change background music every ~2 minutes while unlocked. */
+const ROTATE_MS = 120_000
+const FADE_MS = 900
 
 export type ToneName =
   | 'tick'
@@ -35,13 +49,41 @@ function saveMuted(muted: boolean) {
   }
 }
 
+function loadLastTrack(): string | null {
+  try {
+    return window.localStorage.getItem(LAST_TRACK_KEY)
+  } catch {
+    return null
+  }
+}
+
+function saveLastTrack(src: string) {
+  try {
+    window.localStorage.setItem(LAST_TRACK_KEY, src)
+  } catch {
+    /* ignore */
+  }
+}
+
+function pickTrack(avoid?: string | null): string {
+  const pool = avoid
+    ? AMBIENT_PLAYLIST.filter((src) => src !== avoid)
+    : [...AMBIENT_PLAYLIST]
+  const list = pool.length ? pool : [...AMBIENT_PLAYLIST]
+  return list[Math.floor(Math.random() * list.length)]
+}
+
 class Soundscape {
   private music: HTMLAudioElement | null = null
+  private fadingOut: HTMLAudioElement | null = null
+  private currentTrack: string | null = null
   private ctx: AudioContext | null = null
   private sfxGain: GainNode | null = null
   private unlocked = false
   private muted = loadMuted()
   private starting = false
+  private rotateTimer: number | null = null
+  private fadeTimer: number | null = null
   /** Logo kick/boom only while the home hero spectacle is visible. */
   private logoSfxEnabled = false
   private listeners = new Set<(state: { muted: boolean; unlocked: boolean }) => void>()
@@ -56,6 +98,12 @@ class Soundscape {
 
   get isLogoSfxEnabled() {
     return this.logoSfxEnabled
+  }
+
+  get trackLabel() {
+    if (!this.currentTrack) return ''
+    const file = this.currentTrack.split('/').pop() || ''
+    return file.replace(/^relax-/, '').replace(/\.mp3$/, '').replace(/-/g, ' ')
   }
 
   /** Enable only on the home page; disable as soon as the user continues. */
@@ -76,21 +124,27 @@ class Soundscape {
     for (const listener of this.listeners) listener(state)
   }
 
-  private ensureMusic() {
-    if (this.music || !canUseAudio()) return
-    const audio = new Audio(AMBIENT_SRC)
+  private makeAudio(src: string) {
+    const audio = new Audio(src)
     audio.loop = true
     audio.preload = 'auto'
-    audio.volume = 0.32
+    audio.volume = 0
     audio.setAttribute('playsinline', 'true')
-    this.music = audio
+    return audio
+  }
+
+  private ensureMusic() {
+    if (this.music || !canUseAudio()) return
+    const src = pickTrack(loadLastTrack())
+    this.currentTrack = src
+    saveLastTrack(src)
+    this.music = this.makeAudio(src)
   }
 
   private ensureSfx() {
     if (this.ctx || typeof AudioContext === 'undefined') return
     const ctx = new AudioContext()
     const sfxGain = ctx.createGain()
-    // Louder than before so clicks cut through ambient music.
     sfxGain.gain.value = 1
     sfxGain.connect(ctx.destination)
     this.ctx = ctx
@@ -118,8 +172,10 @@ class Soundscape {
     if (!this.music || this.muted || this.starting) return
     this.starting = true
     try {
-      this.music.currentTime = this.music.currentTime || 0
+      this.music.volume = 0
       await this.music.play()
+      this.fadeTo(this.music, 0.34, FADE_MS)
+      this.scheduleRotate()
     } catch {
       /* Autoplay blocked until next gesture. */
     } finally {
@@ -128,8 +184,86 @@ class Soundscape {
   }
 
   private stopMusic() {
-    if (!this.music) return
-    this.music.pause()
+    this.clearRotate()
+    if (this.fadeTimer != null) {
+      window.clearInterval(this.fadeTimer)
+      this.fadeTimer = null
+    }
+    if (this.music) {
+      this.music.pause()
+      this.music.volume = 0
+    }
+    if (this.fadingOut) {
+      this.fadingOut.pause()
+      this.fadingOut = null
+    }
+  }
+
+  private clearRotate() {
+    if (this.rotateTimer != null) {
+      window.clearTimeout(this.rotateTimer)
+      this.rotateTimer = null
+    }
+  }
+
+  private scheduleRotate() {
+    this.clearRotate()
+    if (this.muted || !this.unlocked) return
+    this.rotateTimer = window.setTimeout(() => {
+      void this.rotateTrack()
+    }, ROTATE_MS)
+  }
+
+  /** Crossfade to another ambient piece. */
+  private async rotateTrack() {
+    if (this.muted || !this.unlocked || !canUseAudio()) return
+    const nextSrc = pickTrack(this.currentTrack)
+    const next = this.makeAudio(nextSrc)
+    try {
+      await next.play()
+    } catch {
+      this.scheduleRotate()
+      return
+    }
+
+    const prev = this.music
+    this.music = next
+    this.currentTrack = nextSrc
+    saveLastTrack(nextSrc)
+    this.emit()
+
+    if (prev) {
+      this.fadingOut = prev
+      this.fadeTo(prev, 0, FADE_MS, () => {
+        prev.pause()
+        if (this.fadingOut === prev) this.fadingOut = null
+      })
+    }
+    this.fadeTo(next, 0.34, FADE_MS)
+    this.scheduleRotate()
+  }
+
+  private fadeTo(
+    audio: HTMLAudioElement,
+    target: number,
+    ms: number,
+    onDone?: () => void,
+  ) {
+    const steps = Math.max(8, Math.floor(ms / 40))
+    let step = 0
+    const from = audio.volume
+    const id = window.setInterval(() => {
+      step += 1
+      const t = step / steps
+      audio.volume = Math.max(0, Math.min(1, from + (target - from) * t))
+      if (step >= steps) {
+        window.clearInterval(id)
+        if (this.fadeTimer === id) this.fadeTimer = null
+        audio.volume = target
+        onDone?.()
+      }
+    }, 40)
+    this.fadeTimer = id
   }
 
   setMuted(muted: boolean) {
@@ -147,12 +281,17 @@ class Soundscape {
     this.setMuted(!this.muted)
   }
 
+  /** Manual skip to another background track. */
+  skipTrack() {
+    if (this.muted) return
+    void this.unlock().then(() => this.rotateTrack())
+  }
+
   play(name: ToneName) {
     if (this.muted || !canUseAudio()) return
     this.ensureSfx()
     if (!this.ctx || !this.sfxGain) return
 
-    // Prefer immediate playback once unlocked so clicks feel instant.
     if (this.ctx.state === 'suspended' || !this.unlocked) {
       void this.unlock().then(() => {
         if (!this.muted) this.playNow(name)
@@ -164,7 +303,6 @@ class Soundscape {
 
   private playNow(name: ToneName) {
     if (!this.ctx || !this.sfxGain || this.muted) return
-    // Kick/boom are home-hero only — never after entering later pages.
     if ((name === 'kick' || name === 'boom') && !this.logoSfxEnabled) return
     switch (name) {
       case 'tick':
@@ -229,11 +367,9 @@ class Soundscape {
     osc.stop(t0 + duration + 0.02)
   }
 
-  /** Soft thump + bright tap for the logo foot strike. */
   private playKick() {
     if (!this.ctx || !this.sfxGain) return
     const t0 = this.ctx.currentTime
-    // Body thump
     const thump = this.ctx.createOscillator()
     const thumpGain = this.ctx.createGain()
     thump.type = 'sine'
@@ -246,13 +382,10 @@ class Soundscape {
     thumpGain.connect(this.sfxGain)
     thump.start(t0)
     thump.stop(t0 + 0.22)
-
-    // Leather tap
     this.blip(520, 0.06, 0.16)
     this.blip(880, 0.04, 0.08, 0.02)
   }
 
-  /** Mid-air boom / sparkle when the ball pops. */
   private playBoom() {
     if (!this.ctx || !this.sfxGain) return
     const t0 = this.ctx.currentTime
@@ -268,7 +401,6 @@ class Soundscape {
     boomGain.connect(this.sfxGain)
     boom.start(t0)
     boom.stop(t0 + 0.3)
-
     this.blip(1046.5, 0.18, 0.12)
     this.blip(1568, 0.22, 0.08, 0.04)
     this.blip(2093, 0.16, 0.05, 0.08)
@@ -299,8 +431,7 @@ export function bindSoundscapeGestures() {
   const onClick = (event: MouseEvent) => {
     const target = event.target
     if (!(target instanceof Element)) return
-    // Don't double-fire from nested brand/nav primary actions.
-    if (target.closest('button.brand, a, .sound-toggle')) return
+    if (target.closest('button.brand, a, .sound-toggle, .sound-skip')) return
     const choice = target.closest(CHOICE_SELECTOR)
     if (!choice) return
     soundscape.play('select')

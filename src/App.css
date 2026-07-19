@@ -46,6 +46,13 @@
   min-width: 0;
 }
 
+.sound-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .sound-toggle {
   display: inline-flex;
   align-items: center;
@@ -66,6 +73,10 @@
     border-color 0.2s ease,
     box-shadow 0.2s ease;
   box-shadow: 0 6px 18px rgba(31, 61, 54, 0.06);
+}
+
+.sound-skip {
+  padding-inline: 0.7rem;
 }
 
 .sound-toggle:hover {

@@ -1259,30 +1259,46 @@ function App() {
               ))}
             </nav>
           )}
-          <button
-            type="button"
-            className={`sound-toggle ${soundMuted ? 'muted' : 'on'}`}
-            aria-pressed={!soundMuted}
-            title={
-              soundMuted
-                ? '開啟放鬆背景音樂與動效音'
-                : '關閉背景音樂與動效音'
-            }
-            onClick={() => {
-              soundscape.toggleMuted()
-              if (soundscape.isMuted) return
-              soundscape.play('softPop')
-            }}
-          >
-            <span aria-hidden>{soundMuted ? '🔇' : '🎵'}</span>
-            <span>
-              {soundMuted
-                ? '音效關'
-                : soundUnlocked
-                  ? '放鬆音樂'
-                  : '點開音樂'}
-            </span>
-          </button>
+          <div className="sound-controls">
+            <button
+              type="button"
+              className={`sound-toggle ${soundMuted ? 'muted' : 'on'}`}
+              aria-pressed={!soundMuted}
+              title={
+                soundMuted
+                  ? '開啟放鬆背景音樂與動效音'
+                  : '關閉背景音樂與動效音'
+              }
+              onClick={() => {
+                soundscape.toggleMuted()
+                if (soundscape.isMuted) return
+                soundscape.play('softPop')
+              }}
+            >
+              <span aria-hidden>{soundMuted ? '🔇' : '🎵'}</span>
+              <span>
+                {soundMuted
+                  ? '音效關'
+                  : soundUnlocked
+                    ? '放鬆音樂'
+                    : '點開音樂'}
+              </span>
+            </button>
+            {!soundMuted ? (
+              <button
+                type="button"
+                className="sound-toggle sound-skip"
+                title="換下一首背景音樂（每次造訪也會自動換曲）"
+                onClick={() => {
+                  soundscape.skipTrack()
+                  soundscape.play('softPop')
+                }}
+              >
+                <span aria-hidden>⏭</span>
+                <span>換曲</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -3038,8 +3054,8 @@ function App() {
           {soundMuted
             ? '背景音樂已關閉'
             : soundUnlocked
-              ? '正在播放放鬆背景音樂（可於右上角關閉）'
-              : '輕點一下即可開啟放鬆背景音樂'}
+              ? `正在播放放鬆音樂${soundscape.trackLabel ? ` · ${soundscape.trackLabel}` : ''}（約每 2 分鐘自動換曲，也可按「換曲」）`
+              : '輕點一下即可開啟放鬆背景音樂（每次造訪會換一首）'}
         </span>
       </footer>
     </div>
