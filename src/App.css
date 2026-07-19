@@ -315,6 +315,94 @@ main {
   box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.12);
 }
 
+.season-guide-panel {
+  margin: 0 0 1.2rem;
+  padding: 1.05rem 1.15rem;
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.12);
+}
+
+.season-guide-panel.worst {
+  background: rgba(164, 62, 46, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(164, 62, 46, 0.22);
+}
+
+.season-guide-panel.best {
+  background: rgba(63, 107, 93, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(63, 107, 93, 0.22);
+}
+
+.season-guide-panel > strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-family: var(--display);
+  color: var(--forest);
+}
+
+.season-guide-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  margin: 0.7rem 0;
+}
+
+.season-guide-card {
+  padding: 0.85rem 0.9rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.season-guide-card.best {
+  box-shadow: inset 0 0 0 1px rgba(63, 107, 93, 0.28);
+}
+
+.season-guide-card.worst {
+  box-shadow: inset 0 0 0 1px rgba(164, 62, 46, 0.28);
+}
+
+.season-guide-card span {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.season-guide-card strong {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-family: var(--display);
+  color: var(--forest);
+  line-height: 1.35;
+}
+
+.season-guide-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.month-fit-line {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.month-fit-line.worst {
+  color: #8a3428;
+}
+
+.month-fit-line.best {
+  color: #2f5d52;
+}
+
+@media (max-width: 720px) {
+  .season-guide-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .weather-preview.strong {
   margin: 0 0 0.4rem;
   font-weight: 600;

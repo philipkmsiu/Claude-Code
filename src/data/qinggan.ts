@@ -402,7 +402,16 @@ export const qingganDestination: Destination = {
   tagline: '14 日舒服版：嘉峪關、敦煌、翡翠湖、大地之眼、青海湖',
   intro:
     '西寧／蘭州出發，經嘉峪關、敦煌，再飛花土溝打卡翡翠湖與艾肯泉，東返德令哈與青海湖。特色是每日車程大多控制、減少換宿、包司機＋重點飛機段，適合 6 人小團想舒服玩西北的行程。',
-  bestSeason: '2026 年 6–9 月最佳；怕熱優先 6 月中下旬或 9 月上旬',
+  bestSeason: '最適合 6–9 月；最不建議 12–3 月',
+  seasonGuide: {
+    bestMonths: [6, 7, 8, 9],
+    worstMonths: [12, 1, 2, 3],
+    bestReason:
+      '暖季湖色、雅丹與公路條件最好；6 月下旬與 9 月上旬更不易過熱，適合包車環線。',
+    worstReason:
+      '嚴寒、大雪與封路風險高，青海湖／敦煌段長途也不舒適，不建議安排大環線。',
+    note: '青甘大環線不是全年行程；請把出發月放在 6–9 月。',
+  },
   recommendedDays: {
     min: 10,
     comfortable: 14,

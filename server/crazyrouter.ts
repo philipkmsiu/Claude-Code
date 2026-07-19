@@ -424,6 +424,90 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
   }
 }
 
+async function handleSeasonGuide(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(await readBody(req)) as {
+      destinationName?: string
+    }
+    const destinationName = payload.destinationName?.trim()
+    if (!destinationName) {
+      sendJson(res, 400, { error: 'destinationName is required' })
+      return
+    }
+
+    const content = await chatCompletion(
+      [
+        {
+          role: 'system',
+          content: `你是專業旅遊氣候顧問。請為目的地給出「最適合」與「最不建議」的旅遊月份，並說明理由。
+硬性規則：
+- 幾乎沒有目的地是十二個月都同等適合；禁止寫成全年皆宜／每月都行
+- bestMonths 與 worstMonths 必須是 1–12 的整數陣列，且不能相同
+- 理由要具體（溫度、降雨、颱風、封路、開花、極晝等）
+只回傳 JSON：
+{
+  "bestMonths": number[],
+  "worstMonths": number[],
+  "bestReason": string,
+  "worstReason": string,
+  "note": string
+}
+繁體中文，不要 Markdown。`,
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            destinationName,
+            ask: '請給最適合與最不建議月份，並說明原因。',
+          }),
+        },
+      ],
+      0.2,
+    )
+
+    const parsed = extractJson(content) as {
+      bestMonths?: number[]
+      worstMonths?: number[]
+      bestReason?: string
+      worstReason?: string
+      note?: string
+    }
+
+    const bestMonths = (parsed.bestMonths || [])
+      .map(Number)
+      .filter((m) => m >= 1 && m <= 12)
+    const worstMonths = (parsed.worstMonths || [])
+      .map(Number)
+      .filter((m) => m >= 1 && m <= 12)
+    if (!bestMonths.length || !worstMonths.length) {
+      throw new Error('AI season guide missing months')
+    }
+
+    sendJson(res, 200, {
+      source: 'crazyrouter',
+      bestMonths: [...new Set(bestMonths)].sort((a, b) => a - b),
+      worstMonths: [...new Set(worstMonths)].sort((a, b) => a - b),
+      bestReason: parsed.bestReason || '',
+      worstReason: parsed.worstReason || '',
+      note: parsed.note || '',
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'AI season-guide failed',
+    })
+  }
+}
+
 function attachRoutes(middlewares: Connect.Server) {
   middlewares.use('/api/ai/recommend-days', (req, res, next) => {
     handleRecommendDays(req, res).catch(next)
@@ -433,6 +517,9 @@ function attachRoutes(middlewares: Connect.Server) {
   })
   middlewares.use('/api/ai/suggest-spots', (req, res, next) => {
     handleSuggestSpots(req, res).catch(next)
+  })
+  middlewares.use('/api/ai/season-guide', (req, res, next) => {
+    handleSeasonGuide(req, res).catch(next)
   })
 }
 

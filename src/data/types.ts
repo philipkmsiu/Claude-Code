@@ -72,6 +72,16 @@ export interface BudgetSummary {
   lines: { item: string; detail: string; amount: string }[]
 }
 
+/** Best / worst travel months for a destination (1–12). */
+export interface SeasonGuide {
+  bestMonths: number[]
+  worstMonths: number[]
+  bestReason: string
+  worstReason: string
+  /** Short overall note; never imply “any month is equally fine”. */
+  note: string
+}
+
 export interface Destination {
   id: DestinationId
   nameZh: string
@@ -79,6 +89,8 @@ export interface Destination {
   tagline: string
   intro: string
   bestSeason: string
+  /** Structured month advice; prefer this over free-text bestSeason in UI. */
+  seasonGuide?: SeasonGuide
   recommendedDays: {
     min: number
     comfortable: number

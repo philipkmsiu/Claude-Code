@@ -21,13 +21,17 @@ import {
   findKnownDestination,
   fitStatusTitle,
   applyHotelStayPlan,
+  assessTripMonth,
   buildHotelStayPlan,
+  formatMonthsZh,
+  getSeasonGuide,
   hotelBookingAdvice,
   hotelStyles,
   hotelsForStyle,
   nightsFromDays,
   parseDestinationNames,
   scenicSpotsFromAi,
+  seasonGuideFromAi,
   seasonKey,
   specialNeedOptions,
   spotTagLabels,
@@ -37,12 +41,14 @@ import {
   type Destination,
   type DestinationId,
   type HotelStyle,
+  type SeasonGuide,
   type TripPace,
 } from './data/travel'
 import { FreeTextField } from './components/FreeTextField'
 import {
   recommendDaysWithAi,
   reviewPlanWithAi,
+  seasonGuideWithAi,
   suggestSpotsWithAi,
   type AiDayRecommendation,
   type AiPlanReview,
@@ -127,6 +133,10 @@ function App() {
   const planDays = clampDays(days)
   const weatherMonth = startDate ? new Date(startDate).getMonth() + 1 : 2
   const weather = primary ? primary.weather[seasonKey(weatherMonth)] : ''
+  const seasonGuide = primary ? getSeasonGuide(primary) : null
+  const monthFit = seasonGuide
+    ? assessTripMonth(seasonGuide, weatherMonth)
+    : 'fair'
   const hotels = primary
     ? primary.curatedPlans
       ? primary.hotels
@@ -291,6 +301,47 @@ function App() {
       .finally(() => {
         if (!cancelled) setAiLoading(false)
       })
+
+    // Refresh month suitability (especially for custom destinations).
+    void Promise.all(
+      selectedDestinations.map(async (dest) => {
+        try {
+          const result = await seasonGuideWithAi({ destinationName: dest.nameZh })
+          const guide = seasonGuideFromAi(result)
+          return guide ? { id: dest.id, guide } : null
+        } catch {
+          return null
+        }
+      }),
+    ).then((updates) => {
+      if (cancelled) return
+      const valid = updates.filter(
+        (item): item is { id: DestinationId; guide: SeasonGuide } => Boolean(item),
+      )
+      if (!valid.length) return
+      setCustomDestinations((prev) => {
+        const byId = new Map(prev.map((d) => [d.id, d]))
+        for (const { id, guide } of valid) {
+          const existing = byId.get(id)
+          const base =
+            existing ?? selectedDestinations.find((d) => d.id === id) ?? null
+          if (!base) continue
+          byId.set(id, {
+            ...base,
+            seasonGuide: guide,
+            bestSeason: `最適合 ${formatMonthsZh(guide.bestMonths)}；最不建議 ${formatMonthsZh(guide.worstMonths)}`,
+          })
+        }
+        const ordered = [
+          ...valid.map((u) => u.id),
+          ...prev.map((d) => d.id),
+        ]
+        return [...new Set(ordered)]
+          .map((id) => byId.get(id))
+          .filter((d): d is Destination => Boolean(d))
+      })
+    })
+
     return () => {
       cancelled = true
     }
@@ -1110,6 +1161,14 @@ function App() {
 
             <p className="weather-preview strong">{weather}</p>
 
+            {seasonGuide ? (
+              <SeasonGuidePanel
+                guide={seasonGuide}
+                travelMonth={weatherMonth}
+                monthFit={monthFit}
+              />
+            ) : null}
+
             <h3 className="subhead">旅遊類型</h3>
             <div className="style-grid">
               {tripPaces.map((item) => (
@@ -1666,13 +1725,23 @@ function App() {
                       : '（搭配剛好）'}
                 </p>
                 <p>
-                  <strong>天氣參考：</strong>
+                  <strong>出發月天氣：</strong>
                   {weather}
                 </p>
                 <p className="muted">
                   {specialNeeds.length ? specialNeeds.join('、') : '無特別需求'}
                 </p>
               </article>
+
+              {seasonGuide ? (
+                <article className="info-block wide">
+                  <SeasonGuidePanel
+                    guide={seasonGuide}
+                    travelMonth={weatherMonth}
+                    monthFit={monthFit}
+                  />
+                </article>
+              ) : null}
 
               <article className="info-block wide">
                 <h3>交通與訂房（依 {travelers} 人）</h3>
@@ -1870,6 +1939,43 @@ function App() {
 
 function StepPill({ active, label }: { active: boolean; label: string }) {
   return <span className={`step-pill ${active ? 'active' : ''}`}>{label}</span>
+}
+
+function SeasonGuidePanel({
+  guide,
+  travelMonth,
+  monthFit,
+}: {
+  guide: SeasonGuide
+  travelMonth: number
+  monthFit: 'best' | 'fair' | 'worst'
+}) {
+  return (
+    <aside className={`season-guide-panel ${monthFit}`}>
+      <strong>最適合／最不建議月份</strong>
+      <p className="muted-line">{guide.note}</p>
+      <div className="season-guide-grid">
+        <div className="season-guide-card best">
+          <span>最適合</span>
+          <strong>{formatMonthsZh(guide.bestMonths)}</strong>
+          <p>{guide.bestReason}</p>
+        </div>
+        <div className="season-guide-card worst">
+          <span>最不建議</span>
+          <strong>{formatMonthsZh(guide.worstMonths)}</strong>
+          <p>{guide.worstReason}</p>
+        </div>
+      </div>
+      <p className={`month-fit-line ${monthFit}`}>
+        你目前出發月是 {travelMonth} 月：
+        {monthFit === 'best'
+          ? '落在較佳月份。'
+          : monthFit === 'worst'
+            ? '落在較不建議月份，建議改期或調整行程節奏。'
+            : '不算最佳也未必最差，請留意當月天氣與人潮。'}
+      </p>
+    </aside>
+  )
 }
 
 function DurationFitPanel({

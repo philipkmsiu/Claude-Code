@@ -35,6 +35,10 @@ After picking a place, AI reviews the destination and suggests:
 
 Or type your own length (2–21 days). On the spots/result steps, AI checks whether your selected spots fit those days.
 
+## Best / worst months
+
+Each destination shows **最適合** and **最不建議** months with reasons (not “fine all year”). Custom places get AI season guidance via `/api/ai/season-guide`. Your start-date month is checked against that guide.
+
 ## Flow
 
 1. Destination  

@@ -34,6 +34,15 @@ export type AiSpotSuggestion = {
   spots: AiSuggestedSpot[]
 }
 
+export type AiSeasonGuide = {
+  source: 'crazyrouter'
+  bestMonths: number[]
+  worstMonths: number[]
+  bestReason: string
+  worstReason: string
+  note: string
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
     method: 'POST',
@@ -89,4 +98,10 @@ export function suggestSpotsWithAi(input: {
   days?: number
 }): Promise<AiSpotSuggestion> {
   return postJson('/api/ai/suggest-spots', input)
+}
+
+export function seasonGuideWithAi(input: {
+  destinationName: string
+}): Promise<AiSeasonGuide> {
+  return postJson('/api/ai/season-guide', input)
 }

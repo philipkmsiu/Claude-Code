@@ -10,6 +10,7 @@ export type {
   HotelStyle,
   ScheduleItem,
   ScenicSpot,
+  SeasonGuide,
   SpotTag,
   TripPace,
 } from './types'
@@ -23,6 +24,7 @@ import type {
   HotelStyle,
   ScheduleItem,
   ScenicSpot,
+  SeasonGuide,
   SpotTag,
   TripPace,
 } from './types'
@@ -140,11 +142,13 @@ export function inferCustomTripProfile(name: string): {
   tagline: string
   intro: string
   bestSeason: string
+  seasonGuide: SeasonGuide
   spots: ScenicSpot[]
   tips: string[]
   flexDayIdeas: string[]
 } {
   const text = name.trim()
+  const seasonGuide = inferSeasonGuide(text)
   const slow = /慢遊|舒適|深度|悠閒|放慢/.test(text)
   const loop =
     /環線|南北疆|北疆.*南疆|南疆.*北疆|大環線|自駕|公路/.test(text) ||
@@ -163,7 +167,8 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '長線公路行程・南北疆需要較多天數',
       intro: `${text} 屬於新疆長線慢遊：北疆自然（喀納斯、賽里木、伊犁）與南疆人文／高原（喀什、帕米爾）距離都很遠，不適合用一般城市遊的 3–5 天去估。`,
-      bestSeason: '多數路段 6–9 月較合適；獨庫等季節性公路需確認開通',
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
       spots: spotsFromSeeds(text, xinjiangTemplateSeeds()),
       flexDayIdeas: [
         '北疆多留一天看天氣',
@@ -190,7 +195,8 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '新疆長線・天數要比一般城市多',
       intro: `${text} 在新疆，景點之間車程長。系統已提高建議天數；若你其實要南北疆都去，請在名稱加上「南北疆」以便給出更長建議。`,
-      bestSeason: '6–9 月為主，視北疆或南疆而定',
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
       spots: spotsFromSeeds(text, xinjiangTemplateSeeds().slice(0, 14)),
       flexDayIdeas: ['天氣備案日', '古城慢遊日', '長途後休息日'],
       tips: [
@@ -210,7 +216,8 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '公路／環線行程・建議拉長天數',
       intro: `${text} 看起來是長線移動型行程，系統已用較長天數去建議，並帶入多個區域型景點骨架。`,
-      bestSeason: '請依路況與季節查詢',
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
       spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
       flexDayIdeas: ['趕路緩衝日', '天氣備案日', '重點景區多留一晚'],
       tips: ['長線行程請預留彈性日，避免天天長途。'],
@@ -227,7 +234,8 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '多地／慢遊・天數略長',
       intro: `${text} 由你自行加入。因名稱像多地或慢遊，建議天數已略為提高。`,
-      bestSeason: '請依當地氣候選擇',
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
       spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
       flexDayIdeas: [`${text}再訪最愛街区`, `${text}購物日`, `${text}雨備日`],
       tips: ['可再新增你真正想去的景點，讓天數估算更準。'],
@@ -243,7 +251,8 @@ export function inferCustomTripProfile(name: string): {
     },
     tagline: '你輸入的目的地・AI 會依景點量建議天數',
     intro: `${text} 由你自行加入。系統已先帶入常見行程骨架，你可刪減或再新增景點。`,
-    bestSeason: '請依當地氣候選擇；旺季建議提早訂房與熱門票',
+    bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+    seasonGuide,
     spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
     flexDayIdeas: [
       `${text}再訪最愛街区`,
@@ -340,12 +349,17 @@ export function createCustomDestination(rawName: string): Destination {
     tagline: profile.tagline,
     intro: profile.intro,
     bestSeason: profile.bestSeason,
+    seasonGuide: profile.seasonGuide,
     recommendedDays: profile.recommendedDays,
     weather: {
-      spring: '請出發前查當地氣溫與降雨',
-      summer: '請出發前查當地氣溫與降雨',
-      autumn: '請出發前查當地氣溫與降雨',
-      winter: '請出發前查當地氣溫與降雨',
+      spring: `較佳參考：${formatMonthsZh(profile.seasonGuide.bestMonths)} 前後`,
+      summer: profile.seasonGuide.worstMonths.some((m) => m >= 6 && m <= 8)
+        ? `盛夏可能較差：${profile.seasonGuide.worstReason}`
+        : '請出發前查當地氣溫與降雨',
+      autumn: `較佳參考：${formatMonthsZh(profile.seasonGuide.bestMonths)} 前後`,
+      winter: profile.seasonGuide.worstMonths.some((m) => m === 12 || m <= 2)
+        ? `嚴冬可能較差：${profile.seasonGuide.worstReason}`
+        : '請出發前查當地氣溫與降雨',
     },
     hotels: [
       {
@@ -618,7 +632,14 @@ export const destinations: Destination[] = [
     tagline: '對應 AI 行程範例：城市活力 × 古都氛圍',
     intro:
       '大阪負責吃與節奏，京都負責歷史與打卡；中間可加奈良或神戶。這是 PDF 實際範例的核心組合，適合第一次去日本關西的旅人。',
-    bestSeason: '3–5 月櫻花、10–11 月紅葉；夏天熱、冬天可抓梅花季',
+    bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
+    seasonGuide: {
+      bestMonths: [3, 4, 5, 10, 11],
+      worstMonths: [7, 8],
+      bestReason: '春秋氣溫舒適，櫻花或紅葉景色最佳，步行與拍照體驗最好。',
+      worstReason: '盛夏炎熱潮濕，戶外體感差，排隊與中暑風險高。',
+      note: '關西可冬天去，但舒適度與景色仍明顯不如春秋；不是全年同等適合。',
+    },
     recommendedDays: {
       min: 5,
       comfortable: 7,
@@ -681,7 +702,14 @@ export const destinations: Destination[] = [
     tagline: '美食、霓虹與主題樂園的關西門戶',
     intro:
       '如果你這次主要想吃、購物、玩樂園，大阪可以當單一目的地。經典市區 3–4 天就很飽；加 USJ 或日遊會再拉長。',
-    bestSeason: '3–5 月、10–11 月較舒服',
+    bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
+    seasonGuide: {
+      bestMonths: [3, 4, 5, 10, 11],
+      worstMonths: [7, 8],
+      bestReason: '氣溫舒服，適合整天走路吃逛；春秋體感明顯優於盛夏。',
+      worstReason: '盛夏高溫潮濕，戶外與排隊都很累，樂園日更辛苦。',
+      note: '大阪全年都去得了，但 7–8 月舒適度最差，請優先避開。',
+    },
     recommendedDays: {
       min: 3,
       comfortable: 4,
@@ -730,7 +758,14 @@ export const destinations: Destination[] = [
     tagline: '神社佛閣、巷弄與季節風景',
     intro:
       '京都適合把節奏放慢。寺廟神社密度高，別排太滿；多留拍照與抹茶時間會更享受。',
-    bestSeason: '櫻花與紅葉季最美，也最擠',
+    bestSeason: '最適合 3–4 月、11 月；最不建議 7–8 月',
+    seasonGuide: {
+      bestMonths: [3, 4, 11],
+      worstMonths: [7, 8],
+      bestReason: '櫻花或紅葉最美，氣溫適合長時間步行寺院與巷弄。',
+      worstReason: '盛夏寺院區悶熱，體感差且容易中暑；景色也相對平淡。',
+      note: '京都強項是季節景色，絕非每月同等美麗；盛夏請謹慎。',
+    },
     recommendedDays: {
       min: 3,
       comfortable: 5,
@@ -771,7 +806,14 @@ export const destinations: Destination[] = [
     tagline: '巨大都會：街頭、博物館與主題樂園',
     intro:
       '東京可以玩很深。第一次去，先抓 2–3 個區域深挖比全市奔波更好；天數拉長就能把迪士尼、鎌倉、箱根加進來。',
-    bestSeason: '3–5 月、10–11 月',
+    bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
+    seasonGuide: {
+      bestMonths: [3, 4, 5, 10, 11],
+      worstMonths: [7, 8],
+      bestReason: '氣溫宜人，適合長距離步行與近郊日遊（鎌倉／箱根）。',
+      worstReason: '盛夏炎熱潮濕，主題樂園與戶外排隊體感最差。',
+      note: '東京能全年去，但春秋明顯更舒服；不要當成每月一樣適合。',
+    },
     recommendedDays: {
       min: 4,
       comfortable: 6,
@@ -841,7 +883,14 @@ export const destinations: Destination[] = [
     tagline: '夜市、博物館與近郊山水',
     intro:
       '台北很適合當短假或長住基地：市區密度高，天數拉長就能加九份、北投、淡水或宜蘭。',
-    bestSeason: '10–4 月較舒適；夏天炎熱多雨',
+    bestSeason: '最適合 10–4 月；最不建議 6–8 月',
+    seasonGuide: {
+      bestMonths: [10, 11, 12, 1, 2, 3, 4],
+      worstMonths: [6, 7, 8],
+      bestReason: '秋冬到初春較乾爽，夜市、步道與近郊行程體感最好。',
+      worstReason: '盛夏悶熱、午後雷雨多，長時間戶外很累。',
+      note: '台北沒有「每月一樣舒服」；盛夏明顯是較差選擇。',
+    },
     recommendedDays: {
       min: 3,
       comfortable: 5,
@@ -903,7 +952,14 @@ export const destinations: Destination[] = [
     tagline: '宮殿、韓屋、逛街與韓食',
     intro:
       '首爾市區緊湊，3–4 天能抓到感覺；拉長天數就能加華川、水原或更深度的街區生活。',
-    bestSeason: '4–6 月、9–11 月',
+    bestSeason: '最適合 4–6 月、9–11 月；最不建議 12–2 月',
+    seasonGuide: {
+      bestMonths: [4, 5, 6, 9, 10, 11],
+      worstMonths: [12, 1, 2],
+      bestReason: '春秋氣溫適合宮殿、韓屋與逛街，白天日照也較友善。',
+      worstReason: '嚴冬常低於冰點，戶外體感差，行程節奏易被寒冷影響。',
+      note: '首爾可冬遊看雪，但舒適度遠不如春秋；不是全年同等推薦。',
+    },
     recommendedDays: {
       min: 3,
       comfortable: 5,
@@ -978,6 +1034,142 @@ export function seasonKey(month: number): keyof Destination['weather'] {
   if (month >= 6 && month <= 8) return 'summer'
   if (month >= 9 && month <= 11) return 'autumn'
   return 'winter'
+}
+
+const MONTH_LABELS = [
+  '1 月',
+  '2 月',
+  '3 月',
+  '4 月',
+  '5 月',
+  '6 月',
+  '7 月',
+  '8 月',
+  '9 月',
+  '10 月',
+  '11 月',
+  '12 月',
+]
+
+export function formatMonthsZh(months: number[]): string {
+  const unique = [...new Set(months)]
+    .filter((m) => m >= 1 && m <= 12)
+    .sort((a, b) => a - b)
+  if (!unique.length) return '—'
+  return unique.map((m) => MONTH_LABELS[m - 1]).join('、')
+}
+
+export function assessTripMonth(
+  guide: SeasonGuide,
+  month: number,
+): 'best' | 'fair' | 'worst' {
+  if (guide.worstMonths.includes(month)) return 'worst'
+  if (guide.bestMonths.includes(month)) return 'best'
+  return 'fair'
+}
+
+/** Heuristic season guide when AI / curated data is unavailable. */
+export function inferSeasonGuide(name: string): SeasonGuide {
+  const text = name.trim()
+  if (/新疆|北疆|南疆|喀納斯|伊犁|帕米爾|青甘|青海|甘肅|西藏|高原|川西/.test(text)) {
+    return {
+      bestMonths: [6, 7, 8, 9],
+      worstMonths: [12, 1, 2, 3],
+      bestReason: '暖季路況與景區開放較穩，湖色／草原可看，長線移動也較安全。',
+      worstReason: '嚴寒、大雪與封路風險高，部分景區／公路關閉，不適合長線環線。',
+      note: '西北／高原長線絕非全年皆宜；請以夏秋為主。',
+    }
+  }
+  if (/北海道|札幌|富良野|小樽/.test(text)) {
+    return {
+      bestMonths: [6, 7, 8, 9, 1, 2],
+      worstMonths: [11, 3],
+      bestReason: '夏季涼爽避暑與花田；冬季雪景／滑雪條件佳。',
+      worstReason: '初冬與融雪期天氣不穩，景色與交通都較尷尬。',
+      note: '北海道夏冬各有強項，但不是每個月都同樣好逛。',
+    }
+  }
+  if (/沖縄|沖繩|峇里|普吉|長灘|塞班|馬爾地夫|新加坡|曼谷|清邁/.test(text)) {
+    return {
+      bestMonths: [11, 12, 1, 2, 3, 4],
+      worstMonths: [6, 7, 8, 9],
+      bestReason: '乾季或相對少雨，海邊與戶外行程較穩。',
+      worstReason: '雨季／颱風季濕熱，戶外與跳島易受影響。',
+      note: '熱帶／海島目的地仍有明顯雨乾季差異。',
+    }
+  }
+  if (/日本|東京|大阪|京都|關西|九州|名古屋|富山|金澤|名古屋/.test(text)) {
+    return {
+      bestMonths: [3, 4, 5, 10, 11],
+      worstMonths: [7, 8],
+      bestReason: '氣溫舒服，櫻花或紅葉景觀佳，步行與拍照體驗最好。',
+      worstReason: '盛夏炎熱潮濕，戶外體感差，部分景點人潮與中暑風險高。',
+      note: '日本多數城市春秋最佳；盛夏明顯較差，並非全年同等適合。',
+    }
+  }
+  if (/台北|臺灣|台灣|高雄|台中/.test(text)) {
+    return {
+      bestMonths: [10, 11, 12, 1, 2, 3, 4],
+      worstMonths: [6, 7, 8],
+      bestReason: '秋冬到初春較乾爽舒適，適合走路逛夜市與近郊。',
+      worstReason: '盛夏悶熱、午後雷雨多，長時間戶外較辛苦。',
+      note: '台北可全年前往，但舒適度仍差很多，盛夏明顯較差。',
+    }
+  }
+  if (/首爾|釜山|韓國|濟州/.test(text)) {
+    return {
+      bestMonths: [4, 5, 6, 9, 10, 11],
+      worstMonths: [12, 1, 2],
+      bestReason: '春秋氣溫宜人，市區步行與逛街最舒服。',
+      worstReason: '嚴冬極冷（常低於冰點），戶外體感差，行程節奏易被天氣影響。',
+      note: '首爾可冬遊，但舒適度遠不如春秋；不是每月同等推薦。',
+    }
+  }
+  if (/歐洲|巴黎|倫敦|羅馬|瑞士|北歐/.test(text)) {
+    return {
+      bestMonths: [5, 6, 7, 8, 9],
+      worstMonths: [11, 12, 1, 2],
+      bestReason: '日照長、戶外與景點開放時間較友善。',
+      worstReason: '冬天天短濕冷，部分山地／小鎮活動受限。',
+      note: '多數歐洲城市夏季較好逛；冬季需接受天短與寒冷。',
+    }
+  }
+  return {
+    bestMonths: [4, 5, 6, 9, 10],
+    worstMonths: [7, 8, 1],
+    bestReason: '氣溫與日照通常較平衡，適合觀光步行。',
+    worstReason: '不是極端月也常遇上過熱、過冷或雨季，體驗會打折。',
+    note: '幾乎沒有「十二個月都一樣適合」的目的地；請依最佳／最差月份安排。',
+  }
+}
+
+export function getSeasonGuide(destination: Destination): SeasonGuide {
+  return destination.seasonGuide ?? inferSeasonGuide(destination.nameZh)
+}
+
+export function seasonGuideFromAi(payload: {
+  bestMonths?: number[]
+  worstMonths?: number[]
+  bestReason?: string
+  worstReason?: string
+  note?: string
+}): SeasonGuide | null {
+  const bestMonths = (payload.bestMonths || [])
+    .map(Number)
+    .filter((m) => m >= 1 && m <= 12)
+  const worstMonths = (payload.worstMonths || [])
+    .map(Number)
+    .filter((m) => m >= 1 && m <= 12)
+  if (bestMonths.length < 1 || worstMonths.length < 1) return null
+  return {
+    bestMonths: [...new Set(bestMonths)].sort((a, b) => a - b),
+    worstMonths: [...new Set(worstMonths)].sort((a, b) => a - b),
+    bestReason: payload.bestReason?.trim() || '氣候與活動條件較佳。',
+    worstReason: payload.worstReason?.trim() || '天氣或交通限制較多。',
+    note:
+      payload.note?.trim() ||
+      '請依最佳／最差月份安排；不要假設全年都同樣適合。',
+  }
 }
 
 export function clampDays(value: number): number {
