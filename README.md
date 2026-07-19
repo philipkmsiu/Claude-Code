@@ -60,7 +60,7 @@ On preferences, choose **包司機 / 自駕 / 大眾運輸**:
 Every journey gets **two** Stage-4 posters (toggle on the result page):
 
 1. **相片版** — unique real landmark photos per day (no reused wall shots)
-2. **插畫海報版** — Gemini journey-map sample style: wide S-curve path, hand-painted SVG watercolor day circles, food/drink/tips sidebars (never photographs)
+2. **插畫海報版** — Gemini journey-map sample style: wide S-curve path, hand-painted watercolor day plates (`public/poster/watercolor-*.png`), food/drink/tips sidebars (never real photos)
 
 Both include 必吃美食 · 必喝飲品 · 旅行小貼士, and each can be **downloaded as PNG**.
 

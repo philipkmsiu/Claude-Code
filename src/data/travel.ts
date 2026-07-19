@@ -1881,16 +1881,36 @@ export function daysBetween(start: string, end: string): number | null {
   return Math.floor((b.getTime() - a.getTime()) / 86400000) + 1
 }
 
+/** Format a Date as local YYYY-MM-DD. */
+export function toIsoDateLocal(date: Date): string {
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+/** Earliest allowed departure: the day after planning (not today / not past). */
+export function earliestStartDate(now: Date = new Date()): string {
+  const d = new Date(now)
+  d.setHours(12, 0, 0, 0)
+  d.setDate(d.getDate() + 1)
+  return toIsoDateLocal(d)
+}
+
+/** Clamp a start date so it is never earlier than tomorrow. */
+export function clampStartDate(iso: string, now: Date = new Date()): string {
+  const min = earliestStartDate(now)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return min
+  return iso < min ? min : iso
+}
+
 /** End date inclusive: start + (days - 1). */
 export function endDateFromStart(start: string, days: number): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return start
   const d = new Date(`${start}T12:00:00`)
   if (Number.isNaN(d.getTime())) return start
   d.setDate(d.getDate() + Math.max(clampDays(days) - 1, 0))
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
+  return toIsoDateLocal(d)
 }
 
 export function formatDateZh(iso: string): string {
@@ -2558,15 +2578,9 @@ export function buildItinerary(options: {
     )
   }
 
-  // Size the trip to content: avoid many blank「彈性日」with no real destinations.
-  const roughContentDays = Math.max(
-    1,
-    Math.ceil(selected.length / Math.max(2, spotsPerDay - 0.5)),
-  )
-  const maxFlexDays = pace === 'relaxed' ? 2 : 1
-  const days = clampDays(
-    Math.min(requestedDays, roughContentDays + maxFlexDays),
-  )
+  // Always honour the user's chosen length. Extra days become rest/flex days —
+  // never silently shrink 9 → 8 (etc.).
+  const days = requestedDays
 
   const longSpots = selected.filter((s) => s.stayHours >= 6)
   const shortSpots = selected.filter((s) => s.stayHours < 6)
@@ -2616,17 +2630,9 @@ export function buildItinerary(options: {
     usedIds.add(spot.id)
   }
 
-  // Keep at most maxFlexDays empty rest days; drop the rest so the plan isn't hollow.
-  let emptyLeft = maxFlexDays
-  const trimmedBuckets = dayBuckets.filter((bucket) => {
-    if (bucket.length > 0) return true
-    if (emptyLeft > 0) {
-      emptyLeft -= 1
-      return true
-    }
-    return false
-  })
-  if (!trimmedBuckets.length) trimmedBuckets.push(dayBuckets[0] ?? [])
+  // Keep every requested day (empty buckets become intentional rest/flex days).
+  const trimmedBuckets =
+    dayBuckets.length > 0 ? dayBuckets : [[] as ScenicSpot[]]
 
   const plannedDays = trimmedBuckets.map((bucket, index) => {
     const isFirst = index === 0

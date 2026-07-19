@@ -18,6 +18,8 @@ import {
   deriveFitStatus,
   destinationNeedsAiSpots,
   destinations as presetDestinations,
+  clampStartDate,
+  earliestStartDate,
   endDateFromStart,
   ensureSpotsForDays,
   findKnownDestination,
@@ -82,10 +84,13 @@ function App() {
   const [customDestinations, setCustomDestinations] = useState<Destination[]>([])
   const [destinationInput, setDestinationInput] = useState('')
   const [selectedDestIds, setSelectedDestIds] = useState<DestinationId[]>([])
-  const [startDate, setStartDate] = useState('2026-02-17')
-  const [endDate, setEndDate] = useState('2026-02-23')
+  const [startDate, setStartDate] = useState(() => earliestStartDate())
+  const [endDate, setEndDate] = useState(() =>
+    endDateFromStart(earliestStartDate(), 7),
+  )
   const [days, setDays] = useState(7)
   const [daysInput, setDaysInput] = useState('7')
+  const minStartDate = earliestStartDate()
   const [pace, setPace] = useState<TripPace>('balanced')
   const [companion, setCompanion] = useState<Companion>('couple')
   const [partySize, setPartySize] = useState(2)
@@ -155,8 +160,14 @@ function App() {
     ? assessTripMonth(seasonGuide, weatherMonth)
     : 'fair'
 
-  // Keep stored end date aligned with start + duration.
+  // Departure must be at least tomorrow; keep end date aligned with start + duration.
   useEffect(() => {
+    const clamped = clampStartDate(startDate)
+    if (clamped !== startDate) {
+      setStartDate(clamped)
+      setEndDate(endDateFromStart(clamped, planDays))
+      return
+    }
     if (!startDate || !planDays) return
     const nextEnd = endDateFromStart(startDate, planDays)
     if (nextEnd !== endDate) setEndDate(nextEnd)
@@ -627,8 +638,9 @@ function App() {
   }
 
   function setJourneyStart(nextStart: string) {
-    setStartDate(nextStart)
-    if (nextStart) setEndDate(endDateFromStart(nextStart, planDays))
+    const clamped = clampStartDate(nextStart)
+    setStartDate(clamped)
+    setEndDate(endDateFromStart(clamped, planDays))
   }
 
   function toggleDestination(id: DestinationId) {
@@ -718,12 +730,13 @@ function App() {
 
   function applyDateRange(nextStart: string, nextEnd: string) {
     // If user edits return date, duration follows the inclusive span.
-    const span = daysBetween(nextStart, nextEnd)
-    setStartDate(nextStart)
+    const clampedStart = clampStartDate(nextStart)
+    const span = daysBetween(clampedStart, nextEnd)
+    setStartDate(clampedStart)
     if (span) {
       setTripDays(span)
     } else {
-      setEndDate(endDateFromStart(nextStart, planDays))
+      setEndDate(endDateFromStart(clampedStart, planDays))
     }
   }
 
@@ -733,7 +746,9 @@ function App() {
       return
     }
     const advice = aggregateDayAdvice(selectedDestinations)
-    const span = daysBetween(startDate, endDate)
+    const clampedStart = clampStartDate(startDate)
+    if (clampedStart !== startDate) setStartDate(clampedStart)
+    const span = daysBetween(clampedStart, endDate)
     setTripDays(span ?? advice.comfortable)
     setInputError('')
     setStep('preferences')
@@ -1338,15 +1353,20 @@ function App() {
                 <input
                   id="start"
                   type="date"
+                  min={minStartDate}
                   value={startDate}
                   onChange={(e) => setJourneyStart(e.target.value)}
                 />
+                <p className="range-value">
+                  最早可選 {formatDateZh(minStartDate)}（計劃當日的下一天；不可選過去／今天）
+                </p>
               </div>
               <div className="field-block">
                 <label htmlFor="end">結束／返回日期（由天數自動計算）</label>
                 <input
                   id="end"
                   type="date"
+                  min={startDate}
                   value={computedEndDate}
                   onChange={(e) => applyDateRange(startDate, e.target.value)}
                 />
@@ -2239,7 +2259,7 @@ function App() {
                 <p>
                   {primary.curatedPlans?.[planDays]
                     ? `這是 ${primary.nameZh} 的 ${planDays} 日完整舒服版行程；取消勾選景點後可精簡對應日。`
-                    : `目前實際排出 ${itinerary.length} 天，其中 ${itinerary.length - hollowDayCount} 天有真實景點。`}
+                    : `完整 ${itinerary.length} 天（你選 ${planDays} 天），其中 ${itinerary.length - hollowDayCount} 天有真實景點${hollowDayCount ? `、${hollowDayCount} 天為休息／彈性日` : ''}。`}
                 </p>
               </div>
               <div className="day-list">

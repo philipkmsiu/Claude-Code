@@ -485,75 +485,6 @@ function dayBullets(day: DayPlan): string[] {
   return [day.theme].filter(Boolean)
 }
 
-/** Gemini sample style: hand-painted watercolor circle — SVG only, never a photo. */
-function GeminiDayArt({ day, index }: { day: DayPlan; index: number }) {
-  const motif = landmarkMotif(day)
-  const palettes = [
-    { sky: '#dfe9e4', ground: '#c4a574', accent: '#6f8f7f', ink: '#4a4338' },
-    { sky: '#e8dcc8', ground: '#8a6b4a', accent: '#5b8fa8', ink: '#5c5348' },
-    { sky: '#d9e4dc', ground: '#7a9e8e', accent: '#c17a5a', ink: '#3f4a44' },
-    { sky: '#f0e4d4', ground: '#b08a5a', accent: '#8a5a6a', ink: '#5a4038' },
-    { sky: '#e4ebe8', ground: '#6b8fa8', accent: '#9a6b3f', ink: '#445058' },
-    { sky: '#efe6d8', ground: '#9a7a58', accent: '#6f8f7f', ink: '#4e463c' },
-  ]
-  const p = palettes[index % palettes.length]
-
-  return (
-    <div className="day-scene circular gemini-art painted-only" aria-hidden>
-      <svg viewBox="0 0 120 120" className="gemini-paint-svg">
-        <defs>
-          <radialGradient id={`sky-${index}`} cx="40%" cy="30%" r="75%">
-            <stop offset="0%" stopColor="#fffaf2" />
-            <stop offset="55%" stopColor={p.sky} />
-            <stop offset="100%" stopColor={p.ground} stopOpacity="0.55" />
-          </radialGradient>
-          <filter id={`wash-${index}`}>
-            <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" seed={index + 3} result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="2.8" />
-          </filter>
-          <filter id={`bleed-${index}`}>
-            <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed={index + 11} result="n" />
-            <feDiffuseLighting in="n" lightingColor={p.accent} surfaceScale="1.2" result="lit">
-              <feDistantLight azimuth="40" elevation="55" />
-            </feDiffuseLighting>
-            <feBlend in="SourceGraphic" in2="lit" mode="soft-light" />
-          </filter>
-        </defs>
-        <circle cx="60" cy="60" r="58" fill={`url(#sky-${index})`} />
-        <g filter={`url(#wash-${index})`}>
-          {/* Soft watercolor blotches — paper wash, not photography */}
-          <ellipse cx={28 + (index % 3) * 6} cy="30" rx="18" ry="10" fill="#fff8ee" opacity="0.55" />
-          <circle cx={90 - (index % 4) * 4} cy="26" r="11" fill={p.accent} opacity="0.28" />
-          <ellipse cx="60" cy="96" rx="46" ry="16" fill={p.ground} opacity="0.35" />
-          <g filter={`url(#bleed-${index})`} opacity="0.95">
-            <LandmarkSketch motif={motif} index={index} />
-          </g>
-        </g>
-        <circle
-          cx="60"
-          cy="60"
-          r="57"
-          fill="none"
-          stroke={p.ink}
-          strokeWidth="1.4"
-          opacity="0.35"
-        />
-        <text
-          x="60"
-          y="112"
-          textAnchor="middle"
-          fontSize="7.5"
-          fill={p.ink}
-          fontFamily="Georgia, 'Noto Serif TC', serif"
-          opacity="0.85"
-        >
-          {motifLabel(motif)}
-        </text>
-      </svg>
-    </div>
-  )
-}
-
 type LandmarkMotif =
   | 'wall'
   | 'pagoda'
@@ -566,6 +497,60 @@ type LandmarkMotif =
   | 'plane'
   | 'garden'
   | 'default'
+
+/** Hand-painted watercolor plates (Gemini scrapbook sample style — not photos). */
+const WATERCOLOR_PLATE: Record<LandmarkMotif, string> = {
+  wall: '/poster/watercolor-wall.png',
+  pagoda: '/poster/watercolor-pagoda.png',
+  terracotta: '/poster/watercolor-terracotta.png',
+  mountain: '/poster/watercolor-mountain.png',
+  mosque: '/poster/watercolor-street.png',
+  lake: '/poster/watercolor-lake.png',
+  museum: '/poster/watercolor-museum.png',
+  street: '/poster/watercolor-street.png',
+  plane: '/poster/watercolor-travel.png',
+  garden: '/poster/watercolor-garden.png',
+  default: '/poster/watercolor-garden.png',
+}
+
+/** Gemini sample: painted circular plate matched to the day's landmark. Never real photos. */
+function GeminiDayArt({ day, index }: { day: DayPlan; index: number }) {
+  const motif = landmarkMotif(day)
+  const src = WATERCOLOR_PLATE[motif]
+  // Same motif on multiple days still gets a distinct crop / wash.
+  const positions = [
+    '50% 45%',
+    '42% 40%',
+    '58% 48%',
+    '46% 52%',
+    '54% 38%',
+    '48% 55%',
+    '60% 42%',
+    '40% 50%',
+  ]
+  const washes = [
+    'saturate(0.92) contrast(0.96) brightness(1.03)',
+    'saturate(0.88) contrast(0.94) brightness(1.05) hue-rotate(-6deg)',
+    'saturate(0.95) contrast(0.97) brightness(1.02) hue-rotate(8deg)',
+    'saturate(0.9) contrast(0.95) brightness(1.04) sepia(0.08)',
+  ]
+
+  return (
+    <div className="day-scene circular gemini-art painted-plate" aria-hidden>
+      <img
+        className="gemini-plate-img"
+        src={src}
+        alt=""
+        draggable={false}
+        style={{
+          objectPosition: positions[index % positions.length],
+          filter: washes[index % washes.length],
+        }}
+      />
+      <span className="gemini-plate-label">{motifLabel(motif)}</span>
+    </div>
+  )
+}
 
 function landmarkMotif(day: DayPlan): LandmarkMotif {
   const text = `${day.theme} ${day.stayCity || ''} ${day.mainPlan || ''} ${day.schedule
