@@ -172,17 +172,22 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 1.15em;
-  height: 1.15em;
+  width: 2.1rem;
+  height: 2.1rem;
   margin: 0;
-  font-size: 1.75rem;
-  line-height: 1;
   display: grid;
   place-items: center;
-  transform: translate(-50%, -50%) scale(0.85) rotate(-20deg);
-  filter: drop-shadow(0 4px 6px rgba(20, 24, 40, 0.35));
+  transform: translate(-50%, -50%) scale(0.55) rotate(-20deg);
+  filter: drop-shadow(0 6px 10px rgba(20, 24, 40, 0.4));
   animation: km-football-spin var(--km-kick-dur) linear infinite;
-  will-change: transform;
+  will-change: transform, opacity;
+}
+
+.km-football-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 .km-boom {
@@ -315,15 +320,15 @@
   animation: km-burst-spark-kick var(--km-kick-dur) linear infinite;
 }
 
-/* Mid-air apex burst (big) */
+/* Mid-air apex burst (big — matches the enlarged football) */
 .km-boom-apex .km-boom-glow {
-  width: 7rem;
-  height: 7rem;
-  margin: -3.5rem;
+  width: 10rem;
+  height: 10rem;
+  margin: -5rem;
   animation: km-burst-glow-apex var(--km-kick-dur) linear infinite;
 }
 .km-boom-apex .km-boom-flash {
-  font-size: 3.1rem;
+  font-size: 4rem;
   animation: km-burst-flash-apex var(--km-kick-dur) linear infinite;
 }
 .km-boom-apex .km-boom-flash-b {
@@ -2729,23 +2734,46 @@ main {
   }
 }
 
+/*
+ * Spin + grow: small at the kick, gradually swell to a much bigger ball
+ * right before the mid-air explosion, then pop away into the boom.
+ */
 @keyframes km-football-spin {
   0%,
-  28% {
-    transform: translate(-50%, -50%) scale(0.85) rotate(-30deg);
+  26% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.5) rotate(-40deg);
   }
   32% {
-    transform: translate(-50%, -50%) scale(1.08) rotate(40deg);
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.72) rotate(50deg);
   }
-  48% {
-    transform: translate(-50%, -50%) scale(1) rotate(540deg);
+  38% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.35) rotate(220deg);
   }
-  68% {
-    transform: translate(-50%, -50%) scale(0.8) rotate(980deg);
+  43% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(2.4) rotate(380deg);
   }
-  74%,
+  47% {
+    /* Peak size just before apex boom */
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(3.8) rotate(520deg);
+  }
+  49% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(4.2) rotate(560deg);
+  }
+  51% {
+    /* Explode away */
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(4.6) rotate(600deg);
+  }
+  52%,
   100% {
-    transform: translate(-50%, -50%) scale(0.55) rotate(1200deg);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5) rotate(-40deg);
   }
 }
 
