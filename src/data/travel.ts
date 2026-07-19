@@ -721,16 +721,18 @@ export function foodAndGiftsForArea(
   destinationName = '',
 ): { nearbyFood: string; souvenirs: string; shoppingOutlet: string } {
   const text = `${area} ${destinationName}`
-  if (/英國|UK|倫敦|London|牛津|劍橋|約克|巴斯|卡地夫|愛丁堡/i.test(text)) {
+  if (/英國|UK|倫敦|London|牛津|劍橋|約克|巴斯|卡地夫|愛丁堡|Bicester|比斯特/i.test(text)) {
     return {
       nearbyFood: 'Fish and Chips、英式早餐或一間在地 Pub 套餐。',
       souvenirs: '茶葉禮盒、羊毛小物、城市明信片。',
       shoppingOutlet:
-        /倫敦|London|溫莎|Windsor/i.test(text)
-          ? 'Bicester Village 名牌 Outlet（倫敦出發一日購）；或 Westfield／牛津街補貨。'
-          : /牛津|劍橋|約克|巴斯|卡地夫|愛丁堡/i.test(text)
-            ? '古城高街精品店與市集；若想衝 Outlet 可另排 Bicester Village／McArthurGlen。'
-            : 'Bicester Village 或當地高街／市集購物半日。',
+        /Bicester|比斯特/i.test(text)
+          ? 'Bicester Village 名牌 Outlet 本體：倫敦瑪麗勒本車站火車約 1 小時，經典一日購。'
+          : /倫敦|London|溫莎|Windsor/i.test(text)
+            ? '必去 Bicester Village 名牌 Outlet（倫敦出發一日購最有名）；市區可補牛津街／Westfield。'
+            : /牛津|劍橋|約克|巴斯|卡地夫|愛丁堡/i.test(text)
+              ? '古城高街精品店與市集；Outlet 首選仍是倫敦近郊 Bicester Village。'
+              : '英國最著名 Outlet：Bicester Village（倫敦出發一日購）。',
     }
   }
   if (/慕尼黑|Munich|巴伐利亞|新天鵝/i.test(text)) {
@@ -840,7 +842,62 @@ export function scenicSpotsFromAi(
       bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
     })
   })
-  return spots
+  return ensureFamousShoppingSpots(place, spots)
+}
+
+/** Guarantee famous regional outlets appear (e.g. Bicester Village for London/UK). */
+export function ensureFamousShoppingSpots(
+  place: string,
+  spots: ScenicSpot[],
+): ScenicSpot[] {
+  const text = place.trim()
+  const isUk =
+    /英國|UK|United Kingdom|Britain|倫敦|London|英格蘭|蘇格蘭|威爾斯|威爾士|北愛爾蘭|愛丁堡|牛津|劍橋|約克|巴斯|卡地夫|利物浦/i.test(
+      text,
+    )
+  if (!isUk) return spots
+
+  // Only treat a real Bicester Village spot as present — shoppingOutlet mentions alone don't count.
+  const hasBicester = spots.some((spot) =>
+    /Bicester|比斯特/i.test(`${spot.name} ${spot.nameLocal}`),
+  )
+
+  const isLondonFocused = /倫敦|London/i.test(text)
+  const withLondonOutletHints = spots.map((spot) => {
+    const looksLondon =
+      isLondonFocused ||
+      /倫敦|London|溫莎|Windsor|Westminster|Covent|Soho|Camden|Greenwich|牛津街|Oxford Street|Marylebone|瑪麗勒本/i.test(
+        `${spot.area} ${spot.name}`,
+      )
+    if (!looksLondon) return spot
+    if (/Bicester|比斯特/i.test(spot.shoppingOutlet || '')) return spot
+    return {
+      ...spot,
+      shoppingOutlet:
+        'Bicester Village 名牌 Outlet（倫敦／瑪麗勒本車站出發約 1 小時，一日購經典）；亦可逛牛津街／Westfield。',
+    }
+  })
+
+  if (hasBicester) return withLondonOutletHints
+
+  const stamp = Date.now().toString(36)
+  const bicester: ScenicSpot = {
+    id: `ai-spot-${slugifyDestination(place)}-${stamp}-bicester`,
+    name: 'Bicester Village',
+    nameLocal: 'Bicester Village',
+    area: '牛津郡・比斯特（倫敦一日購）',
+    stayHours: 6,
+    summary:
+      'Bicester Village 是倫敦旅客最著名的名牌 Outlet 一日購：從倫敦瑪麗勒本車站搭火車約一小時可達，街道式村鎮佈局好逛好拍，週末建議一早出發避開人潮。',
+    nearbyFood: '園區內咖啡與輕食；回倫敦後可安排一頓 Pub 晚餐。',
+    souvenirs: 'Outlet 季末戰利品、英國茶葉禮盒、品牌配件。',
+    shoppingOutlet:
+      'Bicester Village 本體即 Outlet 主力；可依清單鎖定 Burberry、Coach、Polo 等店。',
+    tags: ['shopping', 'popular', 'must'],
+    ticket: '免費入場；交通另計',
+    bestFor: ['couple', 'friends', 'family', 'solo'],
+  }
+  return [bicester, ...withLondonOutletHints]
 }
 
 function dayFoodAndSouvenirNotes(

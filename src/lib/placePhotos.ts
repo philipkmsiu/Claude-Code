@@ -148,6 +148,9 @@ const SEARCH_HINT: Record<string, string> = {
   溫莎城堡: 'Windsor Castle England',
   大本鐘: 'Big Ben Elizabeth Tower London',
   西敏寺: 'Westminster Abbey London',
+  'Bicester Village': 'Bicester Village outlet shopping',
+  比斯特: 'Bicester Village Oxfordshire',
+  比斯特購物村: 'Bicester Village designer outlet',
 }
 
 /** English Wikipedia page titles for stable scenic thumbnails. */
@@ -219,6 +222,9 @@ const WIKI_TITLE: Record<string, string> = {
   大本鐘: 'Big Ben',
   西敏寺: 'Westminster Abbey',
   溫莎城堡: 'Windsor Castle',
+  'Bicester Village': 'Bicester Village',
+  比斯特: 'Bicester Village',
+  比斯特購物村: 'Bicester Village',
 }
 
 function normalizeKey(raw: string): string {
@@ -390,8 +396,8 @@ const CITY_SCENIC: Record<string, string[]> = {
   柏林: ['布蘭登堡門', '柏林圍牆'],
   慕尼黑: ['新天鵝堡'],
   科隆: ['科隆大教堂'],
-  倫敦: ['白金漢宮', '塔橋', '大本鐘', '大英博物館'],
-  牛津: ['牛津大學', '牛津'],
+  倫敦: ['白金漢宮', '塔橋', '大本鐘', '大英博物館', 'Bicester Village'],
+  牛津: ['牛津大學', '牛津', 'Bicester Village'],
   劍橋: ['劍橋大學', '劍橋'],
   愛丁堡: ['愛丁堡城堡', '愛丁堡'],
   北愛爾蘭: ['巨人堤道', '巨人之路'],
