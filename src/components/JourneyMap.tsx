@@ -92,15 +92,27 @@ export function JourneyMap({
     let cancelled = false
     setPhotosLoading(true)
     void resolveDayPhotos(
-      itinerary.map((day) => ({
-        stayCity: day.stayCity || day.stayArea,
-        theme: day.theme,
-        mainPlan: day.mainPlan,
-        spotNames: [
-          ...(day.mainPlan ? day.mainPlan.split(/[、，,；;]/).map((s) => s.trim()) : []),
-          ...day.schedule.map((item) => item.title),
-        ],
-      })),
+      itinerary.map((day) => {
+        const fromSpots = day.schedule
+          .filter((item) => item.spotId)
+          .map((item) => item.title.trim())
+        const fromTitles = day.schedule
+          .map((item) => item.title.trim())
+          .filter(
+            (title) =>
+              title &&
+              !/住宿|機場|返程|出發|午餐|晚餐|手信|轉乘|抵達|入住|自由|咖啡|散步|伴手禮/.test(
+                title,
+              ),
+          )
+          .map((title) => title.replace(/^轉乘前往\s*/, '').trim())
+        return {
+          stayCity: day.stayCity || day.stayArea,
+          theme: day.theme,
+          mainPlan: day.mainPlan,
+          spotNames: [...fromSpots, ...fromTitles],
+        }
+      }),
       destinationName,
     )
       .then((rows) => {

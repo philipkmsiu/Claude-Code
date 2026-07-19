@@ -77,16 +77,94 @@ const SEARCH_HINT: Record<string, string> = {
   國際大巴扎: 'Urumqi International Grand Bazaar',
   紅山公園: 'Hongshan Park Urumqi',
   新疆博物館: 'Xinjiang Regional Museum',
-  伏見稻荷: 'Fushimi Inari Shrine torii',
-  清水寺: 'Kiyomizu-dera Kyoto',
-  大阪城: 'Osaka Castle keep',
+  伏見稻荷: 'Fushimi Inari-taisha torii gates',
+  伏見稻荷大社: 'Fushimi Inari-taisha torii gates',
+  清水寺: 'Kiyomizu-dera Kyoto stage',
+  大阪城: 'Osaka Castle keep park',
+  金閣寺: 'Kinkaku-ji Golden Pavilion Kyoto',
+  嵐山: 'Arashiyama Bamboo Grove Kyoto',
+  嵐山竹林: 'Arashiyama Bamboo Grove path',
+  渡月橋: 'Togetsukyo Bridge Arashiyama',
+  祇園: 'Gion Kyoto street evening',
+  花見小路: 'Hanamikoji Street Gion',
+  道頓堀: 'Dotonbori Osaka neon night',
+  心齋橋: 'Shinsaibashi Osaka shopping street',
+  黑門市場: 'Kuromon Market Osaka seafood',
+  新世界: 'Shinsekai Tsutenkaku Osaka',
+  通天閣: 'Tsutenkaku Tower Osaka',
+  梅田空中庭園: 'Umeda Sky Building Floating Garden',
+  空中庭園: 'Umeda Sky Building observatory',
+  環球影城: 'Universal Studios Japan Osaka',
+  USJ: 'Universal Studios Japan entrance',
+  海遊館: 'Osaka Aquarium Kaiyukan',
+  難波八阪神社: 'Namba Yasaka Shrine lion head',
+  二条城: 'Nijo Castle Kyoto',
+  哲學之道: 'Philosopher Path Kyoto',
+  錦市場: 'Nishiki Market Kyoto',
+  宇治: 'Byodo-in Temple Uji',
+  平等院: 'Byodo-in Phoenix Hall Uji',
+  奈良公園: 'Nara Park deer Todai-ji',
+  奈良: 'Todai-ji Great Buddha Nara',
+  東大寺: 'Todai-ji Temple Nara',
+  神戶: 'Kobe Harbor night view',
+  神戶港: 'Kobe Port Tower harbor',
+  淺草寺: 'Senso-ji Temple Asakusa',
+  晴空塔: 'Tokyo Skytree',
+  澀谷: 'Shibuya Crossing Tokyo',
+  明治神宮: 'Meiji Shrine Tokyo',
+  新天鵝堡: 'Neuschwanstein Castle Bavaria',
+  科隆大教堂: 'Cologne Cathedral facade',
+  布蘭登堡門: 'Brandenburg Gate Berlin',
+  柏林圍牆: 'Berlin Wall Memorial',
+}
+
+/** English Wikipedia page titles for stable scenic thumbnails. */
+const WIKI_TITLE: Record<string, string> = {
+  伏見稻荷: 'Fushimi Inari-taisha',
+  伏見稻荷大社: 'Fushimi Inari-taisha',
+  清水寺: 'Kiyomizu-dera',
+  大阪城: 'Osaka Castle',
+  金閣寺: 'Kinkaku-ji',
+  嵐山: 'Arashiyama',
+  嵐山竹林: 'Arashiyama',
+  渡月橋: 'Togetsukyo Bridge',
+  祇園: 'Gion',
+  道頓堀: 'Dotonbori',
+  心齋橋: 'Shinsaibashi',
+  黑門市場: 'Kuromon Market',
+  通天閣: 'Tsūtenkaku',
+  梅田空中庭園: 'Umeda Sky Building',
+  空中庭園: 'Umeda Sky Building',
+  環球影城: 'Universal Studios Japan',
+  USJ: 'Universal Studios Japan',
+  海遊館: 'Osaka Aquarium Kaiyukan',
+  二条城: 'Nijō Castle',
+  哲學之道: "Philosopher's Walk",
+  錦市場: 'Nishiki Market',
+  宇治: 'Byōdō-in',
+  平等院: 'Byōdō-in',
+  奈良公園: 'Nara Park',
+  奈良: 'Tōdai-ji',
+  東大寺: 'Tōdai-ji',
+  神戶港: 'Port of Kobe',
+  神戶: 'Port of Kobe',
+  淺草寺: 'Sensō-ji',
+  晴空塔: 'Tokyo Skytree',
+  澀谷: 'Shibuya Crossing',
+  明治神宮: 'Meiji Shrine',
+  新天鵝堡: 'Neuschwanstein Castle',
+  科隆大教堂: 'Cologne Cathedral',
+  布蘭登堡門: 'Brandenburg Gate',
+  柏林圍牆: 'Berlin Wall Memorial',
+  博物館島: 'Museum Island',
+  海德堡城堡: 'Heidelberg Castle',
 }
 
 function normalizeKey(raw: string): string {
   return raw
     .replace(/（.*?）|\(.*?\)/g, '')
     .replace(
-      /景區|國家遺址公園|遺址公園|公園|博物館|博物院|度假酒店|酒店|住宿|精華|重點景區|野生動物園|音樂廳|美術[館院]/g,
+      /景區|國家遺址公園|遺址公園|公園|博物館|博物院|度假酒店|酒店|住宿|精華|重點景區|野生動物園|音樂廳|美術[館院]|全日遊|打卡紅點/g,
       '',
     )
     .trim()
@@ -102,39 +180,74 @@ function localMatch(query: string): string | null {
   return null
 }
 
-function searchHint(query: string): string {
+function lookupMap(map: Record<string, string>, query: string): string | null {
   const q = normalizeKey(query)
-  if (SEARCH_HINT[q]) return SEARCH_HINT[q]
-  for (const [key, hint] of Object.entries(SEARCH_HINT)) {
-    if (q.includes(key) || key.includes(q)) return hint
+  if (!q) return null
+  if (map[q]) return map[q]
+  for (const [key, value] of Object.entries(map)) {
+    if (q.includes(key) || key.includes(q)) return value
   }
-  return `${q} landmark China`
+  return null
+}
+
+function photoRegion(destinationName: string, query: string): string {
+  const text = `${destinationName} ${query}`
+  if (/關西|大阪|京都|奈良|神戶|東京|日本|Japan|Osaka|Kyoto|Tokyo|Kansai/i.test(text)) {
+    return 'Japan'
+  }
+  if (/首爾|韓國|Korea|Seoul/i.test(text)) return 'South Korea'
+  if (/德國|柏林|慕尼黑|科隆|Germany|german|Europe|巴黎|France/i.test(text)) {
+    return 'Europe'
+  }
+  if (/台北|臺灣|台灣|Taiwan/i.test(text)) return 'Taiwan'
+  if (/新疆|青甘|西安|中國|China|敦煌|喀什/i.test(text)) return 'China'
+  return 'travel'
+}
+
+function searchHint(query: string, destinationName = ''): string {
+  const mapped = lookupMap(SEARCH_HINT, query)
+  if (mapped) return mapped
+  const q = normalizeKey(query)
+  const region = photoRegion(destinationName, q)
+  return `${q} landmark ${region}`
+}
+
+function wikiTitleFor(query: string): string | null {
+  return lookupMap(WIKI_TITLE, query)
 }
 
 export async function resolvePlacePhoto(
   query: string,
-  options?: { avoidUrls?: Set<string> },
+  options?: { avoidUrls?: Set<string>; destinationName?: string },
 ): Promise<string | null> {
   const key = normalizeKey(query)
   if (!key) return null
   const avoid = options?.avoidUrls
+  const destinationName = options?.destinationName || ''
+  const region = photoRegion(destinationName, key)
+  const cacheKey = `${region}::${key}`
 
-  const cached = photoCache.get(key)
+  const cached = photoCache.get(cacheKey)
   if (cached && (!avoid || !avoid.has(cached))) return cached
 
   const local = localMatch(key)
   if (local && (!avoid || !avoid.has(local))) {
-    photoCache.set(key, local)
+    photoCache.set(cacheKey, local)
     return local
   }
 
   try {
-    const hint = searchHint(key)
-    const res = await fetch(
-      `/api/place-photo?q=${encodeURIComponent(hint)}&fallback=${encodeURIComponent(key)}`,
-    )
+    const hint = searchHint(key, destinationName)
+    const wiki = wikiTitleFor(key)
+    const params = new URLSearchParams({
+      q: hint,
+      fallback: key,
+      region,
+    })
+    if (wiki) params.set('wiki', wiki)
+    const res = await fetch(`/api/place-photo?${params.toString()}`)
     if (!res.ok) {
-      photoCache.set(key, null)
+      photoCache.set(cacheKey, null)
       return null
     }
     const data = (await res.json()) as { url?: string | null }
@@ -146,22 +259,27 @@ export async function resolvePlacePhoto(
         ['night view', 2],
         ['panorama', 3],
       ] as const) {
-        const retry = await fetch(
-          `/api/place-photo?q=${encodeURIComponent(`${hint} ${suffix}`)}&fallback=${encodeURIComponent(`${key} ${suffix}`)}&offset=${offset}`,
-        )
+        const retryParams = new URLSearchParams({
+          q: `${hint} ${suffix}`,
+          fallback: `${key} ${suffix}`,
+          region,
+          offset: String(offset),
+        })
+        if (wiki) retryParams.set('wiki', wiki)
+        const retry = await fetch(`/api/place-photo?${retryParams.toString()}`)
         if (!retry.ok) continue
         const retryData = (await retry.json()) as { url?: string | null }
         if (retryData.url && !avoid.has(retryData.url)) {
-          photoCache.set(`${key}::${suffix}`, retryData.url)
+          photoCache.set(`${cacheKey}::${suffix}`, retryData.url)
           return retryData.url
         }
       }
       return null
     }
-    photoCache.set(key, url)
+    photoCache.set(cacheKey, url)
     return url
   } catch {
-    photoCache.set(key, null)
+    photoCache.set(cacheKey, null)
     return null
   }
 }
@@ -188,6 +306,14 @@ const CITY_SCENIC: Record<string, string[]> = {
   布爾津: ['五彩灘', '布爾津'],
   阿勒泰: ['阿勒泰'],
   返程: ['烏魯木齊', '紅山公園'],
+  大阪: ['大阪城', '道頓堀', '通天閣'],
+  京都: ['清水寺', '金閣寺', '伏見稻荷'],
+  奈良: ['奈良公園', '東大寺'],
+  神戶: ['神戶港'],
+  東京: ['淺草寺', '澀谷', '晴空塔'],
+  柏林: ['布蘭登堡門', '柏林圍牆'],
+  慕尼黑: ['新天鵝堡'],
+  科隆: ['科隆大教堂'],
 }
 
 /** Candidate queries for one day, most specific first. */
@@ -226,7 +352,10 @@ export async function resolveDayPhotos(
     const candidates = dayPhotoCandidates(day, destinationName)
     let picked: string | null = null
     for (const candidate of candidates) {
-      const url = await resolvePlacePhoto(candidate, { avoidUrls: used })
+      const url = await resolvePlacePhoto(candidate, {
+        avoidUrls: used,
+        destinationName,
+      })
       if (url && !used.has(url)) {
         picked = url
         used.add(url)
@@ -235,8 +364,15 @@ export async function resolveDayPhotos(
     }
     // Last resort: allow a city photo even if seen before, rather than a blank/broken slot.
     if (!picked) {
-      for (const candidate of candidates) {
-        const url = await resolvePlacePhoto(candidate)
+      for (const candidate of [
+        ...candidates,
+        ...dayPhotoCandidates(
+          { stayCity: day.stayCity, theme: day.theme },
+          destinationName,
+        ),
+        destinationName,
+      ]) {
+        const url = await resolvePlacePhoto(candidate, { destinationName })
         if (url) {
           picked = url
           break

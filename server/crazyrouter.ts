@@ -592,6 +592,22 @@ async function handleSeasonGuide(req: IncomingMessage, res: ServerResponse) {
   }
 }
 
+const BAD_PHOTO_RE =
+  /map|plan|diagram|floor|sketch|drawing|logo|icon|svg|layout|blueprint|schematic|chart|graph|coat_of_arms|flag|pictogram|symbol|route|transit|stamp|postcard_back|qr.?code|screenshot/i
+
+function isScenicPhotoCandidate(options: {
+  title?: string
+  url?: string
+  mime?: string
+}): boolean {
+  const mime = options.mime || ''
+  if (mime && !mime.startsWith('image/')) return false
+  if (/svg/i.test(mime)) return false
+  const blob = `${options.title || ''} ${options.url || ''}`
+  if (BAD_PHOTO_RE.test(blob)) return false
+  return Boolean(options.url)
+}
+
 async function fetchCommonsThumb(
   search: string,
   options?: { offset?: number },
@@ -603,7 +619,7 @@ async function fetchCommonsThumb(
       action: 'query',
       generator: 'search',
       gsrsearch: search,
-      gsrlimit: '8',
+      gsrlimit: '12',
       gsroffset: String(offset),
       gsrnamespace: '6',
       prop: 'imageinfo',
@@ -625,6 +641,7 @@ async function fetchCommonsThumb(
       pages?: Record<
         string,
         {
+          title?: string
           index?: number
           imageinfo?: { thumburl?: string; url?: string; mime?: string }[]
         }
@@ -636,12 +653,46 @@ async function fetchCommonsThumb(
   )
   for (const page of pages) {
     const info = page.imageinfo?.[0]
-    const mime = info?.mime || ''
-    if (mime && !mime.startsWith('image/')) continue
     const url = info?.thumburl || info?.url
-    if (url) return url
+    if (
+      isScenicPhotoCandidate({
+        title: page.title,
+        url,
+        mime: info?.mime,
+      })
+    ) {
+      return url || null
+    }
   }
   return null
+}
+
+/** Wikipedia page thumbnail — more reliable scenic shot than random Commons hits. */
+async function fetchWikipediaThumb(title: string): Promise<string | null> {
+  const page = title.trim()
+  if (!page) return null
+  try {
+    const api = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(page.replace(/ /g, '_'))}`
+    const response = await fetch(api, {
+      headers: {
+        'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/KM-Travel-Planner)',
+        Accept: 'application/json',
+      },
+    })
+    if (!response.ok) return null
+    const data = (await response.json()) as {
+      thumbnail?: { source?: string }
+      originalimage?: { source?: string }
+      type?: string
+    }
+    if (data.type === 'disambiguation') return null
+    const url = data.originalimage?.source || data.thumbnail?.source
+    if (!url || !/^https:\/\/upload\.wikimedia\.org\//i.test(url)) return null
+    if (BAD_PHOTO_RE.test(url)) return null
+    return url
+  } catch {
+    return null
+  }
 }
 
 async function handlePlacePhoto(req: IncomingMessage, res: ServerResponse) {
@@ -666,9 +717,34 @@ async function handlePlacePhoto(req: IncomingMessage, res: ServerResponse) {
     }
 
     const offset = Number(url.searchParams.get('offset') || 0) || 0
-    const attempts = [q, fallback, `${q} landmark`, `${fallback} China`].filter(
-      (item, index, arr) => item && arr.indexOf(item) === index,
+    const wikiTitle = (url.searchParams.get('wiki') || '').trim()
+    const region = (url.searchParams.get('region') || '').trim()
+    const regionSuffix = /japan|kansai|tokyo|osaka|kyoto|korea|seoul|europe|germany|paris/i.test(
+      `${q} ${fallback} ${region}`,
     )
+      ? region || 'Japan'
+      : /china|xi.?an|xinjiang|qinghai|silk/i.test(`${q} ${fallback} ${region}`)
+        ? 'China'
+        : region || 'travel landmark'
+
+    const attempts = [
+      q,
+      fallback,
+      `${q} landmark`,
+      `${q} ${regionSuffix}`,
+      `${fallback} ${regionSuffix}`,
+      wikiTitle,
+    ].filter((item, index, arr) => item && arr.indexOf(item) === index)
+
+    // Prefer Wikipedia summary thumbnails for named landmarks (fewer maps/diagrams).
+    if (wikiTitle) {
+      const wikiThumb = await fetchWikipediaThumb(wikiTitle)
+      if (wikiThumb) {
+        const proxied = `/api/place-photo-file?src=${encodeURIComponent(wikiThumb)}`
+        sendJson(res, 200, { url: proxied, source: wikiThumb, query: wikiTitle })
+        return
+      }
+    }
 
     for (const attempt of attempts) {
       const thumb = await fetchCommonsThumb(attempt, { offset })
@@ -676,6 +752,17 @@ async function handlePlacePhoto(req: IncomingMessage, res: ServerResponse) {
         // Same-origin proxy URL so the poster <img> always loads (and PNG export works).
         const proxied = `/api/place-photo-file?src=${encodeURIComponent(thumb)}`
         sendJson(res, 200, { url: proxied, source: thumb, query: attempt })
+        return
+      }
+    }
+
+    // Last try: treat the English hint as a Wikipedia page title.
+    for (const attempt of [q, fallback]) {
+      if (!attempt || !/^[A-Za-z0-9 ,.'()\-]+$/.test(attempt)) continue
+      const wikiThumb = await fetchWikipediaThumb(attempt)
+      if (wikiThumb) {
+        const proxied = `/api/place-photo-file?src=${encodeURIComponent(wikiThumb)}`
+        sendJson(res, 200, { url: proxied, source: wikiThumb, query: attempt })
         return
       }
     }
