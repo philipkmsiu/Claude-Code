@@ -6,7 +6,8 @@ type Props = {
   title?: string
 }
 
-const ASSET_V = 'v3'
+/** Bump when mask PNGs change so browsers skip stale cache. */
+const ASSET_V = 'v4'
 
 export function KmLogo({ className = '', size = 48, title = 'KM' }: Props) {
   return (
@@ -16,22 +17,21 @@ export function KmLogo({ className = '', size = 48, title = 'KM' }: Props) {
       role="img"
       aria-label={title}
     >
-      <img
+      {/* White alpha masks + animated background-color (filters on grey PNGs are invisible) */}
+      <span
         className="km-logo-base"
-        src={`/km-logo-base.png?${ASSET_V}`}
-        alt=""
-        draggable={false}
-        width={size}
-        height={size}
+        style={{
+          WebkitMaskImage: `url(/km-logo-base.png?${ASSET_V})`,
+          maskImage: `url(/km-logo-base.png?${ASSET_V})`,
+        }}
       />
       <span className="km-logo-foot-wrap" aria-hidden>
-        <img
+        <span
           className="km-logo-foot"
-          src={`/km-logo-foot.png?${ASSET_V}`}
-          alt=""
-          draggable={false}
-          width={size}
-          height={size}
+          style={{
+            WebkitMaskImage: `url(/km-logo-foot.png?${ASSET_V})`,
+            maskImage: `url(/km-logo-foot.png?${ASSET_V})`,
+          }}
         />
       </span>
     </span>

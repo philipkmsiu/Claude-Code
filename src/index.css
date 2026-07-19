@@ -60,4 +60,15 @@ a {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /* Brand mark color cycles are non-spatial; keep them visible */
+  .km-logo-live .km-logo-base,
+  .km-logo-live .km-logo-foot {
+    animation-duration: 3.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .km-logo-live .km-logo-foot {
+    animation-duration: 2s !important;
+  }
 }
