@@ -2395,10 +2395,108 @@ function timeLabel(hour: number, minute = 0): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
+/**
+ * Shrink a long curated route (e.g. Xinjiang 29 → 18) by dropping spare
+ * rest/buffer days first, then evenly sampling content — never invent a
+ * trailing block of empty Urumqi laundry days.
+ */
+export function compressCuratedPlan(plan: DayPlan[], targetDays: number): DayPlan[] {
+  const target = clampDays(targetDays)
+  if (!plan.length) return plan
+  if (plan.length <= target) return plan.map((d) => ({ ...d }))
+
+  const isRestDay = (day: DayPlan) =>
+    /休息|彈性|自由日|備用|緩衝|完整休息|洗衣|補眠/.test(
+      `${day.theme} ${day.mainPlan || ''}`,
+    ) && !/飛|→|返程|抵達|環湖|三灣|古城|峽谷|公路|魔鬼|五彩|帕米爾|石頭城/.test(day.theme)
+
+  const indexed = plan.map((day, index) => ({ day, index }))
+  const mustKeep = new Set<number>([0, plan.length - 1])
+  const highlightScore = (day: DayPlan) => {
+    let score = day.spotIds.length * 5
+    if (/慢遊|環湖|三灣|古城|峽谷|帕米爾|魔鬼|五彩|天池|公路→/.test(day.theme))
+      score += 30
+    if (/飛|→/.test(day.theme) && !/公路|帕米爾|五彩|魔鬼/.test(day.theme))
+      score -= 10
+    if (isRestDay(day)) score -= 50
+    return score
+  }
+  // Keep the strongest day per major base (prefer lake/old-town days over transfers).
+  const bestByBase = new Map<string, { index: number; score: number }>()
+  for (const { day, index } of indexed) {
+    if (index === 0 || index === plan.length - 1 || isRestDay(day)) continue
+    const base = hotelAreaBase(day.stayCity || day.stayArea)
+    if (!base || base === '返程') continue
+    const score = highlightScore(day)
+    const prev = bestByBase.get(base)
+    if (!prev || score > prev.score) bestByBase.set(base, { index, score })
+  }
+  for (const { index } of bestByBase.values()) mustKeep.add(index)
+
+  let kept = indexed.map((row) => row.index)
+  // 1) Drop pure rest/buffer days first (never first/last).
+  const restIdx = kept.filter((i) => !mustKeep.has(i) && isRestDay(plan[i]))
+  for (const i of restIdx) {
+    if (kept.length <= target) break
+    kept = kept.filter((x) => x !== i)
+  }
+
+  // 2) Still too long: drop lower-priority content (prefer dropping second
+  //    free/light days and transfer-only duplicates).
+  while (kept.length > target) {
+    let dropAt = -1
+    let worstScore = Infinity
+    for (const i of kept) {
+      if (mustKeep.has(i)) continue
+      const day = plan[i]
+      let score = 50
+      if (isRestDay(day)) score -= 40
+      if (/飛|→/.test(day.theme) && day.spotIds.length <= 1) score -= 8
+      if (/慢遊|環湖|三灣|古城|峽谷|帕米爾|魔鬼|五彩|天池/.test(day.theme)) score += 25
+      if (day.spotIds.length >= 2) score += 10
+      if (day.dayStory && day.dayStory.length > 40) score += 5
+      // Prefer dropping days near the end of a same-city block (extra Urumqi nights).
+      const prev = kept[kept.indexOf(i) - 1]
+      const next = kept[kept.indexOf(i) + 1]
+      const base = hotelAreaBase(day.stayCity || day.stayArea)
+      if (
+        prev != null &&
+        next != null &&
+        hotelAreaBase(plan[prev].stayCity || plan[prev].stayArea) === base &&
+        hotelAreaBase(plan[next].stayCity || plan[next].stayArea) === base
+      ) {
+        score -= 15
+      }
+      if (score < worstScore) {
+        worstScore = score
+        dropAt = i
+      }
+    }
+    if (dropAt < 0) break
+    kept = kept.filter((x) => x !== dropAt)
+  }
+
+  // 3) If still over (all remaining are must-keep), evenly sample.
+  if (kept.length > target) {
+    const inner = kept.filter((i) => i !== 0 && i !== plan.length - 1)
+    const keepInner = Math.max(0, target - 2)
+    const sampled: number[] = []
+    for (let k = 0; k < keepInner; k += 1) {
+      const pos = Math.round((k * (inner.length - 1)) / Math.max(keepInner - 1, 1))
+      sampled.push(inner[pos])
+    }
+    kept = [0, ...[...new Set(sampled)].sort((a, b) => a - b), plan.length - 1]
+  }
+
+  return kept.map((i) => ({ ...plan[i] }))
+}
+
 function applySpotFilterToCurated(
   plan: DayPlan[],
   selectedSpotIds: string[],
 ): DayPlan[] {
+  // No selection yet → keep the curated route intact.
+  if (!selectedSpotIds.length) return plan
   const selected = new Set(selectedSpotIds)
   return plan.map((day) => {
     const keptSpots = day.spotIds.filter((id) => selected.has(id))
@@ -2705,11 +2803,31 @@ export function buildItinerary(options: {
 
   const allSpots = dests.flatMap((d) => d.spots)
 
-  // Prefer a handcrafted plan (e.g. 青甘大環線 14 日) when available.
-  if (dests.length === 1) {
-    const curated = dests[0].curatedPlans?.[requestedDays]
-    if (curated?.length) {
-      const base = applySpotFilterToCurated(curated, selectedSpotIds).map((day) =>
+  // Prefer a handcrafted plan (e.g. 青甘 14 日 / 新疆 29 日) when available.
+  // If the user picks a shorter length, compress the longest curated route
+  // instead of packing a few spots and padding the end with empty rest days.
+  if (dests.length === 1 && dests[0].curatedPlans) {
+    const exact = dests[0].curatedPlans[requestedDays]
+    if (exact?.length) {
+      const base = applySpotFilterToCurated(exact, selectedSpotIds).map((day) =>
+        enrichDayPlanRow(day),
+      )
+      return applyTransportToItinerary(base, {
+        transportMode,
+        hotelAreaHint,
+        spots: allSpots,
+      })
+    }
+
+    const curatedLengths = Object.keys(dests[0].curatedPlans)
+      .map(Number)
+      .filter((n) => n >= requestedDays)
+      .sort((a, b) => a - b)
+    const sourceLen = curatedLengths[0]
+    const source = sourceLen ? dests[0].curatedPlans[sourceLen] : null
+    if (source?.length) {
+      const compressed = compressCuratedPlan(source, requestedDays)
+      const base = applySpotFilterToCurated(compressed, selectedSpotIds).map((day) =>
         enrichDayPlanRow(day),
       )
       return applyTransportToItinerary(base, {
