@@ -42,8 +42,21 @@ export function JourneyMap({
   const [photosLoading, setPhotosLoading] = useState(false)
 
   const poster = useMemo(() => {
-    if (visualPoster?.mustEat?.length) return visualPoster
-    return inferVisualPoster({ destinationName, days, nights, transportMode })
+    const inferred = inferVisualPoster({
+      destinationName,
+      days,
+      nights,
+      transportMode,
+    })
+    if (!visualPoster?.mustEat?.length) return inferred
+    return {
+      ...inferred,
+      ...visualPoster,
+      mustBuy:
+        visualPoster.mustBuy && visualPoster.mustBuy.length
+          ? visualPoster.mustBuy
+          : inferred.mustBuy,
+    }
   }, [visualPoster, destinationName, days, nights, transportMode])
 
   const pathGeometry = useMemo(
@@ -236,6 +249,29 @@ export function JourneyMap({
                   </li>
                 ))}
               </ul>
+              {poster.mustBuy && poster.mustBuy.length > 0 ? (
+                <>
+                  <h4 className="side-subhead">
+                    <span className="side-ornament" aria-hidden />
+                    特色手信
+                  </h4>
+                  <ul className="food-list gift-list">
+                    {poster.mustBuy.map((item) => (
+                      <li key={item.name}>
+                        <FoodIcon
+                          label={item.name}
+                          motif={item.motif || '🎁'}
+                          scrapbook={edition === 'scrapbook'}
+                        />
+                        <div>
+                          <strong>{item.name}</strong>
+                          <em>{item.daysLabel}</em>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
             </aside>
 
             <div className="poster-path-col" style={{ minHeight: pathGeometry.height }}>

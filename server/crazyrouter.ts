@@ -399,6 +399,8 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       "area": string,
       "stayHours": number,
       "summary": string,
+      "nearbyFood": string,
+      "souvenirs": string,
       "tags": ("must"|"photo"|"popular"|"culture"|"nature"|"food"|"shopping")[],
       "ticket": string
     }
@@ -410,6 +412,8 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
 - 禁止空泛類別名，例如「經典地標」「老城／歷史區」「觀景／打卡點」「在地美食區」「近郊日遊」「再訪最愛街區」
 - 禁止把目的地名稱直接串成「XX經典地標」「german景區度假酒店」這種模板
 - summary 必須是 1–2 句繁體中文，說明為何難忘／怎麼排，不要一句空話
+- nearbyFood 必填：該景點附近可吃什麼（餐廳類型或具體在地菜），1 句繁體中文
+- souvenirs 必填：該區特色手信／伴手禮（禮物），1 句繁體中文；手信＝可帶回家送人的地方特產
 - background 用 2–3 句繁體中文講歷史／地理／旅行意義
 - memorable 給 3–5 條具體可想像的畫面（不要「第一眼天際線」這種万能句）
 - hotels 給 3–5 間「真實常見住宿類型＋具體城區」，例如「柏林米特區精品酒店」「慕尼黑舊城設計旅店」；禁止「XX景區度假酒店」「主要基地城市」
@@ -430,7 +434,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
-          ask: '請給真實景點、可執行的 1–2 句景點說明、目的地背景／難忘之處，以及分城市的住宿建議。不要類別模板，也不要用彈性日湊數。',
+          ask: '請給真實景點、1–2 句景點說明、每個景點附近美食與特色手信（伴手禮／禮物）、目的地背景／難忘之處，以及分城市住宿建議。不要類別模板。',
         }),
       },
     ], 0.4)
@@ -454,6 +458,8 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
         area?: string
         stayHours?: number
         summary?: string
+        nearbyFood?: string
+        souvenirs?: string
         tags?: string[]
         ticket?: string
       }[]
@@ -489,6 +495,8 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
         area: String(spot.area || '市區').trim(),
         stayHours: Number(spot.stayHours) || 2,
         summary: String(spot.summary || '').trim(),
+        nearbyFood: String(spot.nearbyFood || '').trim(),
+        souvenirs: String(spot.souvenirs || '').trim(),
         tags: Array.isArray(spot.tags) ? spot.tags : [],
         ticket: String(spot.ticket || '視當地而定').trim(),
       })),

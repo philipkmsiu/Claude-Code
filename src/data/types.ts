@@ -26,6 +26,10 @@ export interface ScenicSpot {
   area: string
   stayHours: number
   summary: string
+  /** Nearby restaurants / local dishes worth trying around this spot. */
+  nearbyFood?: string
+  /** Characteristic souvenirs / gifts (手信) tied to this area. */
+  souvenirs?: string
   tags: SpotTag[]
   ticket?: string
   bestFor: Companion[]
@@ -96,6 +100,10 @@ export interface DayPlan {
    * (poster captions + itinerary detail).
    */
   dayStory?: string
+  /** Nearby restaurants / local dishes for today's scenic spots. */
+  foodNote?: string
+  /** Characteristic souvenirs / gifts (手信) for today's areas. */
+  souvenirNote?: string
   /** Pace / drive note (表：節奏／車程). */
   paceNote?: string
   /** Hotel direction (表：住宿方向). */
@@ -183,6 +191,8 @@ export interface VisualPosterContent {
   themeLine?: string
   mustEat: { name: string; daysLabel: string; motif?: string }[]
   mustDrink: { name: string; motif?: string }[]
+  /** Characteristic local gifts / souvenirs (手信). */
+  mustBuy?: { name: string; daysLabel: string; motif?: string }[]
   travelTips: string[]
   footerNote?: string
 }

@@ -2188,6 +2188,12 @@ function App() {
                     </div>
                     <span className="spot-de">{spot.nameLocal}</span>
                     <p>{spot.summary}</p>
+                    {spot.nearbyFood ? (
+                      <p className="spot-food-tip">🍽 附近美食：{spot.nearbyFood}</p>
+                    ) : null}
+                    {spot.souvenirs ? (
+                      <p className="spot-gift-tip">🎁 手信：{spot.souvenirs}</p>
+                    ) : null}
                     <div className="tag-row">
                       {spot.tags.map((tag) => (
                         <span
@@ -2562,6 +2568,12 @@ function App() {
                           {day.dayStory ? (
                             <small className="day-story-inline">{day.dayStory}</small>
                           ) : null}
+                          {day.foodNote ? (
+                            <small className="day-food-inline">🍽 {day.foodNote}</small>
+                          ) : null}
+                          {day.souvenirNote ? (
+                            <small className="day-gift-inline">🎁 手信：{day.souvenirNote}</small>
+                          ) : null}
                         </td>
                         <td>{day.paceNote || day.tip}</td>
                         <td>{day.hotelDirection || day.stayArea}</td>
@@ -2608,6 +2620,18 @@ function App() {
                       <p className="day-meta-line day-story-line">
                         <strong>有趣／背景：</strong>
                         {day.dayStory}
+                      </p>
+                    ) : null}
+                    {day.foodNote ? (
+                      <p className="day-meta-line day-food-line">
+                        <strong>附近美食／餐廳：</strong>
+                        {day.foodNote}
+                      </p>
+                    ) : null}
+                    {day.souvenirNote ? (
+                      <p className="day-meta-line day-gift-line">
+                        <strong>特色手信（伴手禮／禮物）：</strong>
+                        {day.souvenirNote}
                       </p>
                     ) : null}
                     <p className="day-meta-line">

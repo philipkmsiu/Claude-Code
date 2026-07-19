@@ -87,6 +87,8 @@ type SpotSeed = {
   hours: number
   area: string
   summary: string
+  nearbyFood?: string
+  souvenirs?: string
 }
 
 function spotsFromSeeds(place: string, seeds: SpotSeed[]): ScenicSpot[] {
@@ -97,6 +99,8 @@ function spotsFromSeeds(place: string, seeds: SpotSeed[]): ScenicSpot[] {
     area: item.area,
     stayHours: item.hours,
     summary: item.summary,
+    nearbyFood: item.nearbyFood,
+    souvenirs: item.souvenirs,
     tags: item.tags,
     ticket: '視當地而定',
     bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
@@ -137,6 +141,9 @@ function germanyTemplateSeeds(): SpotSeed[] {
       area: '慕尼黑・近郊',
       summary:
         '巴伐利亞童話城堡，迪士尼城堡原型之一。建議從慕尼黑出發排全日，預留排隊與山城散步時間。',
+      nearbyFood:
+        '山城 Hohenschwangau 可吃烤豬肘、Weisswurst 白腸早餐；回慕尼黑後去 Hofbräuhaus 或任意啤酒花園配 Pretzel。',
+      souvenirs: '城堡明信片、巴伐利亞藍白格紋小物、蜂蜜酒或限定紀念幣。',
     },
     {
       name: '慕尼黑啤酒節／瑪莉安廣場',
@@ -145,6 +152,9 @@ function germanyTemplateSeeds(): SpotSeed[] {
       area: '慕尼黑・舊城',
       summary:
         '瑪莉安廣場是慕尼黑心跳：新市政廳木偶鐘、聖母教堂雙塔，九月還能碰上啤酒節的喧鬧與pretzel香氣。',
+      nearbyFood:
+        'Viktualienmarkt 市場攤位（香腸、起司、烤雞）、Bratwurst、Obatzda 起司醬配麵包圈；啤酒節期間直接進大帳篷。',
+      souvenirs: '啤酒杯（Maßkrug）、Pretzel 相關小物、FC Bayern 周邊、Leberwurst 肝腸真空包。',
     },
     {
       name: '寧芬堡宮',
@@ -152,6 +162,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 3.5,
       area: '慕尼黑・西城',
       summary: '巴洛克夏宮與花園，節奏比城堡日遊更鬆，適合當作慕尼黑第二個文化半日。',
+      nearbyFood: '宮殿咖啡廳甜點、附近義大利／巴伐利亞簡餐；傍晚可回舊城吃 Schweinshaxe 豬肘。',
+      souvenirs: '宮殿瓷器風格磁鐵、慕尼黑巧克力、巴伐利亞蜂蜜。',
     },
     {
       name: '林德霍夫宮',
@@ -159,6 +171,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 3,
       area: '慕尼黑・近郊',
       summary: '路德維希二世的袖珍宮殿，常與新天鵝堡連線；華麗室內與山景形成強烈對比。',
+      nearbyFood: '景區餐廳的巴伐利亞定食；兩堡連線日建議帶三明治在車上吃更省時間。',
+      souvenirs: '路德維希二世主題書籤／明信片、阿爾卑斯木雕小物。',
     },
     {
       name: '柏林圍牆紀念園區',
@@ -166,6 +180,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 3,
       area: '柏林・米特',
       summary: '冷戰分裂的實體遺跡。走完紀念牆與文獻中心，會更懂這座城市為何如此直白又複雜。',
+      nearbyFood: '附近 Currywurst 咖哩香腸、Döner 土耳其烤肉、Hackescher Markt 一帶的咖啡與早午餐。',
+      souvenirs: '圍牆碎片證書小物（認明正貨）、Berliner Bär 小熊、Ampelmännchen 綠人周邊。',
     },
     {
       name: '布蘭登堡門與國會大廈',
@@ -173,6 +189,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 2.5,
       area: '柏林・米特',
       summary: '德國統一的門面地標。國會玻璃穹頂可預約登頂，日落時城市輪廓特別清楚。',
+      nearbyFood: 'Potsdamer Platz 國際料理、德國豬排 Schnitzel、傍晚去 Oranienburger Str. 一帶晚餐。',
+      souvenirs: '布蘭登堡門模型、德國國旗小物、Berliner Luft 薄荷酒。',
     },
     {
       name: '博物館島（佩加蒙／老博物館）',
@@ -180,6 +198,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 4,
       area: '柏林・米特',
       summary: '世界遺產等級的博物館群。挑 1–2 座深挖比走馬看花更值得；雨天首選。',
+      nearbyFood: '島上咖啡簡餐、旁側 Hackescher Markt 的德式早午餐或素食館。',
+      souvenirs: '博物館商店藝術明信片／海報、設計感文具、柏林主題畫冊。',
     },
     {
       name: '東側畫廊',
@@ -187,6 +207,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 2,
       area: '柏林・弗里德里希斯海因',
       summary: '圍牆遺段上的巨型塗鴉，是柏林街頭藝術最直覺的一課，拍照節奏快、故事卻很重。',
+      nearbyFood: '畫廊旁小吃車、附近越南／中東簡餐；傍晚可轉去 Markthalle Neun 市集吃一輪。',
+      souvenirs: '街頭藝術明信片、塗鴉藝術家小海報、二手黑膠（若逛 Friedrichshain）。',
     },
     {
       name: '科隆大教堂',
@@ -194,6 +216,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 2.5,
       area: '科隆・舊城',
       summary: '哥德式雙塔幾乎從火車站撲面而來。登塔看萊茵河，或只在廣場感受石頭的尺度。',
+      nearbyFood: '舊城啤酒館的科隆 Kölsch 啤酒配 Rheinischer Sauerbraten；車站旁也有快速德式簡餐。',
+      souvenirs: '4711 古龍水（科隆同源）、大教堂主題巧克力、Kölsch 啤酒杯。',
     },
     {
       name: '萊茵河遊船',
@@ -201,6 +225,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 3,
       area: '科隆・萊茵河',
       summary: '從水面看科隆天際線與兩岸酒莊小鎮氣息，適合當作轉場城市之間的喘息行程。',
+      nearbyFood: '船上輕食或下船後去河邊啤酒花園；可配當地白葡萄酒。',
+      souvenirs: '萊茵河風景明信片、德國白葡萄酒小瓶、河景冰箱貼。',
     },
     {
       name: '本拉特宮',
@@ -208,6 +234,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 2.5,
       area: '杜塞道夫・近郊',
       summary: '粉彩洛可可宮殿與法式花園，常作為科隆／杜塞道夫段的優雅半日點。',
+      nearbyFood: '杜塞道夫 Altstadt 的 Altbier 黑啤酒配豬肉菜；日本街若順路可換口味。',
+      souvenirs: 'Mustard 杜塞道夫芥末、Altbier 相關小物、萊茵河主題巧克力。',
     },
     {
       name: '森帕歌劇院與教堂廣場',
@@ -215,6 +243,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 3,
       area: '德累斯頓・舊城',
       summary: '易北河旁的巴洛克寶石。戰後重建的精緻輪廓，夜晚燈光一開就像舞台布景。',
+      nearbyFood: '舊城德式豬排、易北河景觀咖啡；可試 Saxon 酸菜燉肉或聖誕季節的 Stollen 麵包。',
+      souvenirs: 'Meissen 風格瓷器磁鐵、Striezel 聖誕麵包（季節）、歌劇院明信片。',
     },
     {
       name: '法蘭克福舊城與羅馬廣場',
@@ -222,6 +252,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 2.5,
       area: '法蘭克福・舊城',
       summary: '天際線與半木造屋並存的德國金融城門面，適合抵達或離開日的輕步行與蘋果酒。',
+      nearbyFood: 'Apfelwein 蘋果酒配 Handkäse 手製起司、綠醬青醬蛋／肉排（Grüne Soße）。',
+      souvenirs: '蘋果酒小瓶、法蘭克福綠醬料包、天際線明信片。',
     },
     {
       name: '海德堡城堡',
@@ -229,6 +261,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 4,
       area: '海德堡',
       summary: '紅砂巖城堡俯瞰內卡河與大學城紅屋頂，是南德最經典的「一眼愛上」畫面之一。',
+      nearbyFood: '老橋附近德式豬肘與麵食、學生城咖啡；可試海德堡啤酒花園。',
+      souvenirs: '學生監獄主題小物、城堡紅砂巖磁鐵、德國大學城明信片。',
     },
     {
       name: '黑森林風景大道',
@@ -236,6 +270,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 7,
       area: '巴登－符騰堡・黑森林',
       summary: '針葉林、山湖與木屋村串起來的公路日。節奏要鬆，重點是風景本身而不是趕點。',
+      nearbyFood: '必吃黑森林蛋糕 Schwarzwälder Kirschtorte、煙燻火腿、鄉村湯；路邊木屋餐廳最有感覺。',
+      souvenirs: '咕咕鐘（或迷你版）、黑森林櫻桃酒、木雕小鹿、蜂蜜。',
     },
     {
       name: '彈性咖啡與啤酒花園日',
@@ -243,6 +279,8 @@ function germanyTemplateSeeds(): SpotSeed[] {
       hours: 3,
       area: '彈性',
       summary: '德國行程的精髓之一：坐進啤酒花園或老城咖啡，讓鐵路與城堡之間留一段真正的日常。',
+      nearbyFood: '當天所在城市的啤酒花園套餐：麵包圈、烤雞、薯泥與當季小麥啤酒。',
+      souvenirs: '當日城市磁鐵補齊、德國超市超市零食（Haribo、Ritter Sport）。',
     },
   ]
 }
@@ -575,6 +613,60 @@ const ALLOWED_SPOT_TAGS: SpotTag[] = [
 ]
 
 /** Map Crazyrouter spot suggestions onto ScenicSpot records. */
+/** Fallback food / 手信 tips when a spot has none (by city keyword). */
+export function foodAndGiftsForArea(
+  area: string,
+  destinationName = '',
+): { nearbyFood: string; souvenirs: string } {
+  const text = `${area} ${destinationName}`
+  if (/慕尼黑|Munich|巴伐利亞|新天鵝/i.test(text)) {
+    return {
+      nearbyFood: '啤酒花園套餐、Weisswurst 白腸、Pretzel、烤豬肘；市場攤位最方便。',
+      souvenirs: '啤酒杯、巴伐利亞小物、Leberwurst、當地蜂蜜。',
+    }
+  }
+  if (/柏林|Berlin/i.test(text)) {
+    return {
+      nearbyFood: 'Currywurst、Döner、德式豬排；市集與早午餐店選擇多。',
+      souvenirs: 'Ampelmännchen 綠人、Berliner Bär、圍牆主題明信片。',
+    }
+  }
+  if (/科隆|Cologne|杜塞|萊茵/i.test(text)) {
+    return {
+      nearbyFood: 'Kölsch 啤酒配 Sauerbraten，或杜塞道夫 Altbier 啤酒館套餐。',
+      souvenirs: '4711 古龍水、芥末、萊茵河風景巧克力。',
+    }
+  }
+  if (/法蘭克|海德堡|黑森林|巴登/i.test(text)) {
+    return {
+      nearbyFood: '蘋果酒 Apfelwein、黑森林蛋糕、鄉村煙燻火腿與湯品。',
+      souvenirs: '蘋果酒小瓶、迷你咕咕鐘、櫻桃酒、木雕小物。',
+    }
+  }
+  if (/大阪|道頓堀|難波/i.test(text)) {
+    return {
+      nearbyFood: '章魚燒、串炸、蟹肉飯；黑門市場可一路串吃。',
+      souvenirs: '藥妝、當地零食、大阪燒相關小物。',
+    }
+  }
+  if (/京都|清水|祇園/i.test(text)) {
+    return {
+      nearbyFood: '湯豆腐、抹茶甜點、京漬物；錦市場最適合邊走邊吃。',
+      souvenirs: '抹茶菓子、和紙小物、京扇子。',
+    }
+  }
+  if (/新疆|喀什|喀納斯/i.test(text)) {
+    return {
+      nearbyFood: '烤包子、抓飯、羊肉串、奶茶；夜市最有氣氛。',
+      souvenirs: '葡萄乾、和田玉小件、花帽、杏乾。',
+    }
+  }
+  return {
+    nearbyFood: '安排一頓在地代表菜或市場小吃，比連鎖餐廳更好記。',
+    souvenirs: '當地特色零食、手作小物或城市磁鐵，當手信剛剛好。',
+  }
+}
+
 export function scenicSpotsFromAi(
   place: string,
   suggestions: {
@@ -583,6 +675,8 @@ export function scenicSpotsFromAi(
     area?: string
     stayHours?: number
     summary?: string
+    nearbyFood?: string
+    souvenirs?: string
     tags?: string[]
     ticket?: string
   }[],
@@ -604,21 +698,55 @@ export function scenicSpotsFromAi(
     if (/華山|黃山|張家界|峨眉|日遊|一日遊/.test(name)) {
       hours = Math.max(hours, 7)
     }
+    const area = item.area?.trim() || '市區'
+    const fallback = foodAndGiftsForArea(area, place)
     spots.push({
       id: `ai-spot-${slugifyDestination(place)}-${stamp}-${index + 1}`,
       name,
       nameLocal: item.nameLocal?.trim() || name,
-      area: item.area?.trim() || '市區',
+      area,
       stayHours: hours,
       summary:
         item.summary?.trim() ||
         `${name}是當地值得停留的一站；建議預留體驗與拍照時間，並依天氣彈性調整。`,
+      nearbyFood: item.nearbyFood?.trim() || fallback.nearbyFood,
+      souvenirs: item.souvenirs?.trim() || fallback.souvenirs,
       tags: tags.length ? tags : (['popular'] as SpotTag[]),
       ticket: item.ticket?.trim() || '視當地而定',
       bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
     })
   })
   return spots
+}
+
+function dayFoodAndSouvenirNotes(
+  spots: ScenicSpot[],
+  destinationName: string,
+): { foodNote?: string; souvenirNote?: string } {
+  if (!spots.length) return {}
+  const foods = [
+    ...new Set(
+      spots
+        .map((s) => s.nearbyFood?.trim())
+        .filter((s): s is string => Boolean(s)),
+    ),
+  ]
+  const gifts = [
+    ...new Set(
+      spots
+        .map((s) => s.souvenirs?.trim())
+        .filter((s): s is string => Boolean(s)),
+    ),
+  ]
+  if (!foods.length || !gifts.length) {
+    const fallback = foodAndGiftsForArea(spots[0]?.area || '', destinationName)
+    if (!foods.length) foods.push(fallback.nearbyFood)
+    if (!gifts.length) gifts.push(fallback.souvenirs)
+  }
+  return {
+    foodNote: foods.slice(0, 2).join(' ／ '),
+    souvenirNote: gifts.slice(0, 2).join(' ／ '),
+  }
 }
 
 /** Human label for hotel/copy when the typed name is a language slug like "german". */
@@ -1256,6 +1384,11 @@ export function inferVisualPoster(options: {
         { name: '酸梅湯', motif: '🧃' },
         { name: '蓋碗茶', motif: '🍵' },
       ],
+      mustBuy: [
+        { name: '柿餅／瓊鍋糖', daysLabel: '手信', motif: '🎁' },
+        { name: '兵馬俑小兵', daysLabel: '臨潼', motif: '🗿' },
+        { name: '陝西涼皮料包', daysLabel: '超市', motif: '📦' },
+      ],
       travelTips: [
         transportMode === 'private_driver'
           ? '準時與司機會合，景區可先下車再會合'
@@ -1267,6 +1400,39 @@ export function inferVisualPoster(options: {
         '行程留半日彈性，適量就好',
       ],
       footerNote: '路線示意；西安景點可能因預約或活動調整開放時間。',
+    }
+  }
+
+  if (/德國|Germany|german|Deutschland|柏林|慕尼黑|科隆/i.test(name)) {
+    return {
+      themeLine,
+      mustEat: [
+        { name: 'Pretzel＋Weisswurst', daysLabel: '慕尼黑', motif: '🥨' },
+        { name: '豬肘／Biergarten', daysLabel: '啤酒花園', motif: '🍖' },
+        { name: 'Currywurst／Döner', daysLabel: '柏林', motif: '🌭' },
+        { name: '黑森林蛋糕', daysLabel: '南德公路', motif: '🍰' },
+        { name: 'Apfelwein 套餐', daysLabel: '法蘭克福', motif: '🍏' },
+      ],
+      mustDrink: [
+        { name: '小麥啤酒 Weizen', motif: '🍺' },
+        { name: 'Kölsch 科隆啤酒', motif: '🍻' },
+        { name: '蘋果酒 Apfelwein', motif: '🧃' },
+      ],
+      mustBuy: [
+        { name: '啤酒杯／Haribo', daysLabel: '手信', motif: '🎁' },
+        { name: '4711 古龍水', daysLabel: '科隆', motif: '🧴' },
+        { name: '迷你咕咕鐘／櫻桃酒', daysLabel: '黑森林', motif: '🕰️' },
+        { name: 'Ampelmännchen 綠人', daysLabel: '柏林', motif: '🚦' },
+      ],
+      travelTips: [
+        '跨城優先 ICE 高鐵，同一城景點排同一天',
+        '新天鵝堡建議獨立留整天',
+        '啤酒花園可當正餐，別只當喝酒',
+        '手信可在超市補齊零食，比機場便宜',
+        '九月慕尼黑可能遇啤酒節，住宿提早訂',
+        '行程保留半日彈性，遇雨改博物館',
+      ],
+      footerNote: '路線示意；德國景點與餐廳營業時間請出發前再確認。',
     }
   }
 
@@ -3551,40 +3717,65 @@ export function buildItinerary(options: {
       hour += 1
     }
 
+    const { foodNote, souvenirNote } = dayFoodAndSouvenirNotes(
+      bucket,
+      dests.map((d) => d.nameZh).join(' '),
+    )
+
     bucket.forEach((spot, spotIndex) => {
       if (spotIndex === 1 || (spotIndex === 0 && hour >= 12 && hour <= 13)) {
+        const foodHint =
+          spot.nearbyFood ||
+          foodNote ||
+          foodAndGiftsForArea(spot.area, dests[0]?.nameZh || '').nearbyFood
         schedule.push({
           time: timeLabel(Math.min(hour, 13)),
-          title: '午餐',
+          title: '午餐・附近美食',
           detail: specialNeeds.includes('想多吃在地美食')
-            ? '優先選在地小館，避開純觀光菜單。'
-            : `在 ${spot.area} 附近用餐，再續行程。`,
+            ? `優先在地小館：${foodHint}`
+            : foodHint,
         })
         hour = Math.max(hour, 13) + 1
       }
 
+      const foodBit = spot.nearbyFood ? ` 附近可吃：${spot.nearbyFood}` : ''
+      const giftBit = spot.souvenirs ? ` 手信：${spot.souvenirs}` : ''
       schedule.push({
         time: timeLabel(Math.min(hour, 18)),
         title: spot.name,
         detail: `${spot.summary} 建議停留約 ${spot.stayHours} 小時${
           spot.ticket ? `｜${spot.ticket}` : ''
-        }.${spot.tags.includes('photo') ? ' 記得留打卡時間。' : ''}`,
+        }.${spot.tags.includes('photo') ? ' 記得留打卡時間。' : ''}${foodBit}${giftBit}`,
         spotId: spot.id,
       })
       hour += Math.max(1, Math.ceil(Math.min(spot.stayHours, 4)))
     })
 
+    // Ensure every sightseeing day mentions nearby food (even single full-day spots).
+    if (foodNote && !schedule.some((item) => /午餐|美食/.test(item.title))) {
+      const insertAt = Math.min(2, schedule.length)
+      schedule.splice(insertAt, 0, {
+        time: '12:30',
+        title: '午餐・附近美食',
+        detail: foodNote,
+      })
+    }
+
     if (isLast) {
       schedule.push({
         time: timeLabel(Math.min(hour, 16)),
-        title: '伴手禮 / 前往機場或車站',
-        detail: '預留 60–90 分鐘交通緩衝。',
+        title: '手信／伴手禮・前往機場或車站',
+        detail: souvenirNote
+          ? `可帶回：${souvenirNote}。預留 60–90 分鐘交通緩衝。`
+          : '預留 60–90 分鐘交通緩衝，順便補當地手信。',
       })
     } else {
       schedule.push({
         time: timeLabel(Math.min(Math.max(hour, 18), 20)),
         title: '晚餐與回飯店',
-        detail: `今晚住 ${stayBase}。`,
+        detail: foodNote
+          ? `今晚住 ${stayBase}。晚餐可參考：${foodNote}`
+          : `今晚住 ${stayBase}。`,
       })
     }
 
@@ -3606,6 +3797,8 @@ export function buildItinerary(options: {
       dayStory:
         dayStory ||
         `${bucket.map((s) => s.name).join('、')}是這天的主角；慢慢看、慢慢吃，比趕打卡名單更值得記住。`,
+      foodNote,
+      souvenirNote,
       paceNote: buildPaceNote(bucket, pace, isFirst, isLast),
       hotelDirection: area,
       schedule,

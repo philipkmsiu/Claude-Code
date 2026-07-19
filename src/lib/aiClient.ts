@@ -24,6 +24,8 @@ export type AiSuggestedSpot = {
   area: string
   stayHours: number
   summary: string
+  nearbyFood?: string
+  souvenirs?: string
   tags: string[]
   ticket: string
 }

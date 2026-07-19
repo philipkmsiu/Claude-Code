@@ -865,6 +865,27 @@ main {
   overflow: hidden;
 }
 
+.day-food-inline,
+.day-gift-inline {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+.day-food-line,
+.day-gift-line {
+  color: var(--ink-soft);
+}
+
+.spot-food-tip,
+.spot-gift-tip {
+  margin: 0.35rem 0 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .day-story-inline {
   display: block;
   margin-top: 0.35rem;
@@ -3376,6 +3397,15 @@ main {
 
 .food-list li {
   align-items: center;
+}
+
+.watercolor-panel .side-subhead {
+  margin: 1rem 0 0.45rem;
+  font-size: 0.92rem;
+}
+
+.gift-list {
+  margin-top: 0.2rem;
 }
 
 .food-badge {
