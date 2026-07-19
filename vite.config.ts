@@ -7,6 +7,12 @@ export default defineConfig({
   plugins: [react(), crazyRouterPlugin()],
   server: {
     host: true,
-    port: 5173,
+    port: 5174,
+    strictPort: true,
+  },
+  preview: {
+    host: true,
+    port: 5174,
+    strictPort: true,
   },
 })
