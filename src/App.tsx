@@ -44,6 +44,7 @@ import {
   tripPaces,
   spotInputExamples,
   estimateTripBudget,
+  isLongHaulDestination,
   type Companion,
   type Destination,
   type DestinationId,
@@ -211,20 +212,42 @@ function App() {
       aiReview.status === 'balanced'
         ? aiReview.status
         : durationFit.status
+    const longHaul = isLongHaulDestination(
+      selectedDestinations.map((d) => d.nameZh).join(' ') || primary?.nameZh || '',
+    )
+    let recommendedDays = clampDays(aiReview.recommendedDays)
+    let minDays = clampDays(aiReview.minDays || aiReview.recommendedDays)
+    let comfortableDays = clampDays(
+      aiReview.comfortableDays || aiReview.recommendedDays,
+    )
+    // Never let AI turn a city break into a 21-day expedition.
+    if (!longHaul) {
+      minDays = Math.min(minDays, 7)
+      recommendedDays = Math.min(Math.max(recommendedDays, minDays), 9)
+      comfortableDays = Math.min(Math.max(comfortableDays, recommendedDays), 11)
+    }
     return {
       ...durationFit,
-      status,
-      recommendedDays: clampDays(aiReview.recommendedDays),
-      minDays: clampDays(aiReview.minDays || aiReview.recommendedDays),
-      comfortableDays: clampDays(
-        aiReview.comfortableDays || aiReview.recommendedDays,
-      ),
-      title: aiReview.title || durationFit.title,
+      status:
+        planDays < recommendedDays
+          ? 'too_packed'
+          : planDays > Math.max(recommendedDays + 2, comfortableDays)
+            ? 'too_light'
+            : status === 'too_packed' && planDays >= recommendedDays
+              ? 'balanced'
+              : status,
+      recommendedDays,
+      minDays,
+      comfortableDays,
+      title:
+        !longHaul && planDays < recommendedDays
+          ? '景點偏多：可加天或刪減景點（城市遊不必拉到 20 天）'
+          : aiReview.title || durationFit.title,
       message: [aiReview.message, ...(aiReview.adjustments || [])]
         .filter(Boolean)
         .join(' '),
     }
-  }, [aiReview, durationFit])
+  }, [aiReview, durationFit, selectedDestinations, primary?.nameZh, planDays])
 
   const styleLabel = hotelStyles.find((s) => s.id === hotelStyle)?.label ?? ''
   const paceLabel = tripPaces.find((p) => p.id === pace)?.label ?? ''

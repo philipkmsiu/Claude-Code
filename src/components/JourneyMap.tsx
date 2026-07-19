@@ -124,8 +124,8 @@ export function JourneyMap({
         <div>
           <h3>階段四 · 視覺化旅遊地圖</h3>
           <p>
-            每個行程都有兩種海報：<strong>相片版</strong>（真實景點照片）與
-            <strong>插畫海報版</strong>（水彩手帳／規劃書風格）。可分別下載 PNG。
+            兩個完全不同的版本：<strong>相片版</strong>用每日不重複的真實景點照片；
+            <strong>插畫海報版</strong>是 Gemini 規劃書那種手繪水彩風（不用相片）。可分別下載 PNG。
           </p>
         </div>
         <div className="edition-actions">
@@ -280,14 +280,9 @@ export function JourneyMap({
 
                     {edition === 'scrapbook' ? (
                       <div className="scrapbook-node">
-                        <div className="scrapbook-ring">
-                          <DayScene
-                            day={day}
-                            index={index}
-                            photo={photo}
-                            circular
-                            watercolor
-                          />
+                        <div className="scrapbook-ring illustrated">
+                          {/* Illustration edition never uses photos — unique hand-drawn scenes only. */}
+                          <GeminiDayArt day={day} index={index} />
                         </div>
                         <div className="day-node deluxe-node scrapbook-badge">
                           <span>DAY</span>
@@ -435,26 +430,131 @@ function dayBullets(day: DayPlan): string[] {
   return [day.theme].filter(Boolean)
 }
 
+/** Gemini-style unique watercolor scene — never a photograph. */
+function GeminiDayArt({ day, index }: { day: DayPlan; index: number }) {
+  const kind = sceneKind(day)
+  const palette = [
+    ['#7ea896', '#d9b27c', '#f3e7d4'],
+    ['#c17a5a', '#e8c97a', '#efe4d0'],
+    ['#6b8fa8', '#9bb7a5', '#f0e8d8'],
+    ['#8a6b4a', '#c4a574', '#f7f1e6'],
+    ['#5c7a6e', '#b08a5a', '#e7efe9'],
+    ['#9a6b3f', '#7a9e8e', '#f3ebe0'],
+  ][index % 6]
+  const [a, b, paper] = palette
+  const variant = index % 3
+
+  return (
+    <div className="day-scene circular gemini-art" aria-hidden>
+      <svg viewBox="0 0 120 120" className="scene-svg">
+        <defs>
+          <radialGradient id={`paper-${index}`} cx="40%" cy="30%" r="75%">
+            <stop offset="0%" stopColor="#fffaf2" />
+            <stop offset="100%" stopColor={paper} />
+          </radialGradient>
+          <filter id={`paint-${index}`}>
+            <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" />
+          </filter>
+        </defs>
+        <circle cx="60" cy="60" r="58" fill={`url(#paper-${index})`} />
+        <g filter={`url(#paint-${index})`}>
+          <ellipse cx="30" cy="28" rx="14" ry="7" fill="#fff8ee" opacity="0.75" />
+          <circle cx="92" cy="26" r="9" fill="#e8c97a" opacity="0.55" />
+          {kind === 'lake' ? (
+            <>
+              <path
+                d={
+                  variant === 0
+                    ? 'M8 78 Q40 58 70 76 T114 74 L114 112 L8 112 Z'
+                    : 'M6 82 Q50 62 90 80 T116 78 L116 112 L6 112 Z'
+                }
+                fill={a}
+                opacity="0.7"
+              />
+              <path d="M10 86 Q55 72 100 86" fill="none" stroke="#fff8ee" strokeWidth="1.6" opacity="0.55" />
+              <path d="M20 54 Q40 40 55 55" fill={b} opacity="0.55" />
+            </>
+          ) : kind === 'heritage' ? (
+            <>
+              <rect x="34" y="48" width="52" height="38" rx="2" fill={a} opacity="0.78" />
+              <polygon
+                points={variant === 1 ? '28,48 60,22 92,48' : '30,50 60,26 90,50'}
+                fill={b}
+              />
+              <rect x="52" y="62" width="16" height="24" fill="#f7f1e6" opacity="0.9" />
+              <rect x="40" y="56" width="8" height="8" fill="#f7f1e6" opacity="0.55" />
+              <rect x="72" y="56" width="8" height="8" fill="#f7f1e6" opacity="0.55" />
+            </>
+          ) : kind === 'landscape' ? (
+            <>
+              <path
+                d={
+                  variant === 2
+                    ? 'M4 92 L28 40 L48 70 L72 28 L96 66 L116 42 L116 112 L4 112 Z'
+                    : 'M2 96 L34 44 L58 78 L82 32 L116 88 L116 112 L2 112 Z'
+                }
+                fill={a}
+                opacity="0.75"
+              />
+              <path d="M2 100 L50 62 L84 90 L116 70 L116 112 L2 112 Z" fill={b} opacity="0.4" />
+            </>
+          ) : kind === 'street' ? (
+            <>
+              <rect x="16" y="50" width="24" height="36" fill={a} opacity="0.7" />
+              <rect x="46" y="40" width="28" height="46" fill={b} opacity="0.65" />
+              <rect x="80" y="54" width="22" height="32" fill={a} opacity="0.75" />
+              <circle cx="28" cy="92" r="3" fill="#e8c97a" />
+              <circle cx="60" cy="92" r="3" fill="#e8c97a" />
+              <circle cx="90" cy="92" r="3" fill="#e8c97a" />
+            </>
+          ) : kind === 'rest' ? (
+            <>
+              <ellipse cx="60" cy="78" rx="36" ry="14" fill={a} opacity="0.28" />
+              <path d="M38 66 Q60 40 82 66" fill="none" stroke={b} strokeWidth="4" />
+              <circle cx="60" cy="54" r="10" fill="#e8c97a" opacity="0.85" />
+            </>
+          ) : kind === 'travel' ? (
+            <>
+              <path d="M18 70 L72 48 L102 58 L72 66 L54 90 Z" fill={a} opacity="0.8" />
+              <rect x="20" y="78" width="14" height="18" fill={b} opacity="0.65" />
+            </>
+          ) : (
+            <>
+              <rect x="20" y="46" width="20" height="40" fill={a} opacity="0.7" />
+              <rect x="48" y="36" width="24" height="50" fill={b} opacity="0.6" />
+              <rect x="80" y="50" width="20" height="36" fill={a} opacity="0.75" />
+              <path d="M8 96 Q60 84 112 96" fill="none" stroke={b} strokeWidth="2.2" />
+            </>
+          )}
+        </g>
+        <text
+          x="60"
+          y="112"
+          textAnchor="middle"
+          fontSize="8"
+          fill="#5c6b63"
+          fontFamily="Georgia, serif"
+        >
+          {sceneLabel(kind)}
+        </text>
+      </svg>
+    </div>
+  )
+}
+
 function DayScene({
   day,
   index,
   photo,
-  circular = false,
-  watercolor = false,
 }: {
   day: DayPlan
   index: number
   photo?: string
-  circular?: boolean
-  watercolor?: boolean
 }) {
   const kind = sceneKind(day)
   return (
-    <div
-      className={`day-scene scene-${kind} ${circular ? 'circular' : ''} ${
-        watercolor ? 'watercolor-photo' : ''
-      }`}
-    >
+    <div className={`day-scene scene-${kind}`}>
       {photo ? (
         <img
           className="day-scene-img"
@@ -466,7 +566,7 @@ function DayScene({
       ) : (
         <SceneArt kind={kind} index={index} />
       )}
-      {photo && !circular ? <span className="scene-caption">{sceneLabel(kind)}</span> : null}
+      {photo ? <span className="scene-caption">{sceneLabel(kind)}</span> : null}
     </div>
   )
 }

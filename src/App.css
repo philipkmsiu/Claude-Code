@@ -2617,3 +2617,22 @@ a.btn {
   align-items: center;
   justify-content: center;
 }
+
+.scrapbook-ring.illustrated {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 250, 240, 0.95), transparent 50%),
+    linear-gradient(145deg, #f6ecdc, #dce8df);
+  box-shadow:
+    inset 0 0 0 3px rgba(154, 107, 63, 0.28),
+    0 8px 16px rgba(60, 50, 40, 0.1);
+}
+
+.gemini-art {
+  background: transparent !important;
+}
+
+.gemini-art .scene-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

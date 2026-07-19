@@ -285,6 +285,15 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
     if (minDays > recommendedDays) minDays = recommendedDays
     if (comfortableDays < recommendedDays) comfortableDays = recommendedDays
 
+    // City breaks must not inflate toward long-haul ranges (e.g. Xi'an ≠ 21 days).
+    const longHaul =
+      /新疆|南北疆|青甘|大環線|環線|帕米爾|川藏|滇藏/.test(destinationName)
+    if (!longHaul) {
+      minDays = clamp(minDays, 2, 7)
+      recommendedDays = clamp(recommendedDays, minDays, 9)
+      comfortableDays = clamp(comfortableDays, recommendedDays, 11)
+    }
+
     let status: 'too_packed' | 'too_light' | 'balanced' = 'balanced'
     const lightThreshold = Math.max(recommendedDays + 2, comfortableDays)
     if (chosenDays < recommendedDays) status = 'too_packed'
@@ -515,14 +524,19 @@ async function handleSeasonGuide(req: IncomingMessage, res: ServerResponse) {
   }
 }
 
-async function fetchCommonsThumb(search: string): Promise<string | null> {
+async function fetchCommonsThumb(
+  search: string,
+  options?: { offset?: number },
+): Promise<string | null> {
+  const offset = Math.max(0, options?.offset || 0)
   const api =
     'https://commons.wikimedia.org/w/api.php?' +
     new URLSearchParams({
       action: 'query',
       generator: 'search',
       gsrsearch: search,
-      gsrlimit: '5',
+      gsrlimit: '8',
+      gsroffset: String(offset),
       gsrnamespace: '6',
       prop: 'imageinfo',
       iiprop: 'url|mime',
@@ -543,12 +557,15 @@ async function fetchCommonsThumb(search: string): Promise<string | null> {
       pages?: Record<
         string,
         {
+          index?: number
           imageinfo?: { thumburl?: string; url?: string; mime?: string }[]
         }
       >
     }
   }
-  const pages = Object.values(data.query?.pages || {})
+  const pages = Object.values(data.query?.pages || {}).sort(
+    (a, b) => (a.index || 0) - (b.index || 0),
+  )
   for (const page of pages) {
     const info = page.imageinfo?.[0]
     const mime = info?.mime || ''
@@ -580,12 +597,13 @@ async function handlePlacePhoto(req: IncomingMessage, res: ServerResponse) {
       return
     }
 
+    const offset = Number(url.searchParams.get('offset') || 0) || 0
     const attempts = [q, fallback, `${q} landmark`, `${fallback} China`].filter(
       (item, index, arr) => item && arr.indexOf(item) === index,
     )
 
     for (const attempt of attempts) {
-      const thumb = await fetchCommonsThumb(attempt)
+      const thumb = await fetchCommonsThumb(attempt, { offset })
       if (thumb) {
         // Same-origin proxy URL so the poster <img> always loads (and PNG export works).
         const proxied = `/api/place-photo-file?src=${encodeURIComponent(thumb)}`

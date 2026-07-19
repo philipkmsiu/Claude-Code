@@ -153,6 +153,10 @@ function xinjiangTemplateSeeds(): SpotSeed[] {
   ]
 }
 
+export function isLongHaulDestination(name: string): boolean {
+  return /新疆|南北疆|青甘|大環線|環線|帕米爾|自駕公路|西藏.*線|川藏|滇藏/.test(name)
+}
+
 /** Infer trip length from destination wording (環線 / 南北疆 / 慢遊 etc.). */
 export function inferCustomTripProfile(name: string): {
   recommendedDays: Destination['recommendedDays']
@@ -172,6 +176,28 @@ export function inferCustomTripProfile(name: string): {
     (/新疆/.test(text) && /南北|環/.test(text))
   const xinjiang = /新疆|北疆|南疆|喀納斯|喀什|伊犁|帕米爾/.test(text)
   const multiCity = /[＋+及與和／/]/.test(text) || (text.match(/[市縣州島]/g)?.length ?? 0) >= 2
+
+  // Single Chinese historic cities: keep advice in a realistic city-break range.
+  if (/西安|西京|兵馬俑/.test(text) && !loop) {
+    return {
+      recommendedDays: {
+        min: 3,
+        comfortable: slow ? 6 : 5,
+        suggestedLongest: 8,
+        note: `${text}：市區＋兵馬俑／華山通常 4–6 天即可；想慢遊可到 7–8 天，不必拉成兩週以上。`,
+      },
+      tagline: '古都城市遊・天數保持務實',
+      intro: `${text} 以古城、博物館與近郊日遊為主。系統會避免把城市遊估成超長環線；若勾選過多景點，請刪減或小幅加天，而不是直接拉到 20 天。`,
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
+      spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
+      flexDayIdeas: ['華山全日日遊', '回民街美食夜遊', '雨備博物館日'],
+      tips: [
+        '兵馬俑建議一早到達；華山請獨立留一整天。',
+        '若系統提示天數不夠，優先取消較遠或重複的點，而不是盲目加到 20 天。',
+      ],
+    }
+  }
 
   if (xinjiang && (loop || /南北疆/.test(text) || ( /北疆/.test(text) && /南疆/.test(text) ))) {
     const comfortable = slow ? 18 : 16
@@ -335,15 +361,20 @@ export function scenicSpotsFromAi(
       ALLOWED_SPOT_TAGS.includes(tag as SpotTag),
     )
     const stayHours = Number(item.stayHours)
+    let hours =
+      Number.isFinite(stayHours) && stayHours > 0
+        ? Math.min(10, Math.max(1, stayHours))
+        : 2
+    // Full-day excursions must occupy their own day in packing / fit math.
+    if (/華山|黃山|張家界|峨眉|日遊|一日遊/.test(name)) {
+      hours = Math.max(hours, 7)
+    }
     spots.push({
       id: `ai-spot-${slugifyDestination(place)}-${stamp}-${index + 1}`,
       name,
       nameLocal: item.nameLocal?.trim() || name,
       area: item.area?.trim() || '市區',
-      stayHours:
-        Number.isFinite(stayHours) && stayHours > 0
-          ? Math.min(10, Math.max(1, stayHours))
-          : 2,
+      stayHours: hours,
       summary: item.summary?.trim() || `${name}：值得安排的在地行程。`,
       tags: tags.length ? tags : (['popular'] as SpotTag[]),
       ticket: item.ticket?.trim() || '視當地而定',
@@ -1890,11 +1921,17 @@ export function defaultSelectedSpotIds(
   if (dest?.curatedPlans) return spots.map((s) => s.id)
 
   const must = spots.filter((s) => s.tags.includes('must')).map((s) => s.id)
-  const photo = spots.filter((s) => s.tags.includes('photo') && !must.includes(s.id)).map((s) => s.id)
-  const popular = spots
-    .filter((s) => s.tags.includes('popular') && !must.includes(s.id) && !photo.includes(s.id))
+  const photo = spots
+    .filter((s) => s.tags.includes('photo') && !must.includes(s.id))
     .map((s) => s.id)
-  return [...must, ...photo.slice(0, 6), ...popular.slice(0, 4)].slice(0, 14)
+  const popular = spots
+    .filter(
+      (s) => s.tags.includes('popular') && !must.includes(s.id) && !photo.includes(s.id),
+    )
+    .map((s) => s.id)
+  // Keep city defaults modest so fit advice stays in a realistic 4–8 day range.
+  const cap = isLongHaulDestination(dest?.nameZh || '') ? 14 : 8
+  return [...must, ...photo.slice(0, 4), ...popular.slice(0, 3)].slice(0, cap)
 }
 
 export type DurationFitStatus = 'too_packed' | 'too_light' | 'balanced' | 'empty'
@@ -1975,10 +2012,17 @@ export function assessDurationFit(options: {
     tripPaces.find((p) => p.id === pace)?.spotsPerDay ?? 3
 
   const totalSpotHours = selected.reduce((sum, s) => sum + s.stayHours, 0)
-  const longTrips = selected.filter((s) => s.stayHours >= 6)
-  const shortSpots = selected.filter((s) => s.stayHours < 6)
-  const areas = new Set(selected.map((s) => s.area))
+  // Treat mountain / full-day names as long trips even if AI under-states hours.
+  const longTrips = selected.filter(
+    (s) => s.stayHours >= 6 || /華山|日遊|一日遊|環湖|沙漠/.test(s.name),
+  )
+  const shortSpots = selected.filter((s) => !longTrips.includes(s))
+  // Collapse micro-areas (e.g. 西安・鐘樓 / 西安城牆內) so city trips don't explode.
+  const areas = new Set(
+    selected.map((s) => hotelAreaBase(s.area) || s.area.split(/[・·/／]/)[0] || s.area),
+  )
   const areaCount = areas.size
+  const longHaul = isLongHaulDestination(dest?.nameZh || dest?.nameLocal || '')
 
   // Each long day-trip roughly occupies a full day.
   const longTripDays = longTrips.length
@@ -1989,10 +2033,14 @@ export function assessDurationFit(options: {
   const shortByCount = Math.ceil(shortSpots.length / spotsPerDay)
   const shortDays = Math.max(shortByHours, shortByCount, shortSpots.length ? 1 : 0)
 
-  // Moving between many areas / bases needs transit or buffer days.
-  const transitBuffers = Math.max(0, areaCount - 1)
+  // City trips: at most 1–2 transit buffers. Long-haul can use more.
+  const rawTransit = Math.max(0, areaCount - 1)
+  const transitBuffers = longHaul
+    ? rawTransit
+    : Math.min(2, Math.ceil(rawTransit * 0.35))
   const photoHeavy = selected.filter((s) => s.tags.includes('photo')).length
-  const photoBuffer = photoHeavy >= 5 || specialNeeds.some((n) => n.includes('打卡')) ? 1 : 0
+  const photoBuffer =
+    photoHeavy >= 8 || specialNeeds.some((n) => n.includes('打卡')) ? 1 : 0
   const altitudeBuffer = specialNeeds.some((n) => n.includes('高原')) ? 1 : 0
   const arrivalDeparture = 1 // arrival or soft start
 
@@ -2003,6 +2051,13 @@ export function assessDurationFit(options: {
   let comfortableDays = clampDays(
     recommendedDays + 1 + altitudeBuffer + (pace === 'relaxed' ? 1 : 0),
   )
+
+  // Hard ceiling for ordinary city breaks (西安／大阪／台北…).
+  if (!longHaul) {
+    minDays = clampDays(Math.min(minDays, 7))
+    recommendedDays = clampDays(Math.min(recommendedDays, 9))
+    comfortableDays = clampDays(Math.min(comfortableDays, 11))
+  }
 
   // If destination has a curated plan near this spot load, prefer its advice.
   if (dest?.curatedPlans) {
@@ -2056,8 +2111,12 @@ export function assessDurationFit(options: {
       totalSpotHours,
       longTripCount: longTripDays,
       areaCount,
-      title: '景點偏多，天數可能不夠',
-      message: `你選了 ${selected.length} 個景點（約 ${hoursLabel}，${areaLabel}${longLabel}）。以「${tripPaces.find((p) => p.id === pace)?.label ?? '平衡'}」節奏，正常完成大約需要 ${recommendedDays} 天（最少 ${minDays} 天，舒服可到 ${comfortableDays} 天）。現在的 ${chosenDays} 天會偏趕，建議加長天數或減少景點。`,
+      title: longHaul
+        ? '景點偏多，天數可能不夠'
+        : '景點偏多：可加天或刪減景點（城市遊不必拉到 20 天）',
+      message: longHaul
+        ? `你選了 ${selected.length} 個景點（約 ${hoursLabel}，${areaLabel}${longLabel}）。以「${tripPaces.find((p) => p.id === pace)?.label ?? '平衡'}」節奏，正常完成大約需要 ${recommendedDays} 天（最少 ${minDays} 天，舒服可到 ${comfortableDays} 天）。現在的 ${chosenDays} 天會偏趕，建議加長天數或減少景點。`
+        : `你選了 ${selected.length} 個景點（約 ${hoursLabel}，${areaLabel}${longLabel}）。城市遊正常完成約 ${recommendedDays} 天即可（最少 ${minDays}、舒服 ${comfortableDays}）；不必拉到兩週以上。現在 ${chosenDays} 天偏趕時，優先取消較遠／重複景點，或小幅加到 ${recommendedDays} 天。`,
     }
   }
 
