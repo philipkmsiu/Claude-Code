@@ -1027,7 +1027,7 @@ function App() {
             <div className="hero-copy">
               <BounceBadge>🎉 開心出發模式 ON</BounceBadge>
               <span className="hero-logo-wrap">
-                <KmLogo className="hero-logo" size={128} />
+                <KmLogo className="hero-logo" size={128} spectacle />
               </span>
               <h1 className="hero-brand">KM Travel Planner</h1>
               <p className="eyebrow">

@@ -113,7 +113,7 @@
   z-index: 2;
   /* hip of the K foot in the square mark */
   transform-origin: 26% 52%;
-  animation: km-foot-kick 1.15s cubic-bezier(0.22, 1.35, 0.36, 1) infinite;
+  animation: km-foot-kick 2.8s cubic-bezier(0.22, 1.35, 0.36, 1) infinite;
   will-change: transform;
 }
 
@@ -123,8 +123,112 @@
   will-change: background-color;
 }
 
-.hero-logo.km-logo-live {
-  filter: drop-shadow(0 12px 20px rgba(200, 16, 46, 0.22));
+/* Drop-shadow on layers (not the live root) so the ball can fly off-screen */
+.hero-logo.km-logo-live .km-logo-base,
+.hero-logo.km-logo-live .km-logo-foot {
+  filter: drop-shadow(0 10px 16px rgba(200, 16, 46, 0.22));
+}
+
+/* ── Football kick spectacle (hero) ── */
+.km-logo-spectacle {
+  --km-kick-dur: 2.8s;
+}
+
+.km-kick-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.km-football {
+  position: absolute;
+  left: 22%;
+  top: 58%;
+  width: 1.15em;
+  height: 1.15em;
+  margin: 0;
+  font-size: clamp(1.05rem, 0.42em + 0.55rem, 1.85rem);
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  transform: translate(-120%, 40%) scale(0.75) rotate(-20deg);
+  filter: drop-shadow(0 4px 6px rgba(20, 24, 40, 0.35));
+  animation: km-football-flight var(--km-kick-dur) cubic-bezier(0.2, 0.8, 0.25, 1) infinite;
+  will-change: transform, opacity;
+}
+
+.km-boom {
+  position: absolute;
+  left: 30%;
+  top: 56%;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  animation: km-boom-show var(--km-kick-dur) linear infinite;
+}
+
+.km-boom-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: clamp(1.4rem, 0.55em + 0.7rem, 2.4rem);
+  transform: translate(-50%, -50%) scale(0.2);
+  animation: km-boom-flash var(--km-kick-dur) linear infinite;
+  filter: drop-shadow(0 0 10px rgba(255, 180, 40, 0.85));
+}
+
+.km-boom-ring,
+.km-boom-ring-b {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.6rem;
+  height: 0.6rem;
+  border: 2px solid rgba(255, 170, 50, 0.95);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.2);
+  opacity: 0;
+  animation: km-boom-ring var(--km-kick-dur) linear infinite;
+}
+
+.km-boom-ring-b {
+  border-color: rgba(255, 80, 90, 0.75);
+  animation-delay: 40ms;
+}
+
+.km-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.38rem;
+  height: 0.38rem;
+  margin: -0.19rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff7c2, #ffb020 45%, #ff4d2a 100%);
+  box-shadow: 0 0 8px rgba(255, 160, 40, 0.9);
+  opacity: 0;
+  animation: km-spark-burst var(--km-kick-dur) linear infinite;
+}
+
+.km-spark:nth-child(odd) {
+  width: 0.28rem;
+  height: 0.28rem;
+  background: radial-gradient(circle at 35% 35%, #fff, #ffd24a 40%, #ff6b9d 100%);
+}
+
+.km-trail {
+  position: absolute;
+  left: 30%;
+  top: 56%;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 220, 120, 0.95), rgba(255, 90, 60, 0));
+  opacity: 0;
+  filter: blur(1px);
+  animation: km-trail-streak var(--km-kick-dur) linear infinite;
 }
 
 .footer-km {
@@ -2258,24 +2362,175 @@ main {
   }
 }
 
-/* K foot: wind up, then kick out hard */
+/*
+ * K foot kick — shared 2.8s timeline with football:
+ * 0–28% wind-up while ball arrives, ~32% strike, then settle.
+ */
 @keyframes km-foot-kick {
   0%,
-  10% {
-    transform: rotate(12deg);
+  18% {
+    transform: rotate(14deg);
   }
   28% {
-    transform: rotate(-52deg);
-  }
-  40% {
     transform: rotate(22deg);
   }
-  55% {
-    transform: rotate(-10deg);
+  32% {
+    transform: rotate(-56deg);
   }
-  70%,
+  42% {
+    transform: rotate(18deg);
+  }
+  55% {
+    transform: rotate(-8deg);
+  }
+  68%,
   100% {
     transform: rotate(10deg);
+  }
+}
+
+/* Ball flies in → sits at foot → blasted across the viewport */
+@keyframes km-football-flight {
+  0% {
+    opacity: 0;
+    transform: translate(-160%, 90%) scale(0.55) rotate(-40deg);
+  }
+  8% {
+    opacity: 1;
+  }
+  26% {
+    transform: translate(-8%, 8%) scale(0.95) rotate(220deg);
+  }
+  30% {
+    transform: translate(2%, 2%) scale(1) rotate(280deg);
+  }
+  32% {
+    /* impact frame — matches foot strike */
+    transform: translate(6%, -4%) scale(1.08) rotate(300deg);
+  }
+  48% {
+    opacity: 1;
+    transform: translate(42vw, -18vh) scale(0.85) rotate(720deg);
+  }
+  62% {
+    opacity: 0.85;
+    transform: translate(78vw, -8vh) scale(0.55) rotate(1080deg);
+  }
+  72% {
+    opacity: 0;
+    transform: translate(95vw, 6vh) scale(0.3) rotate(1260deg);
+  }
+  73%,
+  100% {
+    opacity: 0;
+    transform: translate(-160%, 90%) scale(0.55) rotate(-40deg);
+  }
+}
+
+@keyframes km-boom-show {
+  0%,
+  30% {
+    opacity: 0;
+  }
+  32%,
+  46% {
+    opacity: 1;
+  }
+  58%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes km-boom-flash {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.15);
+  }
+  33% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+  42% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  55%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+}
+
+@keyframes km-boom-ring {
+  0%,
+  31% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  34% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  48% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(4.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(4.5);
+  }
+}
+
+@keyframes km-spark-burst {
+  0%,
+  31% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  34% {
+    opacity: 1;
+    transform: translate(calc(var(--sx) * 0.55rem), calc(var(--sy) * 0.55rem))
+      scale(1.15);
+  }
+  48% {
+    opacity: 0.9;
+    transform: translate(calc(var(--sx) * 2.8rem), calc(var(--sy) * 2.8rem))
+      scale(0.85);
+  }
+  60% {
+    opacity: 0;
+    transform: translate(calc(var(--sx) * 4.2rem), calc(var(--sy) * 4.2rem))
+      scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+}
+
+@keyframes km-trail-streak {
+  0%,
+  32% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  36% {
+    opacity: 0.9;
+    transform: translate(8vw, -4vh) scale(1.4);
+  }
+  50% {
+    opacity: 0.45;
+    transform: translate(36vw, -14vh) scale(0.9);
+  }
+  62% {
+    opacity: 0;
+    transform: translate(60vw, -10vh) scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
   }
 }
 
@@ -3519,11 +3774,22 @@ a.btn {
   .brand-logo,
   .hero-logo,
   .footer-brand img,
-  .km-logo-live .km-logo-foot-wrap {
+  .km-logo-live .km-logo-foot-wrap,
+  .km-football,
+  .km-boom,
+  .km-boom-flash,
+  .km-boom-ring,
+  .km-boom-ring-b,
+  .km-spark,
+  .km-trail {
     animation: none !important;
   }
 
-  /* Keep logo color cycles (no spatial motion); only the kick is suppressed above */
+  .km-kick-fx {
+    display: none;
+  }
+
+  /* Keep logo color cycles (no spatial motion); kick + ball are suppressed above */
   .km-logo-live .km-logo-base {
     animation: km-body-color 3.6s ease-in-out infinite !important;
     animation-duration: 3.6s !important;
