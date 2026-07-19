@@ -960,6 +960,10 @@ function App() {
                       {dest.recommendedDays.comfortable} 天 · 建議最長{' '}
                       {dest.recommendedDays.suggestedLongest} 天
                     </span>
+                    <span className="dest-meta">
+                      最佳 {formatMonthsZh(getSeasonGuide(dest).bestMonths)} · 避開{' '}
+                      {formatMonthsZh(getSeasonGuide(dest).worstMonths)}
+                    </span>
                   </button>
                 )
               })}
