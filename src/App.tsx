@@ -57,6 +57,14 @@ import {
 } from './data/travel'
 import { FreeTextField } from './components/FreeTextField'
 import {
+  BounceBadge,
+  EmojiChipRow,
+  FloatingEmojiField,
+  FunStatPills,
+  MoodTicker,
+  StickerWidget,
+} from './components/HappyBits'
+import {
   IconArrowRight,
   IconCalendar,
   IconCamera,
@@ -965,17 +973,19 @@ function App() {
     id: Step
     label: string
     icon: ReactNode
+    emoji: string
   }[] = [
-    { id: 'destination', label: '目的地', icon: <IconMapPin size={14} /> },
-    { id: 'preferences', label: '天數條件', icon: <IconCalendar size={14} /> },
-    { id: 'hotel', label: '住宿', icon: <IconHotel size={14} /> },
-    { id: 'spots', label: '景點', icon: <IconCamera size={14} /> },
-    { id: 'result', label: '行程', icon: <IconRoute size={14} /> },
+    { id: 'destination', label: '目的地', icon: <IconMapPin size={14} />, emoji: '📍' },
+    { id: 'preferences', label: '天數條件', icon: <IconCalendar size={14} />, emoji: '📅' },
+    { id: 'hotel', label: '住宿', icon: <IconHotel size={14} />, emoji: '🏨' },
+    { id: 'spots', label: '景點', icon: <IconCamera size={14} />, emoji: '📸' },
+    { id: 'result', label: '行程', icon: <IconRoute size={14} />, emoji: '🗺️' },
   ]
 
   return (
-    <div className="app">
+    <div className="app happy-mode">
       <div className="atmosphere" aria-hidden="true" />
+      <FloatingEmojiField />
       <header className="topbar">
         <button type="button" className="brand" onClick={reset}>
           <img
@@ -987,7 +997,7 @@ function App() {
           />
           <span className="brand-text">
             KM Travel Planner
-            <small>KM Building Company · AI 旅遊規劃</small>
+            <small>KM Building Company · AI 旅遊規劃 ✨</small>
           </span>
         </button>
         {step !== 'home' && (
@@ -998,16 +1008,20 @@ function App() {
                 active={step === item.id}
                 label={item.label}
                 icon={item.icon}
+                emoji={item.emoji}
               />
             ))}
           </nav>
         )}
       </header>
 
+      <MoodTicker />
+
       <main>
         {step === 'home' && (
           <section className="hero">
             <div className="hero-copy">
+              <BounceBadge>🎉 開心出發模式 ON</BounceBadge>
               <img
                 className="hero-logo"
                 src="/km-logo.png"
@@ -1018,19 +1032,20 @@ function App() {
               <h1 className="hero-brand">KM Travel Planner</h1>
               <p className="eyebrow">
                 <IconSpark size={16} className="inline-icon" />
-                KM Building Company · 互動式 AI 旅程地圖
+                KM Building Company · 互動式 AI 旅程地圖 🌈
               </p>
               <p className="hero-lead">
                 先輸入目的地，看最短／最舒服要幾天；也可以自己輸入天數（到{' '}
                 {MAX_TRIP_DAYS} 天）。勾景點、產生行程，再下載 Gemini
-                風格插畫海報。
+                風格插畫海報——規劃都開心啲！
               </p>
               <div className="cta-row">
                 <button
                   type="button"
-                  className="btn primary"
+                  className="btn primary pulse-cta"
                   onClick={() => setStep('destination')}
                 >
+                  <span aria-hidden>🚀</span>
                   <IconCompass size={18} />
                   開始規劃
                   <IconArrowRight size={16} />
@@ -1060,24 +1075,35 @@ function App() {
                     setPlanVersion((v) => v + 1)
                   }}
                 >
+                  <span aria-hidden>🏜️</span>
                   <IconRoute size={18} />
                   看青甘 14 日範例
                 </button>
               </div>
               <ul className="hero-feature-row" aria-label="產品亮點">
                 <li>
+                  <span aria-hidden>📍</span>
                   <IconMapPin size={18} />
                   <span>目的地 AI 建議</span>
                 </li>
                 <li>
+                  <span aria-hidden>⏱️</span>
                   <IconCalendar size={18} />
                   <span>天數智慧校正</span>
                 </li>
                 <li>
+                  <span aria-hidden>🎨</span>
                   <IconPoster size={18} />
                   <span>插畫海報下載</span>
                 </li>
               </ul>
+              <FunStatPills
+                items={[
+                  { emoji: '🌍', label: '世界想去就去', value: 'Anywhere' },
+                  { emoji: '🧭', label: '節奏自選', value: 'Slow / Fun' },
+                  { emoji: '🎁', label: '海報可下載', value: 'PNG' },
+                ]}
+              />
             </div>
             <div className="hero-visual" aria-hidden="true">
               <div className="hero-orbit">
@@ -1096,24 +1122,45 @@ function App() {
                 <span className="orbit-icon o5">
                   <IconUsers size={22} />
                 </span>
+                <span className="orbit-emoji oe1">🍜</span>
+                <span className="orbit-emoji oe2">🏔️</span>
+                <span className="orbit-emoji oe3">🎫</span>
               </div>
               <div className="hero-panel">
                 <span>
+                  <span className="panel-emoji">⚡</span>
                   <IconCalendar size={20} />
                   最短天數
                 </span>
                 <span>
+                  <span className="panel-emoji">☕</span>
                   <IconSpark size={20} />
                   最舒服天數
                 </span>
                 <span>
+                  <span className="panel-emoji">✏️</span>
                   <IconRoute size={20} />
                   自己輸入
                 </span>
                 <span>
+                  <span className="panel-emoji">🔄</span>
                   <IconRefresh size={20} />
                   重跑行程
                 </span>
+              </div>
+              <div className="hero-sticker-stack">
+                <StickerWidget
+                  emoji="🥳"
+                  title="今日心情：想出走"
+                  note="由目的地開始，3 步就有旅程地圖"
+                  tone="coral"
+                />
+                <StickerWidget
+                  emoji="🌟"
+                  title="小驚喜海報"
+                  note="插畫版＋相片版，兩款都可下載"
+                  tone="sunny"
+                />
               </div>
             </div>
           </section>
@@ -1123,13 +1170,50 @@ function App() {
           <section className="panel-section enter">
             <div className="section-head">
               <p className="section-kicker">
+                <span aria-hidden>📍</span>
                 <IconMapPin size={16} /> Step 1 · Destination
               </p>
-              <h2>輸入你想去的地方</h2>
+              <h2>輸入你想去的地方 ✈️</h2>
               <p>
                 直接打目的地名稱即可（可一次輸入多個，用逗號分隔）。若符合內建行程會自動套用；否則 AI 會為你建立可編輯的行程骨架。
               </p>
             </div>
+
+            <div className="happy-widget-grid">
+              <StickerWidget
+                emoji="🗺️"
+                title="想去邊就打邊"
+                note="西安、大阪、新疆南北疆都得"
+                tone="sky"
+              />
+              <StickerWidget
+                emoji="🎈"
+                title="一次可以多個"
+                note="用逗號分隔，再慢慢剔選"
+                tone="mint"
+              />
+              <StickerWidget
+                emoji="🤖"
+                title="AI 幫手起骨架"
+                note="唔識排都唔怕，先有個底"
+                tone="sunny"
+              />
+            </div>
+
+            <EmojiChipRow
+              label="🎯 一鍵試玩熱門目的地"
+              chips={[
+                { emoji: '🏯', text: '西安' },
+                { emoji: '🏔️', text: '青甘大環線' },
+                { emoji: '🐪', text: '新疆南北疆' },
+                { emoji: '🍜', text: '大阪' },
+                { emoji: '🗼', text: '巴黎' },
+              ]}
+              onPick={(text) => {
+                setDestinationInput(text)
+                setInputError('')
+              }}
+            />
 
             <form
               className="destination-input-panel"
@@ -1139,7 +1223,7 @@ function App() {
                 addDestinationsFromInput()
               }}
             >
-              <label htmlFor="dest-input">目的地（可中文／語音／貼上）</label>
+              <label htmlFor="dest-input">目的地（可中文／語音／貼上）🌍</label>
               <FreeTextField
                 id="dest-input"
                 multiline
@@ -1264,13 +1348,29 @@ function App() {
           <section className="panel-section enter">
             <div className="section-head">
               <p className="section-kicker">
+                <span aria-hidden>📅</span>
                 <IconCalendar size={16} /> Step 2 · Days &amp; pace
               </p>
-              <h2>這個地方建議玩幾天？</h2>
+              <h2>這個地方建議玩幾天？ ⏳</h2>
               <p>
                 AI（Crazyrouter）會先審核目的地再給天數。建議最長多半落在{' '}
                 {displayAdvice.suggestedLongest} 天左右，你仍可輸入到 {MAX_TRIP_DAYS} 天。
               </p>
+            </div>
+
+            <div className="happy-widget-grid">
+              <StickerWidget
+                emoji="🧘"
+                title="舒服節奏優先"
+                note="唔使硬撐成遠征隊"
+                tone="mint"
+              />
+              <StickerWidget
+                emoji="🎯"
+                title="你揀幾多就排幾多"
+                note="多出嚟嘅日變休息日都得"
+                tone="coral"
+              />
             </div>
 
             <aside className={`ai-panel ${aiLoading ? 'loading' : aiDayRec ? 'ready' : ''}`}>
@@ -1652,9 +1752,10 @@ function App() {
           <section className="panel-section enter">
             <div className="section-head">
               <p className="section-kicker">
+                <span aria-hidden>🏨</span>
                 <IconHotel size={16} /> Step 3 · Stay
               </p>
-              <h2>住宿偏好</h2>
+              <h2>住宿偏好 🛏️</h2>
               <p>
                 你目前規劃 {planDays} 天 {nightsFromDays(planDays)} 夜 · {travelers}{' '}
                 人同行。可選風格與主酒店；系統會在可行時安排連住，避免頻繁換宿。
@@ -1811,9 +1912,10 @@ function App() {
           <section className="panel-section enter">
             <div className="section-head">
               <p className="section-kicker">
+                <span aria-hidden>📸</span>
                 <IconCamera size={16} /> Step 4 · Spots
               </p>
-              <h2>挑選景點</h2>
+              <h2>挑選景點 ✨</h2>
               <p>
                 AI 會依目的地推薦真實景點（不是「經典地標」這類空泛分類）。紅色標籤是必去／打卡紅點／熱門；不想去就取消，確認後再依你的天數產生行程。
               </p>
@@ -2027,13 +2129,34 @@ function App() {
           <section className="result enter">
             <div className="result-hero">
               <p className="section-kicker">
+                <span aria-hidden>🗺️</span>
                 <IconSpark size={16} /> Your journey · KM Travel Planner
               </p>
+              <BounceBadge>🎊 行程出爐啦！</BounceBadge>
               <p className="eyebrow">
                 {selectedDestinations.map((d) => d.nameLocal).join(' + ')} ·{' '}
                 {itinerary.length || planDays} 天實際行程 · {travelers} 人 ·{' '}
                 {transportModeLabel(transportMode)} · {paceLabel} · {companionLabel}
               </p>
+              <FunStatPills
+                items={[
+                  {
+                    emoji: '📅',
+                    label: '行程天數',
+                    value: `${itinerary.length || planDays} 天`,
+                  },
+                  {
+                    emoji: '👥',
+                    label: '同行',
+                    value: `${travelers} 人`,
+                  },
+                  {
+                    emoji: '🚗',
+                    label: '交通',
+                    value: transportModeLabel(transportMode),
+                  },
+                ]}
+              />
               <h2>{selectedDestinations.map((d) => d.nameZh).join('、')}</h2>
               <p className="result-tagline">
                 出發 {formatDateZh(startDate)} → 結束 {formatDateZh(computedEndDate)} · 共{' '}
@@ -2465,15 +2588,19 @@ function App() {
         <span className="footer-brand">
           <img src="/km-logo.png" alt="" width={28} height={28} />
           KM Travel Planner
-          <small>by KM Building Company</small>
+          <small>by KM Building Company ❤️</small>
         </span>
         <span className="footer-flow">
+          <span aria-hidden>📍</span>
           <IconMapPin size={14} /> 目的地
           <IconArrowRight size={12} />
+          <span aria-hidden>📅</span>
           <IconCalendar size={14} /> 天數
           <IconArrowRight size={12} />
+          <span aria-hidden>📸</span>
           <IconCamera size={14} /> 景點
           <IconArrowRight size={12} />
+          <span aria-hidden>🎨</span>
           <IconPoster size={14} /> 海報
         </span>
       </footer>
@@ -2485,13 +2612,16 @@ function StepPill({
   active,
   label,
   icon,
+  emoji,
 }: {
   active: boolean
   label: string
   icon?: ReactNode
+  emoji?: string
 }) {
   return (
     <span className={`step-pill ${active ? 'active' : ''}`}>
+      {emoji ? <span aria-hidden>{emoji}</span> : null}
       {icon}
       {label}
     </span>
@@ -2510,26 +2640,29 @@ function JourneyWindow({
   nights: number
 }) {
   return (
-    <aside className="journey-window">
-      <strong>行程日期總覽</strong>
+    <aside className="journey-window fun-window">
+      <strong>
+        <span aria-hidden>🗓️</span> 行程日期總覽
+      </strong>
       <div className="journey-window-grid">
         <div>
-          <span>開始日期</span>
+          <span>🛫 開始日期</span>
           <em>{formatDateZh(startDate)}</em>
         </div>
         <div>
-          <span>行程天數</span>
+          <span>🌙 行程天數</span>
           <em>
             {days} 天 {nights} 夜
           </em>
         </div>
         <div>
-          <span>結束日期</span>
+          <span>🏁 結束日期</span>
           <em>{formatDateZh(endDate)}</em>
         </div>
       </div>
       <p>
-        {formatDateZh(startDate)} 出發，行程 {days} 天，於 {formatDateZh(endDate)} 結束。
+        {formatDateZh(startDate)} 出發，行程 {days} 天，於 {formatDateZh(endDate)} 結束。玩得開心
+        ✨
       </p>
     </aside>
   )
