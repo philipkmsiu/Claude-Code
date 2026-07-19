@@ -67,7 +67,7 @@
   background: transparent;
 }
 
-/* Real company KM mark — grey K foot kicks */
+/* Real company KM mark — color-shifting body + kicking colorized foot */
 .km-logo-live {
   position: relative;
   display: inline-block;
@@ -75,35 +75,51 @@
   background: transparent;
   line-height: 0;
   overflow: visible;
+  isolation: isolate;
 }
 
 .km-logo-live .km-logo-base,
+.km-logo-live .km-logo-foot-wrap,
 .km-logo-live .km-logo-foot {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
   background: transparent;
   pointer-events: none;
   user-select: none;
 }
 
+.km-logo-live .km-logo-base,
+.km-logo-live .km-logo-foot {
+  object-fit: contain;
+  display: block;
+}
+
 .km-logo-live .km-logo-base {
   position: relative;
-  animation: km-body-color 4.8s ease-in-out infinite;
+  z-index: 1;
+  /* Strong, obvious red → magenta → orange cycle */
+  animation: km-body-color 3.2s ease-in-out infinite;
+  will-change: filter;
+}
+
+.km-logo-live .km-logo-foot-wrap {
+  z-index: 2;
+  /* hip of the K foot in the square mark */
+  transform-origin: 26% 52%;
+  animation: km-foot-kick 1.25s cubic-bezier(0.22, 1.35, 0.36, 1) infinite;
+  will-change: transform;
 }
 
 .km-logo-live .km-logo-foot {
-  /* hip of the K foot in the square mark */
-  transform-origin: 24.5% 56%;
-  animation:
-    km-foot-kick 1.45s cubic-bezier(0.34, 1.45, 0.64, 1) infinite,
-    km-foot-color 2.4s ease-in-out infinite;
+  /* Grey has no hue — sepia+saturate first so hue-rotate becomes visible */
+  animation: km-foot-color 1.8s linear infinite;
+  will-change: filter;
 }
 
 .hero-logo.km-logo-live {
-  filter: drop-shadow(0 10px 18px rgba(200, 16, 46, 0.18));
+  filter: drop-shadow(0 12px 20px rgba(200, 16, 46, 0.22));
 }
 
 .footer-km {
@@ -2237,72 +2253,60 @@ main {
   }
 }
 
-/* K foot: wind up, then kick out */
+/* K foot: wind up, then kick out hard */
 @keyframes km-foot-kick {
   0%,
-  12% {
-    transform: rotate(8deg);
+  10% {
+    transform: rotate(12deg);
   }
   28% {
-    transform: rotate(-38deg);
+    transform: rotate(-52deg);
   }
-  42% {
-    transform: rotate(18deg);
+  40% {
+    transform: rotate(22deg);
   }
   55% {
-    transform: rotate(-8deg);
+    transform: rotate(-10deg);
   }
   70%,
   100% {
-    transform: rotate(6deg);
+    transform: rotate(10deg);
   }
 }
 
-@keyframes km-cap-nod {
-  0%,
-  20%,
-  100% {
-    transform: translateY(0);
-  }
-  28% {
-    transform: translateY(-2px);
-  }
-  42% {
-    transform: translateY(1px);
-  }
-}
-
-/* Brand red ↔ coral ↔ amber for the KM body */
+/* Red body: clearly visible magenta ↔ brand red ↔ amber */
 @keyframes km-body-color {
   0%,
   100% {
-    filter: hue-rotate(0deg) saturate(1) brightness(1);
+    filter: hue-rotate(0deg) saturate(1.15) brightness(1);
   }
-  25% {
-    filter: hue-rotate(-12deg) saturate(1.15) brightness(1.05);
+  33% {
+    filter: hue-rotate(-48deg) saturate(1.55) brightness(1.08);
   }
-  50% {
-    filter: hue-rotate(18deg) saturate(1.25) brightness(1.08);
-  }
-  75% {
-    filter: hue-rotate(-6deg) saturate(1.1) brightness(1.02);
+  66% {
+    filter: hue-rotate(42deg) saturate(1.6) brightness(1.12);
   }
 }
 
-/* Foot shifts on a snappier loop — grey ↔ teal ↔ gold ↔ rose */
+/*
+ * Foot color: grey must go through sepia() before hue-rotate or nothing changes.
+ * teal → gold → rose → grey
+ */
 @keyframes km-foot-color {
-  0%,
+  0% {
+    filter: sepia(0.15) saturate(0.9) hue-rotate(0deg) brightness(1);
+  }
+  25% {
+    filter: sepia(1) saturate(8) hue-rotate(150deg) brightness(1.05);
+  }
+  50% {
+    filter: sepia(1) saturate(9) hue-rotate(8deg) brightness(1.12);
+  }
+  75% {
+    filter: sepia(1) saturate(8) hue-rotate(310deg) brightness(1.06);
+  }
   100% {
-    filter: hue-rotate(0deg) saturate(1) brightness(1);
-  }
-  20% {
-    filter: hue-rotate(140deg) saturate(1.35) brightness(1.08);
-  }
-  45% {
-    filter: hue-rotate(40deg) saturate(1.4) brightness(1.12);
-  }
-  70% {
-    filter: hue-rotate(-30deg) saturate(1.25) brightness(1.05);
+    filter: sepia(0.15) saturate(0.9) hue-rotate(0deg) brightness(1);
   }
 }
 
@@ -3519,7 +3523,8 @@ a.btn {
   .hero-logo,
   .footer-brand img,
   .km-logo-live .km-logo-base,
-  .km-logo-live .km-logo-foot {
+  .km-logo-live .km-logo-foot,
+  .km-logo-live .km-logo-foot-wrap {
     animation: none !important;
   }
 }

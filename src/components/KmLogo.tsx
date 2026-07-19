@@ -1,10 +1,12 @@
-/** Real KM company mark with an animated kicking K-foot. */
+/** Real KM company mark: color-shifting body + kicking, color-cycling foot. */
 
 type Props = {
   className?: string
   size?: number
   title?: string
 }
+
+const ASSET_V = 'v3'
 
 export function KmLogo({ className = '', size = 48, title = 'KM' }: Props) {
   return (
@@ -16,20 +18,22 @@ export function KmLogo({ className = '', size = 48, title = 'KM' }: Props) {
     >
       <img
         className="km-logo-base"
-        src="/km-logo-base.png"
+        src={`/km-logo-base.png?${ASSET_V}`}
         alt=""
         draggable={false}
         width={size}
         height={size}
       />
-      <img
-        className="km-logo-foot"
-        src="/km-logo-foot.png"
-        alt=""
-        draggable={false}
-        width={size}
-        height={size}
-      />
+      <span className="km-logo-foot-wrap" aria-hidden>
+        <img
+          className="km-logo-foot"
+          src={`/km-logo-foot.png?${ASSET_V}`}
+          alt=""
+          draggable={false}
+          width={size}
+          height={size}
+        />
+      </span>
     </span>
   )
 }
