@@ -1,11 +1,23 @@
 /**
- * Relaxed in-app soundscape: soft ambient pad + gentle UI / motion cues.
- * Fully synthesized with Web Audio (no external media files).
+ * Relaxed in-app soundscape: soft sine-pad ambient + clean UI cues.
+ * Fully synthesized with Web Audio (no noise beds — those sounded like “ng ng”).
  */
 
 const STORAGE_KEY = 'km-sound-muted'
 
 type ToneName = 'tick' | 'whoosh' | 'chime' | 'softPop' | 'ready'
+
+/** Soft C major / A minor travel pad voicings (Hz). */
+const PAD_CHORDS: number[][] = [
+  [261.63, 329.63, 392.0, 493.88], // Cmaj7-ish
+  [220.0, 261.63, 329.63, 440.0], // Am7-ish
+  [174.61, 220.0, 261.63, 349.23], // Fmaj
+  [196.0, 246.94, 293.66, 392.0], // G
+]
+
+const MELODY: number[] = [
+  523.25, 587.33, 659.25, 587.33, 523.25, 493.88, 440.0, 493.88,
+]
 
 function canUseAudio(): boolean {
   return typeof window !== 'undefined' && typeof AudioContext !== 'undefined'
@@ -32,8 +44,12 @@ class Soundscape {
   private master: GainNode | null = null
   private ambientGain: GainNode | null = null
   private sfxGain: GainNode | null = null
+  private padOscillators: OscillatorNode[] = []
   private ambientNodes: AudioNode[] = []
-  private lfoTimer: number | null = null
+  private chordTimer: number | null = null
+  private melodyTimer: number | null = null
+  private chordIndex = 0
+  private melodyIndex = 0
   private unlocked = false
   private muted = loadMuted()
   private ambientOn = false
@@ -101,24 +117,24 @@ class Soundscape {
       if (!this.ctx || !this.sfxGain || this.muted) return
       switch (name) {
         case 'tick':
-          this.playTone(784, 0.05, 0.035, 'sine')
+          this.playTone(880, 0.06, 0.028, 'sine')
           break
         case 'softPop':
-          this.playTone(523.25, 0.07, 0.04, 'triangle')
-          this.playTone(659.25, 0.09, 0.025, 'sine', 0.02)
+          this.playTone(659.25, 0.1, 0.03, 'sine')
+          this.playTone(830.61, 0.12, 0.02, 'sine', 0.03)
           break
         case 'whoosh':
-          this.playWhoosh()
+          this.playSoftSweep()
           break
         case 'chime':
-          this.playTone(523.25, 0.22, 0.05, 'sine')
-          this.playTone(659.25, 0.28, 0.04, 'sine', 0.05)
-          this.playTone(783.99, 0.34, 0.03, 'triangle', 0.1)
+          this.playTone(659.25, 0.35, 0.04, 'sine')
+          this.playTone(830.61, 0.4, 0.03, 'sine', 0.07)
+          this.playTone(1046.5, 0.45, 0.022, 'sine', 0.14)
           break
         case 'ready':
-          this.playTone(392, 0.18, 0.045, 'sine')
-          this.playTone(493.88, 0.24, 0.04, 'sine', 0.08)
-          this.playTone(587.33, 0.32, 0.035, 'triangle', 0.16)
+          this.playTone(523.25, 0.28, 0.038, 'sine')
+          this.playTone(659.25, 0.34, 0.032, 'sine', 0.1)
+          this.playTone(783.99, 0.42, 0.026, 'sine', 0.2)
           break
         default:
           break
@@ -142,7 +158,7 @@ class Soundscape {
     ambientGain.connect(master)
 
     const sfxGain = ctx.createGain()
-    sfxGain.gain.value = 0.9
+    sfxGain.gain.value = 0.75
     sfxGain.connect(master)
 
     this.ctx = ctx
@@ -154,70 +170,96 @@ class Soundscape {
   private startAmbient() {
     if (!this.ctx || !this.ambientGain || this.muted || this.ambientOn) return
     this.ambientOn = true
+    this.chordIndex = 0
+    this.melodyIndex = 0
 
     const ctx = this.ctx
     const bus = this.ambientGain
     bus.gain.cancelScheduledValues(ctx.currentTime)
-    bus.gain.setValueAtTime(bus.gain.value, ctx.currentTime)
-    bus.gain.linearRampToValueAtTime(0.085, ctx.currentTime + 1.6)
+    bus.gain.setValueAtTime(Math.max(bus.gain.value, 0.0001), ctx.currentTime)
+    bus.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 1.8)
 
-    // Soft traveling pad: warm fifths + airy high partials.
-    const padNotes = [130.81, 164.81, 196.0, 246.94, 329.63]
-    for (const [index, freq] of padNotes.entries()) {
-      const osc = ctx.createOscillator()
-      osc.type = index < 2 ? 'sine' : 'triangle'
-      osc.frequency.value = freq
-      const gain = ctx.createGain()
-      gain.gain.value = index < 2 ? 0.22 : 0.08
-      const filter = ctx.createBiquadFilter()
-      filter.type = 'lowpass'
-      filter.frequency.value = 420 + index * 90
-      filter.Q.value = 0.5
-      osc.connect(filter)
-      filter.connect(gain)
-      gain.connect(bus)
-      osc.start()
-      this.ambientNodes.push(osc, gain, filter)
+    // Shared warm low-pass so the pad stays soft and musical.
+    const padFilter = ctx.createBiquadFilter()
+    padFilter.type = 'lowpass'
+    padFilter.frequency.value = 1800
+    padFilter.Q.value = 0.4
+    padFilter.connect(bus)
+    this.ambientNodes.push(padFilter)
+
+    // Four sine voices with very light chorus detune — no noise, no triangle buzz.
+    this.padOscillators = []
+    const firstChord = PAD_CHORDS[0]
+    for (let i = 0; i < 4; i += 1) {
+      const oscA = ctx.createOscillator()
+      const oscB = ctx.createOscillator()
+      oscA.type = 'sine'
+      oscB.type = 'sine'
+      const freq = firstChord[i]
+      oscA.frequency.value = freq
+      oscB.frequency.value = freq * 1.002
+      const voice = ctx.createGain()
+      voice.gain.value = i === 0 ? 0.09 : 0.07
+      oscA.connect(voice)
+      oscB.connect(voice)
+      voice.connect(padFilter)
+      oscA.start()
+      oscB.start()
+      this.padOscillators.push(oscA, oscB)
+      this.ambientNodes.push(oscA, oscB, voice)
     }
 
-    // Gentle filtered noise bed (sea / wind feel, very quiet).
-    const noise = this.createNoiseSource(8)
-    const noiseFilter = ctx.createBiquadFilter()
-    noiseFilter.type = 'bandpass'
-    noiseFilter.frequency.value = 280
-    noiseFilter.Q.value = 0.6
-    const noiseGain = ctx.createGain()
-    noiseGain.gain.value = 0.035
-    noise.connect(noiseFilter)
-    noiseFilter.connect(noiseGain)
-    noiseGain.connect(bus)
-    noise.start()
-    this.ambientNodes.push(noise, noiseFilter, noiseGain)
-
-    // Slow shimmer LFO on pad brightness.
+    // Slow brightness breathe (subtle, not a wah).
     const lfo = ctx.createOscillator()
     lfo.type = 'sine'
-    lfo.frequency.value = 0.07
+    lfo.frequency.value = 0.05
     const lfoGain = ctx.createGain()
-    lfoGain.gain.value = 120
+    lfoGain.gain.value = 220
     lfo.connect(lfoGain)
-    for (const node of this.ambientNodes) {
-      if (node instanceof BiquadFilterNode && node.type === 'lowpass') {
-        lfoGain.connect(node.frequency)
-      }
-    }
+    lfoGain.connect(padFilter.frequency)
     lfo.start()
     this.ambientNodes.push(lfo, lfoGain)
 
-    // Occasional soft sparkle notes for motion presence.
-    const sparkle = () => {
+    this.applyChord(0, 0.01)
+    this.scheduleChordWalk()
+    this.scheduleMelody()
+  }
+
+  private scheduleChordWalk() {
+    if (!this.ambientOn || this.muted) return
+    this.chordTimer = window.setTimeout(() => {
+      if (!this.ambientOn || this.muted) return
+      this.chordIndex = (this.chordIndex + 1) % PAD_CHORDS.length
+      this.applyChord(this.chordIndex, 2.4)
+      this.scheduleChordWalk()
+    }, 7200)
+  }
+
+  private applyChord(index: number, glideSec: number) {
+    if (!this.ctx) return
+    const chord = PAD_CHORDS[index]
+    const t = this.ctx.currentTime
+    this.padOscillators.forEach((osc, voice) => {
+      const tone = chord[Math.floor(voice / 2)]
+      if (!tone) return
+      const target = voice % 2 === 0 ? tone : tone * 1.002
+      osc.frequency.cancelScheduledValues(t)
+      osc.frequency.setValueAtTime(osc.frequency.value, t)
+      osc.frequency.linearRampToValueAtTime(target, t + Math.max(0.05, glideSec))
+    })
+  }
+
+  private scheduleMelody() {
+    if (!this.ambientOn || this.muted) return
+    this.melodyTimer = window.setTimeout(() => {
       if (!this.ambientOn || this.muted || !this.ctx) return
-      const picks = [523.25, 587.33, 659.25, 783.99, 880]
-      const freq = picks[Math.floor(Math.random() * picks.length)]
-      this.playTone(freq, 0.9, 0.018, 'sine', 0, true)
-      this.lfoTimer = window.setTimeout(sparkle, 4200 + Math.random() * 3800)
-    }
-    this.lfoTimer = window.setTimeout(sparkle, 2400)
+      const freq = MELODY[this.melodyIndex % MELODY.length]
+      this.melodyIndex += 1
+      // Very soft high sine “bell” phrase — musical, not noise.
+      this.playTone(freq, 1.4, 0.02, 'sine', 0, true)
+      this.playTone(freq * 1.5, 1.1, 0.008, 'sine', 0.02, true)
+      this.scheduleMelody()
+    }, this.melodyIndex === 0 ? 2800 : 2600)
   }
 
   private stopAmbient(fade = true) {
@@ -225,9 +267,13 @@ class Soundscape {
       this.ambientOn = false
       return
     }
-    if (this.lfoTimer != null) {
-      window.clearTimeout(this.lfoTimer)
-      this.lfoTimer = null
+    if (this.chordTimer != null) {
+      window.clearTimeout(this.chordTimer)
+      this.chordTimer = null
+    }
+    if (this.melodyTimer != null) {
+      window.clearTimeout(this.melodyTimer)
+      this.melodyTimer = null
     }
     const ctx = this.ctx
     const bus = this.ambientGain
@@ -243,35 +289,18 @@ class Soundscape {
         }
       }
       this.ambientNodes = []
+      this.padOscillators = []
       this.ambientOn = false
     }
     if (fade) {
       bus.gain.cancelScheduledValues(ctx.currentTime)
-      bus.gain.setValueAtTime(bus.gain.value, ctx.currentTime)
-      bus.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5)
-      window.setTimeout(end, 560)
+      bus.gain.setValueAtTime(Math.max(bus.gain.value, 0.0001), ctx.currentTime)
+      bus.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.6)
+      window.setTimeout(end, 680)
     } else {
       bus.gain.setValueAtTime(0, ctx.currentTime)
       end()
     }
-  }
-
-  private createNoiseSource(seconds: number) {
-    const ctx = this.ctx!
-    const length = Math.max(1, Math.floor(ctx.sampleRate * seconds))
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
-    const data = buffer.getChannelData(0)
-    let last = 0
-    for (let i = 0; i < length; i += 1) {
-      // Pink-ish noise
-      const white = Math.random() * 2 - 1
-      last = (last + 0.02 * white) / 1.02
-      data[i] = last * 3.5
-    }
-    const src = ctx.createBufferSource()
-    src.buffer = buffer
-    src.loop = true
-    return src
   }
 
   private playTone(
@@ -288,37 +317,42 @@ class Soundscape {
     const t0 = this.ctx.currentTime + delay
     const osc = this.ctx.createOscillator()
     const gain = this.ctx.createGain()
+    const filter = this.ctx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = Math.min(2400, frequency * 3)
     osc.type = type
     osc.frequency.value = frequency
     gain.gain.setValueAtTime(0.0001, t0)
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + 0.03)
+    gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + 0.06)
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration)
-    osc.connect(gain)
+    osc.connect(filter)
+    filter.connect(gain)
     gain.connect(dest)
     osc.start(t0)
-    osc.stop(t0 + duration + 0.02)
+    osc.stop(t0 + duration + 0.03)
   }
 
-  private playWhoosh() {
+  /** Soft rising sine sweep instead of noisy whoosh. */
+  private playSoftSweep() {
     if (!this.ctx || !this.sfxGain) return
     const ctx = this.ctx
     const t0 = ctx.currentTime
-    const src = this.createNoiseSource(1.2)
-    const filter = ctx.createBiquadFilter()
-    filter.type = 'bandpass'
-    filter.Q.value = 0.8
-    filter.frequency.setValueAtTime(280, t0)
-    filter.frequency.exponentialRampToValueAtTime(1400, t0 + 0.28)
-    filter.frequency.exponentialRampToValueAtTime(420, t0 + 0.55)
+    const osc = ctx.createOscillator()
     const gain = ctx.createGain()
+    const filter = ctx.createBiquadFilter()
+    osc.type = 'sine'
+    filter.type = 'lowpass'
+    filter.frequency.value = 2200
+    osc.frequency.setValueAtTime(220, t0)
+    osc.frequency.exponentialRampToValueAtTime(660, t0 + 0.32)
     gain.gain.setValueAtTime(0.0001, t0)
-    gain.gain.exponentialRampToValueAtTime(0.07, t0 + 0.08)
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55)
-    src.connect(filter)
+    gain.gain.exponentialRampToValueAtTime(0.045, t0 + 0.08)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4)
+    osc.connect(filter)
     filter.connect(gain)
     gain.connect(this.sfxGain)
-    src.start(t0)
-    src.stop(t0 + 0.6)
+    osc.start(t0)
+    osc.stop(t0 + 0.45)
   }
 }
 
