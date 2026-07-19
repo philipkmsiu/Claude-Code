@@ -431,9 +431,10 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
 - name 必須是真實景點／街區／體驗名稱；禁止「經典地標」「老城／歷史區」「XX經典地標」
 - summary 2–3 句繁體中文：歷史／場景氛圍＋為何值得去＋怎麼排
 - nearbyFood、souvenirs（手信／伴手禮）每個景點必填，要具體菜名／店型／特產
-- shoppingOutlet 每個景點必填：附近購物街／百貨／Outlet／市集名稱；沒有大型 Outlet 就寫最近可信的購物區
-- 英國／UK／倫敦相關目的地：必須把「Bicester Village」（牛津郡名牌 Outlet，倫敦旅客最常去的一日購）列為獨立 shopping 景點，並在倫敦景點的 shoppingOutlet 寫明可一日往返 Bicester Village；禁止只寫牛津街／Westfield 卻漏掉 Bicester Village
-- 若 specialNeeds 含「購物」或目的地以購物聞名：至少 2–3 個景點 tags 含 shopping，並優先寫真實 Outlet／名牌村／購物街；倫敦／英國購物首選必須是 Bicester Village（不可用牛津街／Harrods 取代 Outlet 一日購）
+- shoppingOutlet 每個景點必填：寫「該景點附近」的購物街／百貨／市集／禮品店，要依城區而異（例：南岸→Covent Garden；塔橋→Borough Market；大英博物館→牛津街）
+- 禁止把同一句 Outlet 文案複製到每個景點；尤其禁止每個倫敦景點都寫「可安排一日往返 Bicester Village」
+- 英國／UK／倫敦：必須另列「Bicester Village」為獨立 shopping 景點（整日一日購）；其他景點的 shoppingOutlet 只寫附近逛街，不要提 Bicester，除非該景點本身就是 Bicester Village
+- 若 specialNeeds 含「購物」或目的地以購物聞名：至少 2–3 個景點 tags 含 shopping；倫敦 Outlet 一日購用獨立的 Bicester Village 景點滿足，不可用牛津街／Harrods 取代
 - background 3–4 句；memorable 4–6 條完整句子
 - hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
 - 若目的地含多個城市（如英國多城、德南＋柏林），hotels 必須覆蓋主要過夜城市各至少 1 間，不可全部擠在同一城
@@ -454,7 +455,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
-          ask: '請先自行完整調研並分析這個目的地（無需使用者再提示），再輸出：季節氣候、歷史背景、難忘之處、真實景點（含附近美食、手信、購物／Outlet）、分城市住宿、必吃必喝必買、建議天數與實用 tips。禁止空泛類別句。若是英國／倫敦，務必把 Bicester Village 列為獨立購物景點（倫敦出發一日購的經典 Outlet）。若旅客想購物，務必納入真實 Outlet 或購物街。',
+          ask: '請先自行完整調研並分析這個目的地（無需使用者再提示），再輸出：季節氣候、歷史背景、難忘之處、真實景點（含附近美食、手信、各景點附近購物）、分城市住宿、必吃必喝必買、建議天數與實用 tips。禁止空泛類別句。若是英國／倫敦：Bicester Village 必須是獨立一日購景點；其他景點的 shoppingOutlet 只寫附近逛街，禁止每個景點都重複寫 Bicester Village。',
         }),
       },
     ], 0.35)
