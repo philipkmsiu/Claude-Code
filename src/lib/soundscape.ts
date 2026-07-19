@@ -1,7 +1,9 @@
 /**
  * Relaxed soundscape: rotating ambient playlist + first-page motion / choice SFX.
- * Motion SFX (kick, whoosh, clicks, etc.) only play on the home page;
- * after that, only background music continues.
+ *
+ * Product principle (see travelPrinciples.ts):
+ * motion_sfx_home_only_then_music_only — Motion SFX only on the home page;
+ * after the user continues, only background music plays.
  */
 
 const STORAGE_KEY = 'km-sound-muted'

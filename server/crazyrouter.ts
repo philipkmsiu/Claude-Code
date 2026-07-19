@@ -1,5 +1,9 @@
 import type { Connect, Plugin } from 'vite'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import {
+  AI_RESEARCH_ASK_ZH,
+  AI_RESEARCH_PRINCIPLES_ZH,
+} from '../src/data/travelPrinciples.js'
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
@@ -426,24 +430,18 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
   ]
 }
 硬性規則（任何目的地都一樣，禁止偷懶套模板、禁止等使用者補充）：
-- 先在內部完成：地理／城市結構、季節氣候、交通節奏、必去真實景點、在地飲食與手信、購物／Outlet、住宿分區、天數尺度分析；再填 JSON
+${AI_RESEARCH_PRINCIPLES_ZH}
 - 必須給 ${targetCount}–${targetCount + 4} 個真實景點
-- name 必須是真實景點／街區／體驗名稱；禁止「經典地標」「老城／歷史區」「XX經典地標」
 - summary 2–3 句繁體中文：歷史／場景氛圍＋為何值得去＋怎麼排
 - nearbyFood、souvenirs（手信／伴手禮）每個景點必填，要具體菜名／店型／特產
-- shoppingOutlet 每個景點必填：寫「該景點附近」的購物街／百貨／市集／禮品店，要依城區而異（例：南岸→Covent Garden；塔橋→Borough Market；大英博物館→牛津街）
-- 禁止把同一句 Outlet 文案複製到每個景點；尤其禁止每個倫敦景點都寫「可安排一日往返 Bicester Village」
-- 英國／UK／倫敦：必須另列「Bicester Village」為獨立 shopping 景點（整日一日購）；其他景點的 shoppingOutlet 只寫附近逛街，不要提 Bicester，除非該景點本身就是 Bicester Village
-- 若 specialNeeds 含「購物」或目的地以購物聞名：至少 2–3 個景點 tags 含 shopping；倫敦 Outlet 一日購用獨立的 Bicester Village 景點滿足，不可用牛津街／Harrods 取代
+- shoppingOutlet 每個景點必填（遵守上方購物原則）
+- 若 specialNeeds 含「購物」或目的地以購物聞名：至少 2–3 個景點 tags 含 shopping；著名 Outlet 用獨立景點滿足
 - background 3–4 句；memorable 4–6 條完整句子
 - hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
-- 若目的地含多個城市（如英國多城、德南＋柏林），hotels 必須覆蓋主要過夜城市各至少 1 間，不可全部擠在同一城
 - mustEat 5–7 道具體當地必吃；mustDrink 3–4；mustBuy 3–5 樣具體手信
 - seasonGuide.bestMonths / worstMonths 為 1–12 整數陣列，不可兩者相同；weather 四季各一句實用描述
 - recommendedDays 要符合該目的地真實尺度（城市遊別灌成 20 天；長線可較長）
-- area 用真實城市／城區，方便同城排同一天
-- tips 含交通／門票／排隊／天氣應變等可執行建議
-- 全文繁體中文；不要 Markdown`,
+- tips 含交通／門票／排隊／天氣應變等可執行建議`,
       },
       {
         role: 'user',
@@ -455,7 +453,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
-          ask: '請先自行完整調研並分析這個目的地（無需使用者再提示），再輸出：季節氣候、歷史背景、難忘之處、真實景點（含附近美食、手信、各景點附近購物）、分城市住宿、必吃必喝必買、建議天數與實用 tips。禁止空泛類別句。若是英國／倫敦：Bicester Village 必須是獨立一日購景點；其他景點的 shoppingOutlet 只寫附近逛街，禁止每個景點都重複寫 Bicester Village。',
+          ask: AI_RESEARCH_ASK_ZH,
         }),
       },
     ], 0.35)

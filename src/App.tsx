@@ -405,7 +405,7 @@ function App() {
     [],
   )
 
-  // Motion SFX only on the first (home) page; later steps keep background music only.
+  // Principle: motion_sfx_home_only_then_music_only (travelPrinciples.ts).
   useEffect(() => {
     soundscape.setMotionSfxEnabled(step === 'home')
     if (prevStepRef.current === step) return

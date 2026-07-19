@@ -30,7 +30,11 @@ export interface ScenicSpot {
   nearbyFood?: string
   /** Characteristic souvenirs / gifts (手信) tied to this area. */
   souvenirs?: string
-  /** Nearby outlet / shopping street / mall worth a stop (購物／奧特萊斯). */
+  /**
+   * Nearby shopping for THIS stop only (高街／市集／百貨／禮品店).
+   * Famous outlet day-trips belong on their own spot card — never copy-paste
+   * the same Outlet sentence onto every landmark (see travelPrinciples.ts).
+   */
   shoppingOutlet?: string
   tags: SpotTag[]
   ticket?: string

@@ -40,6 +40,10 @@ import type {
 } from './types'
 import { qingganDestination } from './qinggan'
 import { xinjiangDestination } from './xinjiang'
+import {
+  FAMOUS_OUTLET_SPOTS,
+  isOutletDaytripSpam,
+} from './travelPrinciples'
 
 /** Hard ceiling for manual day input — long trips (e.g. 新疆 29 日) are allowed. */
 export const MAX_TRIP_DAYS = 32
@@ -725,8 +729,8 @@ export function foodAndGiftsForArea(
     return {
       nearbyFood: 'Fish and Chips、英式早餐或一間在地 Pub 套餐。',
       souvenirs: '茶葉禮盒、羊毛小物、城市明信片。',
-      // Local shops near this stop — never paste Bicester Village on every London landmark.
-      shoppingOutlet: localUkShoppingForSpot(text, text),
+      // Local shops near this stop — never paste a famous outlet onto every landmark.
+      shoppingOutlet: localShoppingForSpot(text, text, destinationName),
     }
   }
   if (/慕尼黑|Munich|巴伐利亞|新天鵝/i.test(text)) {
@@ -836,14 +840,27 @@ export function scenicSpotsFromAi(
       bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
     })
   })
-  return ensureFamousShoppingSpots(place, spots)
+  return normalizeScenicSpotShopping(place, spots)
 }
 
-/** Nearby shopping for a UK stop — specific to the area, not a copy-paste outlet day trip. */
-export function localUkShoppingForSpot(spotName: string, area = ''): string {
-  const text = `${spotName} ${area}`
+/**
+ * Nearby shopping for ONE stop — area-specific, never a pasted global outlet day trip.
+ * Used as fallback when AI copy-pastes the same Outlet line onto many landmarks.
+ */
+export function localShoppingForSpot(
+  spotName: string,
+  area = '',
+  destinationName = '',
+): string {
+  const text = `${spotName} ${area} ${destinationName}`
   if (/Bicester|比斯特/i.test(text)) {
     return 'Bicester Village 名牌 Outlet 本體：從倫敦瑪麗勒本車站搭火車約 1 小時，建議整日專程前往。'
+  }
+  if (/Metzingen|Outletcity/i.test(text)) {
+    return 'Outletcity Metzingen 本體：德國名牌 Outlet 一日購主力。'
+  }
+  if (/臨空|Rinku|Premium Outlets/i.test(text)) {
+    return '臨空 Premium Outlets 本體：關西 Outlet 半日／一日購主力。'
   }
   if (/溫莎|Windsor/i.test(text)) {
     return '溫莎高街精品與禮品店；城堡附近可買明信片與英式茶禮。'
@@ -884,72 +901,106 @@ export function localUkShoppingForSpot(spotName: string, area = ''): string {
   if (/Camden|卡姆登/i.test(text)) {
     return 'Camden Market 潮流市集與獨立店鋪。'
   }
-  if (/倫敦|London|Westfield|牛津街|Oxford Street|Covent|Soho|Greenwich|瑪麗勒本|Marylebone/i.test(text)) {
-    return '附近高街或市集（如 Covent Garden、牛津街、Borough Market）半日逛街。'
+  if (/道頓堀|心齋橋|難波/i.test(text)) {
+    return '心齋橋／道頓堀藥妝、潮流店與小吃伴手禮街。'
   }
-  return '當地高街、市集或百貨半日逛街。'
+  if (/清水|祇園|錦市場/i.test(text)) {
+    return '清水坂／二年坂禮品店，或錦市場周邊伴手禮。'
+  }
+  if (/淺草|雷門/i.test(text)) {
+    return '仲見世通商店街與淺草寺周邊伴手禮店。'
+  }
+  if (/Marienplatz|慕尼黑|Munich/i.test(text)) {
+    return 'Marienplatz／Kaufingerstraße 購物街與百貨。'
+  }
+  if (/倫敦|London|Westfield|牛津街|Oxford Street|Covent|Soho|Greenwich|瑪麗勒本|Marylebone/i.test(text)) {
+    return '附近高街或市集半日逛街（依所在城區選擇，勿改寫成遠郊 Outlet 一日購）。'
+  }
+  const areaLabel = area.trim() || '當地'
+  return `${areaLabel}高街、市集、百貨或景點商店半日逛街。`
 }
 
-const GENERIC_BICESTER_OUTLET_LINE =
-  /可安排一日往返\s*Bicester|一日往返\s*Bicester|必去\s*Bicester|Bicester Village 名牌 Outlet（倫敦|Bicester Village（倫敦出發|Outlet 首選仍是倫敦近郊 Bicester/i
+/** @deprecated Use localShoppingForSpot — kept for older call sites. */
+export function localUkShoppingForSpot(spotName: string, area = ''): string {
+  return localShoppingForSpot(spotName, area)
+}
 
-/** Guarantee Bicester Village appears once as its own spot — never spam it onto every landmark. */
-export function ensureFamousShoppingSpots(
+/**
+ * Universal shopping sanitizer for EVERY destination:
+ * - Strip copy-pasted outlet day-trip spam from landmark cards
+ * - Break identical shoppingOutlet lines repeated across many spots
+ * - Inject at most one famous regional outlet as its own dedicated spot
+ */
+export function normalizeScenicSpotShopping(
+  place: string,
+  spots: ScenicSpot[],
+): ScenicSpot[] {
+  const placeText = place.trim()
+  const seenShopping = new Map<string, number>()
+
+  const localized = spots.map((spot) => {
+    const outlet = (spot.shoppingOutlet || '').trim()
+    const prior = outlet ? seenShopping.get(outlet) || 0 : 0
+    if (outlet) seenShopping.set(outlet, prior + 1)
+
+    const needsLocal =
+      !outlet ||
+      isOutletDaytripSpam(outlet, `${spot.name} ${spot.nameLocal}`) ||
+      // Exact same shopping line on a later spot = copy-paste; force local variant.
+      prior >= 1
+
+    if (!needsLocal) return spot
+    return {
+      ...spot,
+      shoppingOutlet: localShoppingForSpot(spot.name, spot.area, placeText),
+    }
+  })
+
+  return ensureFamousOutletSpots(placeText, localized)
+}
+
+/** Inject famous regional outlets once as dedicated spots (never spam onto landmarks). */
+export function ensureFamousOutletSpots(
   place: string,
   spots: ScenicSpot[],
 ): ScenicSpot[] {
   const text = place.trim()
-  const isUk =
-    /英國|UK|United Kingdom|Britain|倫敦|London|英格蘭|蘇格蘭|威爾斯|威爾士|北愛爾蘭|愛丁堡|牛津|劍橋|約克|巴斯|卡地夫|利物浦/i.test(
-      text,
-    )
-  if (!isUk) return spots
-
-  // Only treat a real Bicester Village spot as present — shoppingOutlet mentions alone don't count.
-  const hasBicester = spots.some((spot) =>
-    /Bicester|比斯特/i.test(`${spot.name} ${spot.nameLocal}`),
-  )
-
-  // Strip copy-pasted “day trip to Bicester” lines from non-outlet landmarks.
-  const localized = spots.map((spot) => {
-    const isBicesterSpot = /Bicester|比斯特/i.test(
-      `${spot.name} ${spot.nameLocal}`,
-    )
-    if (isBicesterSpot) {
-      return {
-        ...spot,
-        shoppingOutlet: localUkShoppingForSpot(spot.name, spot.area),
-      }
-    }
-    const outlet = (spot.shoppingOutlet || '').trim()
-    if (!outlet || GENERIC_BICESTER_OUTLET_LINE.test(outlet)) {
-      return {
-        ...spot,
-        shoppingOutlet: localUkShoppingForSpot(spot.name, spot.area),
-      }
-    }
-    return spot
-  })
-
-  if (hasBicester) return localized
-
   const stamp = Date.now().toString(36)
-  const bicester: ScenicSpot = {
-    id: `ai-spot-${slugifyDestination(place)}-${stamp}-bicester`,
-    name: 'Bicester Village',
-    nameLocal: 'Bicester Village',
-    area: '牛津郡・比斯特（倫敦一日購）',
-    stayHours: 6,
-    summary:
-      'Bicester Village 是倫敦旅客最著名的名牌 Outlet 一日購：從倫敦瑪麗勒本車站搭火車約一小時可達，街道式村鎮佈局好逛好拍，週末建議一早出發避開人潮。整日專程前往，不要塞進其他倫敦市區景點同一天。',
-    nearbyFood: '園區內咖啡與輕食；回倫敦後可安排一頓 Pub 晚餐。',
-    souvenirs: 'Outlet 季末戰利品、英國茶葉禮盒、品牌配件。',
-    shoppingOutlet: localUkShoppingForSpot('Bicester Village', '牛津郡'),
-    tags: ['shopping', 'popular', 'must'],
-    ticket: '免費入場；交通另計',
-    bestFor: ['couple', 'friends', 'family', 'solo'],
+  let next = spots
+
+  for (const famous of FAMOUS_OUTLET_SPOTS) {
+    if (!famous.match.test(text)) continue
+    const already = next.some((spot) =>
+      new RegExp(famous.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(
+        `${spot.name} ${spot.nameLocal}`,
+      ),
+    )
+    if (already) continue
+    const outletSpot: ScenicSpot = {
+      id: `ai-spot-${slugifyDestination(place)}-${stamp}-outlet-${slugifyDestination(famous.name)}`,
+      name: famous.name,
+      nameLocal: famous.nameLocal,
+      area: famous.area,
+      stayHours: famous.stayHours,
+      summary: famous.summary,
+      nearbyFood: famous.nearbyFood,
+      souvenirs: famous.souvenirs,
+      shoppingOutlet: famous.shoppingOutlet,
+      tags: ['shopping', 'popular', 'must'],
+      ticket: '免費入場；交通另計',
+      bestFor: ['couple', 'friends', 'family', 'solo'],
+    }
+    next = [outletSpot, ...next]
   }
-  return [bicester, ...localized]
+  return next
+}
+
+/** @deprecated Use normalizeScenicSpotShopping */
+export function ensureFamousShoppingSpots(
+  place: string,
+  spots: ScenicSpot[],
+): ScenicSpot[] {
+  return normalizeScenicSpotShopping(place, spots)
 }
 
 function dayFoodAndSouvenirNotes(
