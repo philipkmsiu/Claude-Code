@@ -43,6 +43,7 @@ import { xinjiangDestination } from './xinjiang'
 import {
   FAMOUS_OUTLET_SPOTS,
   isOutletDaytripSpam,
+  shouldInjectFamousOutlet,
 } from './travelPrinciples'
 
 /** Hard ceiling for manual day input — long trips (e.g. 新疆 29 日) are allowed. */
@@ -699,7 +700,7 @@ export function ensureRichSpotCopy(
   spot: ScenicSpot,
   destinationName = '',
 ): ScenicSpot {
-  const fallback = foodAndGiftsForArea(spot.area, destinationName)
+  const fallback = foodAndGiftsForArea(spot.area, destinationName, spot.name)
   let summary = (spot.summary || '').trim()
   const tooThin =
     summary.length < 36 ||
@@ -723,69 +724,108 @@ export function ensureRichSpotCopy(
 export function foodAndGiftsForArea(
   area: string,
   destinationName = '',
+  spotName = '',
 ): { nearbyFood: string; souvenirs: string; shoppingOutlet: string } {
-  const text = `${area} ${destinationName}`
-  if (/英國|UK|倫敦|London|牛津|劍橋|約克|巴斯|卡地夫|愛丁堡|Bicester|比斯特|溫莎|Windsor|索爾茲|Stonehenge/i.test(text)) {
+  const text = `${spotName} ${area} ${destinationName}`
+  // Shopping fallback is ALWAYS local to the stop — never an outlet day-trip paste.
+  const shoppingOutlet = localShoppingForSpot(spotName || area, area, destinationName)
+
+  if (/愛丁堡|Edinburgh|蘇格蘭|Scotland/i.test(text)) {
+    return {
+      nearbyFood: 'Haggis、魚薯或一間蘇格蘭 Pub 套餐；可配威士忌小酌。',
+      souvenirs: '威士忌小瓶、格紋小物、短麵包相關伴手禮。',
+      shoppingOutlet,
+    }
+  }
+  if (/約克|York/i.test(text)) {
+    return {
+      nearbyFood: '約克布丁、茶店下午茶或古城 Pub 套餐。',
+      souvenirs: '約克主題明信片、茶葉、巧克力。',
+      shoppingOutlet,
+    }
+  }
+  if (/巴斯|Bath/i.test(text)) {
+    return {
+      nearbyFood: '巴斯包子（Bath bun）或茶館套餐；也可找一間磚街旁的輕食。',
+      souvenirs: '浴場主題小物、英式皂、明信片。',
+      shoppingOutlet,
+    }
+  }
+  if (/劍橋|Cambridge|牛津|Oxford/i.test(text) && !/牛津街|Oxford Street/i.test(text)) {
+    return {
+      nearbyFood: '學院城 Pub 套餐、咖啡店輕食或 Punting 前後的簡餐。',
+      souvenirs: '學院書店小物、大學周邊明信片、茶葉。',
+      shoppingOutlet,
+    }
+  }
+  if (/英國|UK|倫敦|London|溫莎|Windsor|Bicester|比斯特|索爾茲|Stonehenge|卡地夫|利物浦/i.test(text)) {
     return {
       nearbyFood: 'Fish and Chips、英式早餐或一間在地 Pub 套餐。',
       souvenirs: '茶葉禮盒、羊毛小物、城市明信片。',
-      // Local shops near this stop — never paste a famous outlet onto every landmark.
-      shoppingOutlet: localShoppingForSpot(text, text, destinationName),
+      shoppingOutlet,
     }
   }
   if (/慕尼黑|Munich|巴伐利亞|新天鵝/i.test(text)) {
     return {
       nearbyFood: '啤酒花園套餐、Weisswurst 白腸、Pretzel、烤豬肘；市場攤位最方便。',
       souvenirs: '啤酒杯、巴伐利亞小物、Leberwurst、當地蜂蜜。',
-      shoppingOutlet: 'Ingolstadt Village Outlet，或慕尼黑 Marienplatz／Kaufingerstraße 購物街。',
+      shoppingOutlet,
     }
   }
   if (/柏林|Berlin/i.test(text)) {
     return {
       nearbyFood: 'Currywurst、Döner、德式豬排；市集與早午餐店選擇多。',
       souvenirs: 'Ampelmännchen 綠人、Berliner Bär、圍牆主題明信片。',
-      shoppingOutlet: 'Outletcity Metzingen 一日購，或 Kurfürstendamm／Mall of Berlin。',
+      shoppingOutlet,
     }
   }
   if (/科隆|Cologne|杜塞|萊茵/i.test(text)) {
     return {
       nearbyFood: 'Kölsch 啤酒配 Sauerbraten，或杜塞道夫 Altbier 啤酒館套餐。',
       souvenirs: '4711 古龍水、芥末、萊茵河風景巧克力。',
-      shoppingOutlet: 'Schildergasse 購物街，或附近 Designer Outlet。',
+      shoppingOutlet,
     }
   }
   if (/法蘭克|海德堡|黑森林|巴登/i.test(text)) {
     return {
       nearbyFood: '蘋果酒 Apfelwein、黑森林蛋糕、鄉村煙燻火腿與湯品。',
       souvenirs: '蘋果酒小瓶、迷你咕咕鐘、櫻桃酒、木雕小物。',
-      shoppingOutlet: 'Zeil 購物街或 Wertheim Village Outlet。',
+      shoppingOutlet,
     }
   }
   if (/大阪|道頓堀|難波/i.test(text)) {
     return {
       nearbyFood: '章魚燒、串炸、蟹肉飯；黑門市場可一路串吃。',
       souvenirs: '藥妝、當地零食、大阪燒相關小物。',
-      shoppingOutlet: '心齋橋／道頓堀藥妝與潮流店；亦可去臨空 Premium Outlets。',
+      shoppingOutlet,
     }
   }
   if (/京都|清水|祇園/i.test(text)) {
     return {
       nearbyFood: '湯豆腐、抹茶甜點、京漬物；錦市場最適合邊走邊吃。',
       souvenirs: '抹茶菓子、和紙小物、京扇子。',
-      shoppingOutlet: '四条河原町百貨與寺町通；想 Outlet 可另排大阪臨空。',
+      shoppingOutlet,
+    }
+  }
+  if (/東京|淺草|澀谷|新宿/i.test(text)) {
+    return {
+      nearbyFood: '拉麵、壽司或商店街小吃；依城區挑選排隊店。',
+      souvenirs: '藥妝、東京香蕉或城區特色零食。',
+      shoppingOutlet,
     }
   }
   if (/新疆|喀什|喀納斯/i.test(text)) {
     return {
       nearbyFood: '烤包子、抓飯、羊肉串、奶茶；夜市最有氣氛。',
       souvenirs: '葡萄乾、和田玉小件、花帽、杏乾。',
-      shoppingOutlet: '國際大巴扎或古城市集挑選乾果與手工藝。',
+      shoppingOutlet,
     }
   }
+  const areaLabel = area.trim() || '當地'
   return {
-    nearbyFood: '安排一頓在地代表菜或市場小吃，比連鎖餐廳更好記。',
-    souvenirs: '當地特色零食、手作小物或城市磁鐵，當手信剛剛好。',
-    shoppingOutlet: '安排半日逛當地購物街、百貨或 Outlet（視城市交通）。',
+    nearbyFood: `在${areaLabel}安排一頓在地代表菜或市場小吃，比連鎖餐廳更好記。`,
+    souvenirs: `${areaLabel}特色零食、手作小物或城市磁鐵，當手信剛剛好。`,
+    shoppingOutlet,
   }
 }
 
@@ -822,7 +862,7 @@ export function scenicSpotsFromAi(
       hours = Math.max(hours, 7)
     }
     const area = item.area?.trim() || '市區'
-    const fallback = foodAndGiftsForArea(area, place)
+    const fallback = foodAndGiftsForArea(area, place, name)
     spots.push({
       id: `ai-spot-${slugifyDestination(place)}-${stamp}-${index + 1}`,
       name,
@@ -840,7 +880,7 @@ export function scenicSpotsFromAi(
       bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
     })
   })
-  return normalizeScenicSpotShopping(place, spots)
+  return normalizeScenicSpotFields(place, spots)
 }
 
 /**
@@ -926,37 +966,63 @@ export function localUkShoppingForSpot(spotName: string, area = ''): string {
 }
 
 /**
- * Universal shopping sanitizer for EVERY destination:
+ * Universal spot-field sanitizer for EVERY destination (product principles):
  * - Strip copy-pasted outlet day-trip spam from landmark cards
- * - Break identical shoppingOutlet lines repeated across many spots
+ * - Break identical shoppingOutlet / nearbyFood / souvenirs lines across spots
  * - Inject at most one famous regional outlet as its own dedicated spot
  */
-export function normalizeScenicSpotShopping(
+export function normalizeScenicSpotFields(
   place: string,
   spots: ScenicSpot[],
 ): ScenicSpot[] {
   const placeText = place.trim()
   const seenShopping = new Map<string, number>()
+  const seenFood = new Map<string, number>()
+  const seenSouvenirs = new Map<string, number>()
 
   const localized = spots.map((spot) => {
-    const outlet = (spot.shoppingOutlet || '').trim()
-    const prior = outlet ? seenShopping.get(outlet) || 0 : 0
-    if (outlet) seenShopping.set(outlet, prior + 1)
+    const fallback = foodAndGiftsForArea(spot.area, placeText, spot.name)
+    let shoppingOutlet = (spot.shoppingOutlet || '').trim()
+    let nearbyFood = (spot.nearbyFood || '').trim()
+    let souvenirs = (spot.souvenirs || '').trim()
 
-    const needsLocal =
-      !outlet ||
-      isOutletDaytripSpam(outlet, `${spot.name} ${spot.nameLocal}`) ||
-      // Exact same shopping line on a later spot = copy-paste; force local variant.
-      prior >= 1
-
-    if (!needsLocal) return spot
-    return {
-      ...spot,
-      shoppingOutlet: localShoppingForSpot(spot.name, spot.area, placeText),
+    const shopPrior = shoppingOutlet
+      ? seenShopping.get(shoppingOutlet) || 0
+      : 0
+    if (shoppingOutlet) seenShopping.set(shoppingOutlet, shopPrior + 1)
+    if (
+      !shoppingOutlet ||
+      isOutletDaytripSpam(shoppingOutlet, `${spot.name} ${spot.nameLocal}`) ||
+      shopPrior >= 1
+    ) {
+      shoppingOutlet = fallback.shoppingOutlet
     }
+
+    const foodPrior = nearbyFood ? seenFood.get(nearbyFood) || 0 : 0
+    if (nearbyFood) seenFood.set(nearbyFood, foodPrior + 1)
+    if (!nearbyFood || foodPrior >= 1) {
+      // Prefix with spot name so city-wide fallbacks stay unique per card.
+      nearbyFood = `${spot.name}周邊：${fallback.nearbyFood}`
+    }
+
+    const giftPrior = souvenirs ? seenSouvenirs.get(souvenirs) || 0 : 0
+    if (souvenirs) seenSouvenirs.set(souvenirs, giftPrior + 1)
+    if (!souvenirs || giftPrior >= 1) {
+      souvenirs = `${spot.area || spot.name}手信：${fallback.souvenirs}`
+    }
+
+    return { ...spot, shoppingOutlet, nearbyFood, souvenirs }
   })
 
   return ensureFamousOutletSpots(placeText, localized)
+}
+
+/** @deprecated Use normalizeScenicSpotFields */
+export function normalizeScenicSpotShopping(
+  place: string,
+  spots: ScenicSpot[],
+): ScenicSpot[] {
+  return normalizeScenicSpotFields(place, spots)
 }
 
 /** Inject famous regional outlets once as dedicated spots (never spam onto landmarks). */
@@ -969,7 +1035,7 @@ export function ensureFamousOutletSpots(
   let next = spots
 
   for (const famous of FAMOUS_OUTLET_SPOTS) {
-    if (!famous.match.test(text)) continue
+    if (!shouldInjectFamousOutlet(text, famous)) continue
     const already = next.some((spot) =>
       new RegExp(famous.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(
         `${spot.name} ${spot.nameLocal}`,
@@ -995,12 +1061,12 @@ export function ensureFamousOutletSpots(
   return next
 }
 
-/** @deprecated Use normalizeScenicSpotShopping */
+/** @deprecated Use normalizeScenicSpotFields */
 export function ensureFamousShoppingSpots(
   place: string,
   spots: ScenicSpot[],
 ): ScenicSpot[] {
-  return normalizeScenicSpotShopping(place, spots)
+  return normalizeScenicSpotFields(place, spots)
 }
 
 function dayFoodAndSouvenirNotes(
@@ -3033,6 +3099,29 @@ const KNOWN_HOTEL_CITIES = [
   '杜塞道夫',
   '漢堡',
   '紐倫堡',
+  // UK overnight bases (principle: hotels_match_overnight_cities)
+  '倫敦',
+  'London',
+  '愛丁堡',
+  'Edinburgh',
+  '約克',
+  'York',
+  '牛津',
+  'Oxford',
+  '劍橋',
+  'Cambridge',
+  '巴斯',
+  'Bath',
+  '卡地夫',
+  'Cardiff',
+  '利物浦',
+  'Liverpool',
+  '溫莎',
+  'Windsor',
+  '曼徹斯特',
+  'Manchester',
+  '布萊頓',
+  'Brighton',
 ]
 
 /** Collapse spot areas into a hotel base city/region. */
@@ -3066,6 +3155,24 @@ const SHARED_HOTEL_CLUSTERS: string[][] = [
   ['科隆', '杜塞道夫', '本拉特', '萊茵'],
   ['法蘭克福', '海德堡', '巴登', '黑森林', '斯圖加特'],
   ['柏林', '波茨坦', '德累斯頓'],
+  // London day-trips share a London hotel; Edinburgh/York stay separate overnight bases.
+  [
+    '倫敦',
+    'London',
+    '溫莎',
+    'Windsor',
+    '牛津',
+    'Oxford',
+    '劍橋',
+    'Cambridge',
+    '巨石陣',
+    'Stonehenge',
+    '索爾茲',
+    'Bicester',
+    '比斯特',
+    '格林威治',
+    'Greenwich',
+  ],
 ]
 
 function sharedHotelClusterId(base: string): string | null {

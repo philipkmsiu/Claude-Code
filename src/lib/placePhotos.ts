@@ -283,6 +283,11 @@ function searchHint(query: string, destinationName = ''): string {
   if (mapped) return mapped
   const q = normalizeKey(query)
   const region = photoRegion(destinationName, q)
+  // Prefer “spot + destination + region” so unmapped user places still resolve.
+  const dest = normalizeKey(destinationName)
+  if (dest && !q.includes(dest)) {
+    return `${q} ${dest} landmark ${region}`
+  }
   return `${q} landmark ${region}`
 }
 
@@ -396,8 +401,9 @@ const CITY_SCENIC: Record<string, string[]> = {
   柏林: ['布蘭登堡門', '柏林圍牆'],
   慕尼黑: ['新天鵝堡'],
   科隆: ['科隆大教堂'],
-  倫敦: ['白金漢宮', '塔橋', '大本鐘', '大英博物館', 'Bicester Village'],
-  牛津: ['牛津大學', '牛津', 'Bicester Village'],
+  // City defaults are last-resort only — day.spotNames always win (unique_day_photos).
+  倫敦: ['白金漢宮', '塔橋', '大本鐘', '大英博物館'],
+  牛津: ['牛津大學', '牛津'],
   劍橋: ['劍橋大學', '劍橋'],
   愛丁堡: ['愛丁堡城堡', '愛丁堡'],
   北愛爾蘭: ['巨人堤道', '巨人之路'],
@@ -407,6 +413,12 @@ const CITY_SCENIC: Record<string, string[]> = {
   湖區: ['湖區國家公園', '湖區'],
   利物浦: ['披頭四故事館', '利物浦'],
   約克: ['約克大教堂', '約克'],
+  巴黎: ['埃菲爾鐵塔', '羅浮宮', '巴黎'],
+  首爾: ['景福宮', '明洞', '首爾'],
+  曼谷: ['大皇宮', '臥佛寺', '曼谷'],
+  新加坡: ['濱海灣', '魚尾獅', '新加坡'],
+  紐約: ['自由女神', '時報廣場', '紐約'],
+  雪梨: ['雪梨歌劇院', '雪梨'],
 }
 
 /** Candidate queries for one day, most specific first. */
@@ -425,11 +437,12 @@ export function dayPhotoCandidates(
   const city = (day.stayCity || '').replace(/市區|景區內|湖畔/g, '').trim()
   const cityScenic = CITY_SCENIC[city] || []
   const ordered = [
+    // Spot names first — never let a city default (or outlet) steal another day's photo.
     ...fromSpots,
     ...fromPlan,
-    ...cityScenic,
-    city && city !== destinationName ? city : '',
     theme,
+    city && city !== destinationName ? city : '',
+    ...cityScenic,
   ].filter(Boolean) as string[]
   return [...new Set(ordered)]
 }
@@ -444,9 +457,12 @@ export async function resolveDayPhotos(
   for (const [dayIndex, day] of days.entries()) {
     const candidates = [
       ...dayPhotoCandidates(day, destinationName),
-      // Day-index variants help Commons return different frames for similar UK cities.
+      // Day-index variants help Commons return different frames for similar cities anywhere.
       ...(day.stayCity
-        ? [`${day.stayCity} landmark`, `${day.stayCity} scenic`]
+        ? [
+            `${day.stayCity} ${destinationName} landmark`,
+            `${day.stayCity} scenic travel`,
+          ]
         : []),
     ]
     let picked: string | null = null
