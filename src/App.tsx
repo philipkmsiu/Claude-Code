@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
 import {
+  MAX_TRIP_DAYS,
+  MIN_TRIP_DAYS,
+  aggregateDayAdvice,
   buildItinerary,
+  clampDays,
   companions,
   daysBetween,
   defaultSelectedSpotIds,
@@ -16,7 +20,7 @@ import {
   type DestinationId,
   type HotelStyle,
   type TripPace,
-} from './data/germany'
+} from './data/travel'
 import './App.css'
 
 type Step =
@@ -30,9 +34,9 @@ type Step =
 function App() {
   const [step, setStep] = useState<Step>('home')
   const [selectedDestIds, setSelectedDestIds] = useState<DestinationId[]>([])
-  const [startDate, setStartDate] = useState('2026-09-10')
-  const [endDate, setEndDate] = useState('2026-09-14')
-  const [days, setDays] = useState(5)
+  const [startDate, setStartDate] = useState('2026-02-17')
+  const [endDate, setEndDate] = useState('2026-02-23')
+  const [days, setDays] = useState(7)
   const [pace, setPace] = useState<TripPace>('balanced')
   const [companion, setCompanion] = useState<Companion>('couple')
   const [specialNeeds, setSpecialNeeds] = useState<string[]>([
@@ -40,7 +44,7 @@ function App() {
     '想拍打卡美照',
   ])
   const [hotelStyle, setHotelStyle] = useState<HotelStyle>('value')
-  const [hotelNights, setHotelNights] = useState(4)
+  const [hotelNights, setHotelNights] = useState(6)
   const [selectedSpotIds, setSelectedSpotIds] = useState<string[]>([])
   const [planVersion, setPlanVersion] = useState(0)
 
@@ -54,10 +58,15 @@ function App() {
     [selectedDestinations],
   )
 
+  const dayAdvice = useMemo(
+    () => aggregateDayAdvice(selectedDestinations),
+    [selectedDestinations],
+  )
+
   const primary = selectedDestinations[0] ?? null
   const dateDays = daysBetween(startDate, endDate)
-  const planDays = Math.min(Math.max(dateDays ?? days, 2), 7)
-  const weatherMonth = startDate ? new Date(startDate).getMonth() + 1 : 6
+  const planDays = clampDays(days)
+  const weatherMonth = startDate ? new Date(startDate).getMonth() + 1 : 2
   const weather = primary ? primary.weather[seasonKey(weatherMonth)] : ''
   const hotels = primary ? hotelsForStyle(primary, hotelStyle) : []
   const hotelAreaHint = hotels[0]?.area || primary?.nameZh || '市區'
@@ -88,6 +97,12 @@ function App() {
     planVersion,
   ])
 
+  function setTripDays(next: number) {
+    const clamped = clampDays(next)
+    setDays(clamped)
+    setHotelNights(nightsFromDays(clamped))
+  }
+
   function toggleDestination(id: DestinationId) {
     setSelectedDestIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id)
@@ -100,21 +115,16 @@ function App() {
     setStartDate(nextStart)
     setEndDate(nextEnd)
     const span = daysBetween(nextStart, nextEnd)
-    if (span) {
-      const clamped = Math.min(Math.max(span, 2), 7)
-      setDays(clamped)
-      setHotelNights(nightsFromDays(clamped))
-    }
+    if (span) setTripDays(span)
   }
 
   function goToPreferences() {
     if (!selectedDestIds.length) return
-    const dests = destinations.filter((d) => selectedDestIds.includes(d.id))
-    const ideal = Math.max(...dests.map((d) => d.recommendedDays.ideal))
-    const nextDays = dateDays ?? ideal
-    const clamped = Math.min(Math.max(nextDays, 2), 7)
-    setDays(clamped)
-    setHotelNights(nightsFromDays(clamped))
+    const advice = aggregateDayAdvice(
+      destinations.filter((d) => selectedDestIds.includes(d.id)),
+    )
+    const span = daysBetween(startDate, endDate)
+    setTripDays(span ?? advice.comfortable)
     setStep('preferences')
   }
 
@@ -154,7 +164,7 @@ function App() {
 
   const stepItems: { id: Step; label: string }[] = [
     { id: 'destination', label: '目的地' },
-    { id: 'preferences', label: '旅遊條件' },
+    { id: 'preferences', label: '天數條件' },
     { id: 'hotel', label: '住宿' },
     { id: 'spots', label: '景點' },
     { id: 'result', label: '行程' },
@@ -168,7 +178,7 @@ function App() {
           <span className="brand-mark" />
           <span className="brand-text">
             Wege
-            <small>德國旅程規劃</small>
+            <small>Gemini 旅遊規劃</small>
           </span>
         </button>
         {step !== 'home' && (
@@ -184,10 +194,11 @@ function App() {
         {step === 'home' && (
           <section className="hero">
             <div className="hero-copy">
-              <p className="eyebrow">對應 Gemini 紅字選項 · 可重跑行程</p>
+              <p className="eyebrow">依 Gemini 旅遊規劃 PDF 做成的可互動行程工具</p>
               <h1 className="hero-brand">Wege</h1>
               <p className="hero-lead">
-                先填旅遊條件，再從約 20 個景點（含必去／打卡紅點）勾選想去的，最後依你的選擇重新排每日行程。
+                先選一個地方，看最短／最舒服要幾天；你也可以自己輸入天數（到 {MAX_TRIP_DAYS}{' '}
+                天）。再勾景點、產生行程，不滿意就改完重跑。
               </p>
               <div className="cta-row">
                 <button
@@ -197,13 +208,36 @@ function App() {
                 >
                   開始規劃
                 </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    setSelectedDestIds(['kansai'])
+                    setTripDays(7)
+                    setStartDate('2026-02-17')
+                    setEndDate('2026-02-23')
+                    setPace('balanced')
+                    setCompanion('couple')
+                    setSpecialNeeds(['喜歡歷史文化', '想拍打卡美照', '想多吃在地美食'])
+                    setHotelStyle('luxuryValue')
+                    setSelectedSpotIds(
+                      defaultSelectedSpotIds(
+                        destinations.find((d) => d.id === 'kansai')!.spots,
+                      ),
+                    )
+                    setStep('result')
+                    setPlanVersion((v) => v + 1)
+                  }}
+                >
+                  看關西 7 天範例
+                </button>
               </div>
             </div>
             <div className="hero-visual" aria-hidden="true">
               <div className="hero-panel">
-                <span>目的地</span>
-                <span>日期條件</span>
-                <span>景點勾選</span>
+                <span>最短天數</span>
+                <span>最舒服天數</span>
+                <span>自己輸入</span>
                 <span>重跑行程</span>
               </div>
             </div>
@@ -213,8 +247,10 @@ function App() {
         {step === 'destination' && (
           <section className="panel-section enter">
             <div className="section-head">
-              <h2>選擇目的地（紅字選項）</h2>
-              <p>可選 1–2 個；多選時行程會混合兩地景點。目前已選 {selectedDestIds.length} 個。</p>
+              <h2>先選一個特別想去的地方</h2>
+              <p>
+                選好地點後，下一步會告訴你最少要幾天、最舒服幾天；也可一次選兩個目的地。
+              </p>
             </div>
             <div className="dest-grid">
               {destinations.map((dest, index) => {
@@ -227,11 +263,13 @@ function App() {
                     style={{ animationDelay: `${index * 60}ms` }}
                     onClick={() => toggleDestination(dest.id)}
                   >
-                    <span className="dest-de">{dest.nameDe}</span>
+                    <span className="dest-de">{dest.nameLocal}</span>
                     <strong>{dest.nameZh}</strong>
                     <span className="dest-tag">{dest.tagline}</span>
                     <span className="dest-meta">
-                      建議 {dest.recommendedDays.ideal} 天 · {dest.spots.length} 個景點
+                      最少 {dest.recommendedDays.min} 天 · 最舒服{' '}
+                      {dest.recommendedDays.comfortable} 天 · 建議最長{' '}
+                      {dest.recommendedDays.suggestedLongest} 天
                     </span>
                   </button>
                 )
@@ -247,7 +285,7 @@ function App() {
                 disabled={!selectedDestIds.length}
                 onClick={goToPreferences}
               >
-                下一步：旅遊條件
+                下一步：看建議天數
               </button>
             </div>
           </section>
@@ -256,25 +294,101 @@ function App() {
         {step === 'preferences' && primary && (
           <section className="panel-section enter">
             <div className="section-head">
-              <h2>旅遊條件（紅字選項）</h2>
+              <h2>這個地方建議玩幾天？</h2>
               <p>
-                對應 PDF：天數／日期、旅遊類型、同行者、特殊需求。系統也會依此建議每天幾個景點。
+                先看建議，再自己輸入。建議最長多半落在 {dayAdvice.suggestedLongest}{' '}
+                天左右，但你仍可輸入到 {MAX_TRIP_DAYS} 天（更長也能排，多出來會變彈性日）。
               </p>
             </div>
 
             <div className="advice-strip">
-              <Advice label="最短" value={`${primary.recommendedDays.min} 天`} />
-              <Advice
-                label="最推"
-                value={`${primary.recommendedDays.ideal} 天`}
-                emphasize
-              />
-              <Advice label="充裕" value={`${primary.recommendedDays.max} 天`} />
+              <button
+                type="button"
+                className={`advice clickable ${days === dayAdvice.min ? 'emphasize' : ''}`}
+                onClick={() => setTripDays(dayAdvice.min)}
+              >
+                <span>最少</span>
+                <strong>{dayAdvice.min} 天</strong>
+                <em>能碰到精華</em>
+              </button>
+              <button
+                type="button"
+                className={`advice clickable ${days === dayAdvice.comfortable ? 'emphasize' : ''}`}
+                onClick={() => setTripDays(dayAdvice.comfortable)}
+              >
+                <span>最舒服</span>
+                <strong>{dayAdvice.comfortable} 天</strong>
+                <em>推薦首選</em>
+              </button>
+              <button
+                type="button"
+                className={`advice clickable ${days === dayAdvice.suggestedLongest ? 'emphasize' : ''}`}
+                onClick={() => setTripDays(dayAdvice.suggestedLongest)}
+              >
+                <span>建議最長</span>
+                <strong>{dayAdvice.suggestedLongest} 天</strong>
+                <em>慢慢玩也不嫌多</em>
+              </button>
+            </div>
+
+            <p className="muted-line">{dayAdvice.note}</p>
+
+            <div className="day-input-panel">
+              <div className="field-block grow">
+                <label htmlFor="days">自己輸入天數</label>
+                <div className="day-input-row">
+                  <button
+                    type="button"
+                    className="btn ghost icon-btn"
+                    onClick={() => setTripDays(days - 1)}
+                    aria-label="減少一天"
+                  >
+                    −
+                  </button>
+                  <input
+                    id="days"
+                    type="number"
+                    min={MIN_TRIP_DAYS}
+                    max={MAX_TRIP_DAYS}
+                    value={days}
+                    onChange={(e) => setTripDays(Number(e.target.value))}
+                  />
+                  <button
+                    type="button"
+                    className="btn ghost icon-btn"
+                    onClick={() => setTripDays(days + 1)}
+                    aria-label="增加一天"
+                  >
+                    +
+                  </button>
+                  <span className="day-unit">
+                    天 / {nightsFromDays(planDays)} 夜
+                  </span>
+                </div>
+                <p className="range-value">
+                  可輸入 {MIN_TRIP_DAYS}–{MAX_TRIP_DAYS} 天。超過建議最長也沒問題，多出的日子會排成彈性／購物／再訪日。
+                </p>
+              </div>
+
+              <div className="quick-days">
+                {[dayAdvice.min, dayAdvice.comfortable, dayAdvice.suggestedLongest, 14, 16, MAX_TRIP_DAYS]
+                  .filter((value, index, arr) => arr.indexOf(value) === index)
+                  .map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`chip ${days === value ? 'selected' : ''}`}
+                      onClick={() => setTripDays(value)}
+                    >
+                      {value} 天
+                    </button>
+                  ))}
+              </div>
             </div>
 
             <div className="preference-grid">
               <div className="field-block">
-                <label htmlFor="start">出發日期</label>
+                <label htmlFor="start">出發日期（紅字選項）</label>
                 <input
                   id="start"
                   type="date"
@@ -290,30 +404,13 @@ function App() {
                   value={endDate}
                   onChange={(e) => applyDateRange(startDate, e.target.value)}
                 />
-              </div>
-              <div className="field-block">
-                <label htmlFor="days">行程天數（可手動微調）</label>
-                <input
-                  id="days"
-                  type="number"
-                  min={2}
-                  max={7}
-                  value={days}
-                  onChange={(e) => {
-                    const next = Math.min(Math.max(Number(e.target.value) || 2, 2), 7)
-                    setDays(next)
-                    setHotelNights(nightsFromDays(next))
-                  }}
-                />
-                <p className="range-value">
-                  {planDays} 天 {nightsFromDays(planDays)} 夜
-                  {dateDays ? ` · 日期跨度 ${dateDays} 天` : ''}
-                </p>
+                {dateDays ? (
+                  <p className="range-value">日期跨度 {dateDays} 天（可再手動改上面天數）</p>
+                ) : null}
               </div>
             </div>
 
             <p className="weather-preview strong">{weather}</p>
-            <p className="muted-line">{primary.recommendedDays.note}</p>
 
             <h3 className="subhead">旅遊類型</h3>
             <div className="style-grid">
@@ -388,7 +485,9 @@ function App() {
           <section className="panel-section enter">
             <div className="section-head">
               <h2>住宿偏好</h2>
-              <p>選擇風格與住宿晚數；產生行程時會對應推薦飯店。</p>
+              <p>
+                你目前規劃 {planDays} 天 {nightsFromDays(planDays)} 夜；可再微調實際入住晚數。
+              </p>
             </div>
 
             <div className="field-block">
@@ -404,7 +503,7 @@ function App() {
               <p className="range-value">
                 {Math.min(hotelNights, planDays)} 晚
                 <span>
-                  （{planDays} 天行程通常住 {nightsFromDays(planDays)} 晚）
+                  （{planDays} 天通常住 {nightsFromDays(planDays)} 晚）
                 </span>
               </p>
             </div>
@@ -447,13 +546,14 @@ function App() {
             <div className="section-head">
               <h2>挑選景點</h2>
               <p>
-                已為你建議約 {allSpots.length}{' '}
-                個景點。紅色標籤是必去／打卡紅點／熱門；不想去的就取消勾選，確認後再產生行程。
+                這裡列出約 {allSpots.length} 個景點。紅色標籤是必去／打卡紅點／熱門；不想去就取消，確認後再依你的天數產生行程。
               </p>
             </div>
 
             <div className="spot-toolbar">
-              <span>已選 {selectedSpotIds.length} / {allSpots.length}</span>
+              <span>
+                已選 {selectedSpotIds.length} / {allSpots.length} · 行程 {planDays} 天
+              </span>
               <div className="cta-row">
                 <button type="button" className="btn ghost" onClick={selectMustAndPhoto}>
                   只選必去＋打卡
@@ -493,7 +593,7 @@ function App() {
                       <strong>{spot.name}</strong>
                       <span className="check">{active ? '已選' : '未選'}</span>
                     </div>
-                    <span className="spot-de">{spot.nameDe}</span>
+                    <span className="spot-de">{spot.nameLocal}</span>
                     <p>{spot.summary}</p>
                     <div className="tag-row">
                       {spot.tags.map((tag) => (
@@ -524,7 +624,7 @@ function App() {
                 disabled={selectedSpotIds.length === 0}
                 onClick={regenerate}
               >
-                依選擇產生行程
+                依選擇產生 {planDays} 天行程
               </button>
             </div>
           </section>
@@ -534,7 +634,7 @@ function App() {
           <section className="result enter">
             <div className="result-hero">
               <p className="eyebrow">
-                {selectedDestinations.map((d) => d.nameDe).join(' + ')} · {planDays}{' '}
+                {selectedDestinations.map((d) => d.nameLocal).join(' + ')} · {planDays}{' '}
                 天 {Math.min(hotelNights, planDays)} 夜 · {paceLabel} · {companionLabel}
               </p>
               <h2>{selectedDestinations.map((d) => d.nameZh).join('、')}</h2>
@@ -556,15 +656,21 @@ function App() {
               </article>
 
               <article className="info-block">
-                <h3>天氣與條件</h3>
-                <p className="season-note">{primary.bestSeason}</p>
+                <h3>天數與天氣</h3>
+                <p className="season-note">
+                  最少 {dayAdvice.min} 天 · 最舒服 {dayAdvice.comfortable} 天 · 建議最長{' '}
+                  {dayAdvice.suggestedLongest} 天
+                </p>
+                <p>
+                  <strong>你目前選擇：</strong>
+                  {planDays} 天 {nightsFromDays(planDays)} 夜
+                </p>
                 <p>
                   <strong>天氣參考：</strong>
                   {weather}
                 </p>
                 <p className="muted">
-                  同行 {companionLabel} · 節奏 {paceLabel}
-                  {specialNeeds.length ? ` · ${specialNeeds.join('、')}` : ''}
+                  {specialNeeds.length ? specialNeeds.join('、') : '無特別需求'}
                 </p>
               </article>
 
@@ -593,15 +699,18 @@ function App() {
 
             <div className="itinerary">
               <div className="section-head">
-                <h3>每日行程（依你勾選的景點重排）</h3>
-                <p>若要增刪景點，回到上一步勾選後再按「重新產生行程」。</p>
+                <h3>每日行程</h3>
+                <p>
+                  依你勾選的景點與 {planDays}{' '}
+                  天重排。若要改天數或景點，回上一步後再重新產生。
+                </p>
               </div>
               <div className="day-list">
                 {itinerary.map((day, index) => (
                   <article
                     key={`${day.theme}-${index}-${planVersion}`}
                     className="day-card"
-                    style={{ animationDelay: `${index * 80}ms` }}
+                    style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
                   >
                     <header>
                       <span className="day-badge">Day {index + 1}</span>
@@ -629,8 +738,15 @@ function App() {
             </div>
 
             <div className="nav-row sticky-actions">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setStep('preferences')}
+              >
+                改天數
+              </button>
               <button type="button" className="btn ghost" onClick={() => setStep('spots')}>
-                改景點選擇
+                改景點
               </button>
               <button type="button" className="btn primary" onClick={regenerate}>
                 重新產生行程
@@ -645,7 +761,7 @@ function App() {
 
       <footer className="footer">
         <span>Wege</span>
-        <span>紅字選項 → 景點勾選 → 可重跑行程</span>
+        <span>地方建議天數 → 自己輸入 → 勾景點 → 重跑行程</span>
       </footer>
     </div>
   )
@@ -653,23 +769,6 @@ function App() {
 
 function StepPill({ active, label }: { active: boolean; label: string }) {
   return <span className={`step-pill ${active ? 'active' : ''}`}>{label}</span>
-}
-
-function Advice({
-  label,
-  value,
-  emphasize = false,
-}: {
-  label: string
-  value: string
-  emphasize?: boolean
-}) {
-  return (
-    <div className={`advice ${emphasize ? 'emphasize' : ''}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
 }
 
 export default App
