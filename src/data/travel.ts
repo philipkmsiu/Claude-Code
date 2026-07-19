@@ -22,6 +22,7 @@ export type {
 } from './types'
 
 import type {
+  BudgetSummary,
   Companion,
   DayPlan,
   DayRouteLeg,
@@ -535,6 +536,199 @@ export function hotelBookingAdvice(partySize: number): {
     rooms,
     bedding: `約 ${rooms} 間雙人房（可依家庭改親子房）`,
     note: `${size} 人建議先估 ${rooms} 間房；有小孩可改親子房或要求連通房。`,
+  }
+}
+
+type BudgetRegion = 'china' | 'japan' | 'europe' | 'default'
+
+function budgetRegion(destinationName: string): BudgetRegion {
+  const name = destinationName.trim()
+  if (
+    /日本|東京|大阪|京都|北海道|關西|沖繩|Japan|Tokyo|Osaka|Kyoto/i.test(name)
+  ) {
+    return 'japan'
+  }
+  if (
+    /法國|巴黎|義大利|德國|西班牙|歐洲|France|Paris|Italy|Germany|Europe/i.test(
+      name,
+    )
+  ) {
+    return 'europe'
+  }
+  if (
+    /中國|大陸|西安|北京|上海|成都|重慶|杭州|桂林|雲南|西藏|新疆|青甘|敦煌|青海|甘肅|西北|華山|兵馬俑|China|Xi.?an/i.test(
+      name,
+    )
+  ) {
+    return 'china'
+  }
+  return 'default'
+}
+
+function fmtMoney(currency: string, n: number): string {
+  const rounded = Math.round(n / 100) * 100
+  return `${currency} ${rounded.toLocaleString('en-US')}`
+}
+
+function rangeMoney(currency: string, low: number, high: number): string {
+  return `${fmtMoney(currency, low)}–${fmtMoney(currency, high).replace(`${currency} `, '')}`
+}
+
+/**
+ * Always-available trip budget: hotel, transport, meals, tickets, misc, total + per person.
+ * Used for every journey (not only Qinggan / Xinjiang handbooks).
+ */
+export function estimateTripBudget(options: {
+  destinationName: string
+  days: number
+  nights: number
+  partySize: number
+  rooms: number
+  transportMode: TransportMode
+  hotelStyle: HotelStyle
+}): BudgetSummary {
+  const days = clampDays(options.days)
+  const nights = Math.max(nightsFromDays(days), options.nights || 0)
+  const party = clampPartySize(options.partySize)
+  const rooms = Math.max(1, options.rooms || hotelBookingAdvice(party).rooms)
+  const region = budgetRegion(options.destinationName)
+  const longHaul = /新疆|南北疆|青甘|環線|公路|帕米爾/.test(options.destinationName)
+
+  const styleMul =
+    options.hotelStyle === 'luxury'
+      ? 1.7
+      : options.hotelStyle === 'luxuryValue'
+        ? 1.35
+        : options.hotelStyle === 'value' || options.hotelStyle === 'clean'
+          ? 0.85
+          : 1
+
+  let currency = 'RMB'
+  let hotelNight = 650
+  let mealDay = 220
+  let ticketDay = 120
+  let transitDay = 80
+  let driverDay = 900
+  let selfDriveDay = 450
+  let miscBase = 800
+
+  if (region === 'japan') {
+    currency = 'JPY'
+    hotelNight = 18000
+    mealDay = 6000
+    ticketDay = 2500
+    transitDay = 2000
+    driverDay = 45000
+    selfDriveDay = 12000
+    miscBase = 15000
+  } else if (region === 'europe') {
+    currency = 'EUR'
+    hotelNight = 160
+    mealDay = 55
+    ticketDay = 30
+    transitDay = 20
+    driverDay = 350
+    selfDriveDay = 90
+    miscBase = 200
+  } else if (region === 'default') {
+    currency = 'HKD'
+    hotelNight = 900
+    mealDay = 280
+    ticketDay = 150
+    transitDay = 100
+    driverDay = 1200
+    selfDriveDay = 600
+    miscBase = 1000
+  }
+
+  if (region === 'china' && longHaul) {
+    hotelNight = 900
+    driverDay = 1200
+    ticketDay = 160
+    mealDay = 250
+  }
+
+  hotelNight = Math.round(hotelNight * styleMul)
+
+  const hotelLow = hotelNight * 0.85 * nights * rooms
+  const hotelHigh = hotelNight * 1.25 * nights * rooms
+
+  let transportLabel = '大眾運輸／短程計程車'
+  let transportDetail = '交通卡、單程票、短程計程車緩衝'
+  let transportLow = transitDay * days * party
+  let transportHigh = transitDay * 1.4 * days * party
+
+  if (options.transportMode === 'private_driver') {
+    transportLabel = '包車＋司機'
+    transportDetail = longHaul
+      ? `${days} 日商務車／高原或長線司機（油費過路視報價）`
+      : `${days} 日專車接送（含市區及近郊景點）`
+    transportLow = driverDay * days * (party >= 5 ? 1.15 : 1)
+    transportHigh = driverDay * 1.35 * days * (party >= 5 ? 1.2 : 1)
+  } else if (options.transportMode === 'self_drive') {
+    transportLabel = '租車／自駕'
+    transportDetail = `${days} 日租車＋油費＋停車／過路預留`
+    transportLow = selfDriveDay * days
+    transportHigh = selfDriveDay * 1.4 * days
+  }
+
+  const mealLow = mealDay * 0.85 * days * party
+  const mealHigh = mealDay * 1.25 * days * party
+  const ticketLow = ticketDay * 0.7 * days * party
+  const ticketHigh = ticketDay * 1.3 * days * party
+  const miscLow = miscBase + party * 150
+  const miscHigh = miscBase * 1.8 + party * 280
+
+  const totalLow = hotelLow + transportLow + mealLow + ticketLow + miscLow
+  const totalHigh = hotelHigh + transportHigh + mealHigh + ticketHigh + miscHigh
+
+  const perLow = totalLow / party
+  const perHigh = totalHigh / party
+
+  return {
+    title: `${options.destinationName}・${party} 人・${days} 天 ${nights} 夜預算估算`,
+    totalRange: `總預算約 ${rangeMoney(currency, totalLow, totalHigh)}`,
+    perPerson: `人均約 ${rangeMoney(currency, perLow, perHigh)}`,
+    currencyNote: `依目前選擇（${transportModeLabel(options.transportMode)}／住宿風格）估算；不含出發地國際機票。實際以當季報價為準。`,
+    lines: [
+      {
+        item: '酒店住宿',
+        detail: `${nights} 晚 × 約 ${rooms} 間房`,
+        amount: rangeMoney(currency, hotelLow, hotelHigh),
+        perPerson: rangeMoney(currency, hotelLow / party, hotelHigh / party),
+      },
+      {
+        item: transportLabel,
+        detail: transportDetail,
+        amount: rangeMoney(currency, transportLow, transportHigh),
+        perPerson: rangeMoney(currency, transportLow / party, transportHigh / party),
+      },
+      {
+        item: '餐飲',
+        detail: `約 ${days} 日餐費（含特色餐預留）`,
+        amount: rangeMoney(currency, mealLow, mealHigh),
+        perPerson: rangeMoney(currency, mealLow / party, mealHigh / party),
+      },
+      {
+        item: '門票／活動',
+        detail: '景點門票、區間車、體驗預留',
+        amount: rangeMoney(currency, ticketLow, ticketHigh),
+        perPerson: rangeMoney(currency, ticketLow / party, ticketHigh / party),
+      },
+      {
+        item: '保險／雜費',
+        detail: '保險、小費、飲料、臨時購物緩衝',
+        amount: rangeMoney(currency, miscLow, miscHigh),
+        perPerson: rangeMoney(currency, miscLow / party, miscHigh / party),
+      },
+    ],
+    optimizeTips: [
+      '酒店與包車建議比價 2–3 間／車隊，並確認取消條款。',
+      '旺季景區房與司機價波動大，請按最終日期鎖價。',
+      options.transportMode === 'public_transit'
+        ? '可再加交通卡／一日券，通常比全程計程車更省。'
+        : '詢價時確認油費、過路、停車、司機食宿是否全包。',
+    ],
   }
 }
 

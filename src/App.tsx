@@ -43,6 +43,7 @@ import {
   transportModes,
   tripPaces,
   spotInputExamples,
+  estimateTripBudget,
   type Companion,
   type Destination,
   type DestinationId,
@@ -165,7 +166,6 @@ function App() {
       : hotelsForStyle(primary, hotelStyle)
     : []
   const hotelAreaHint = hotels[0]?.area || primary?.nameZh || '市區'
-  const budgetSummary = primary?.budgetSummary
   const travelTips = primary?.tips ?? []
   const tripHandbook = primary?.handbook
 
@@ -239,6 +239,31 @@ function App() {
       }),
     [travelers, transportMode],
   )
+
+  const liveBudget = useMemo(() => {
+    if (!primary) return null
+    return estimateTripBudget({
+      destinationName: selectedDestinations.map((d) => d.nameZh).join('、') || primary.nameZh,
+      days: planDays,
+      nights: nightsFromDays(planDays),
+      partySize: travelers,
+      rooms: hotelAdvice.rooms,
+      transportMode,
+      hotelStyle,
+    })
+  }, [
+    primary,
+    selectedDestinations,
+    planDays,
+    travelers,
+    hotelAdvice.rooms,
+    transportMode,
+    hotelStyle,
+  ])
+
+  /** Prefer live estimate so hotel/travel/total always match current choices; keep handbook budget as reference. */
+  const budgetSummary = liveBudget
+  const handbookBudget = primary?.budgetSummary
 
   function chooseTransportMode(next: TransportMode) {
     setTransportMode(next)
@@ -1874,6 +1899,9 @@ function App() {
                 {styleLabel} · 約 {hotelAdvice.rooms} 間房
               </p>
               <div className="cta-row" style={{ marginTop: '0.85rem' }}>
+                <a className="btn ghost" href="#trip-budget">
+                  查看預算明細
+                </a>
                 <a className="btn primary" href="#stage-4-poster">
                   查看階段四 · 旅程海報（相片／插畫）
                 </a>
@@ -2038,9 +2066,9 @@ function App() {
                 </div>
               </article>
 
-              {budgetSummary && (
-                <article className="info-block wide">
-                  <h3>{budgetSummary.title}</h3>
+              {budgetSummary ? (
+                <article className="info-block wide budget-block" id="trip-budget">
+                  <h3>行程預算（酒店／交通／餐飲／總額）</h3>
                   <p className="season-note">{budgetSummary.totalRange}</p>
                   <p>
                     <strong>{budgetSummary.perPerson}</strong>
@@ -2067,8 +2095,16 @@ function App() {
                       ))}
                     </ul>
                   ) : null}
+                  {handbookBudget ? (
+                    <div className="handbook-budget-ref">
+                      <strong>規劃書參考預算（{handbookBudget.title}）</strong>
+                      <p>
+                        {handbookBudget.totalRange} · {handbookBudget.perPerson}
+                      </p>
+                    </div>
+                  ) : null}
                 </article>
-              )}
+              ) : null}
 
               {travelTips.length > 0 && (
                 <article className="info-block wide">
