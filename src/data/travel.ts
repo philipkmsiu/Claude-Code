@@ -2,6 +2,7 @@ export type {
   BudgetSummary,
   Companion,
   DayPlan,
+  DayRouteLeg,
   Destination,
   DestinationId,
   HotelOption,
@@ -12,12 +13,14 @@ export type {
   ScenicSpot,
   SeasonGuide,
   SpotTag,
+  TransportMode,
   TripPace,
 } from './types'
 
 import type {
   Companion,
   DayPlan,
+  DayRouteLeg,
   Destination,
   HotelOption,
   HotelStayPlan,
@@ -26,6 +29,7 @@ import type {
   ScenicSpot,
   SeasonGuide,
   SpotTag,
+  TransportMode,
   TripPace,
 } from './types'
 import { qingganDestination } from './qinggan'
@@ -522,54 +526,126 @@ export function hotelBookingAdvice(partySize: number): {
   }
 }
 
-/** Traffic / vehicle arrangement from traveler count. */
+export const transportModes: {
+  id: TransportMode
+  label: string
+  description: string
+  easeNote: string
+}[] = [
+  {
+    id: 'private_driver',
+    label: '包司機',
+    description: '專車接送，景點間免轉乘，行程最輕鬆。',
+    easeNote: '最省事：行李、長輩、分散景點都適合。',
+  },
+  {
+    id: 'self_drive',
+    label: '自駕',
+    description: '自己開車，路線靈活，需留意停車與路況。',
+    easeNote: '自由度高，但要自己找路、加油與停車。',
+  },
+  {
+    id: 'public_transit',
+    label: '大眾運輸',
+    description: '地鐵／火車／巴士為主，每日標示怎麼去、路線感覺。',
+    easeNote: '省錢好逛市區；跨區會多轉乘，App 查班次很重要。',
+  },
+]
+
+export function transportModeLabel(mode: TransportMode): string {
+  return transportModes.find((item) => item.id === mode)?.label ?? mode
+}
+
+/** Traffic / vehicle arrangement from traveler count + chosen transport mode. */
 export function trafficArrangementAdvice(
   partySize: number,
-  options?: { privateDriver?: boolean },
+  options?: { privateDriver?: boolean; transportMode?: TransportMode },
 ): {
   mode: string
   vehicle: string
   note: string
+  transportMode: TransportMode
 } {
   const size = clampPartySize(partySize)
-  const privateDriver = Boolean(options?.privateDriver)
+  const transportMode: TransportMode =
+    options?.transportMode ||
+    (options?.privateDriver || size >= 5 ? 'private_driver' : 'public_transit')
 
+  if (transportMode === 'public_transit') {
+    return {
+      transportMode,
+      mode: size <= 4 ? '電車＋巴士＋短程計程車' : '大眾運輸為主（大團體較辛苦）',
+      vehicle: '交通卡／一日券／單程票',
+      note:
+        size >= 5
+          ? `${size} 人走大眾運輸可行，但集合與轉乘較花時間；每日會標示區域間怎麼去。`
+          : '每日會標示景點間建議搭乘方式、轉乘感與大約時間；建議下載 Google Maps 或當地換乘 App。',
+    }
+  }
+
+  if (transportMode === 'self_drive') {
+    if (size <= 4) {
+      return {
+        transportMode,
+        mode: '自駕（轎車／休旅）',
+        vehicle: '五～七人座租車',
+        note: '每日標示自駕路段與停車提醒；山路／環線請預留緩衝，並確認駕照與保險。',
+      }
+    }
+    if (size <= 6) {
+      return {
+        transportMode,
+        mode: '自駕 MPV',
+        vehicle: '七～八人座',
+        note: '人多行李多時選 MPV；每日路線會偏「少換停車點、同區串連」。',
+      }
+    }
+    return {
+      transportMode,
+      mode: '自駕車隊或改包車',
+      vehicle: size <= 9 ? '兩輛七人座' : '中巴（較建議改包司機）',
+      note: `${size} 人自駕協調成本高；若不想開兩台車，建議改包司機。`,
+    }
+  }
+
+  // private_driver
   if (size <= 2) {
     return {
-      mode: privateDriver ? '包車／專車' : '電車＋計程車為主',
-      vehicle: privateDriver ? '五人座轎車' : '大眾運輸／計程車',
-      note: privateDriver
-        ? '1–2 人包車最靈活，景區間可省轉乘時間。'
-        : '人數少時大眾運輸通常最省事；景區接駁可搭配計程車。',
+      transportMode,
+      mode: '包車／專車',
+      vehicle: '五人座轎車',
+      note: '包車最輕鬆：每日由司機依景點順序接送，幾乎不用研究轉乘。',
     }
   }
   if (size <= 4) {
     return {
-      mode: privateDriver ? '包車舒服版' : '電車＋計程車／租車',
+      transportMode,
+      mode: '包車舒服版',
       vehicle: '五～七人座（含行李）',
-      note: privateDriver
-        ? '3–4 人很適合一輛包車，行李與行程節奏都較穩。'
-        : '4 人以內仍可用電車；若景點分散或有長輩，建議改包車／租車。',
+      note: '3–4 人很適合一輛包車；行程表會以「司機接送」為主，少標轉乘細節。',
     }
   }
   if (size <= 6) {
     return {
+      transportMode,
       mode: '小團包車／MPV',
       vehicle: '七～八人座 MPV（含司機）',
-      note: '5–6 人建議固定一輛 MPV 或小巴，比分兩台計程車好管，酒店也可集中訂 3 間房。',
+      note: '5–6 人建議固定一輛 MPV，比分兩台計程車好管。',
     }
   }
   if (size <= 9) {
     return {
+      transportMode,
       mode: '九人座包車或兩車並行',
       vehicle: '九人座商務車／兩輛七人座',
-      note: '7–9 人交通以九人座或兩車為主，訂房請一次訂齊並要求同樓層。',
+      note: '7–9 人以九人座或兩車為主；每日仍以司機接送說明為主。',
     }
   }
   return {
+    transportMode,
     mode: '中巴／小型旅遊車',
     vehicle: '15–20 人座中巴（視行李）',
-    note: `${size} 人建議中巴統一接送，酒店可談團體價與相鄰房型。`,
+    note: `${size} 人建議中巴統一接送；酒店可談團體價與相鄰房型。`,
   }
 }
 
@@ -1821,6 +1897,188 @@ function placeSpotInBuckets(
   }
 }
 
+function buildRouteLeg(
+  from: string,
+  to: string,
+  mode: TransportMode,
+  sameArea: boolean,
+): DayRouteLeg {
+  if (mode === 'private_driver') {
+    return {
+      from,
+      to,
+      modeLabel: '包車直達',
+      summary: sameArea
+        ? `司機在「${from}」一帶接送至「${to}」，免轉乘、可放行李。`
+        : `包車由「${from}」前往「${to}」；司機會依當日順序順路安排，你只要準時上車。`,
+      durationHint: sameArea ? '約 15–30 分鐘' : '約 40–90 分鐘（視距離）',
+      costHint: '含在當日包車費',
+    }
+  }
+  if (mode === 'self_drive') {
+    return {
+      from,
+      to,
+      modeLabel: '自駕',
+      summary: sameArea
+        ? `自駕於「${from}」一帶前往「${to}」；優先使用景點／商場停車場，避開窄巷。`
+        : `自駕由「${from}」開往「${to}」：依主要幹道前進，出發前查路況與收費站；抵達先確認停車位再入園。`,
+      durationHint: sameArea ? '約 15–35 分鐘' : '約 45–120 分鐘',
+      costHint: '油費／過路費／停車另計',
+    }
+  }
+  return {
+    from,
+    to,
+    modeLabel: sameArea ? '步行／短程公交' : '地鐵／列車／巴士轉乘',
+    summary: sameArea
+      ? `在「${from}」區域內步行或短程公交前往「${to}」；同區移動通常最輕鬆。`
+      : `從「${from}」到「${to}」：先走到最近車站／公車站 → 搭主要幹線 → 於轉乘站換線／換車 → 出站後短程步行或計程車到門口。建議用 Google Maps 或當地換乘 App 查即時班次。`,
+    durationHint: sameArea ? '約 10–25 分鐘' : '約 35–75 分鐘（含轉乘）',
+    costHint: sameArea ? '單程票或交通卡' : '建議交通卡／一日券',
+  }
+}
+
+function dayTransportSummary(
+  mode: TransportMode,
+  legs: DayRouteLeg[],
+  stayCity: string,
+): string {
+  if (!legs.length) {
+    if (mode === 'private_driver') return `今日以包車在 ${stayCity} 一帶活動，司機隨行程接送。`
+    if (mode === 'self_drive') return `今日自駕活動於 ${stayCity} 一帶；注意停車與回飯店路線。`
+    return `今日以大眾運輸在 ${stayCity} 一帶移動；同區可步行或短程公交。`
+  }
+  const cross = legs.filter((leg) => leg.modeLabel.includes('轉乘') || leg.durationHint.includes('40') || leg.durationHint.includes('45')).length
+  if (mode === 'private_driver') {
+    return `包司機：今日 ${legs.length} 段接送，幾乎免轉乘；重點是準時上車與告知司機下一站。`
+  }
+  if (mode === 'self_drive') {
+    return `自駕：今日約 ${legs.length} 段車程；盡量同區停車、少挪車${cross ? '，跨區路段請預留緩衝' : ''}。`
+  }
+  return `大眾運輸：今日約 ${legs.length} 段移動${cross ? '，含跨區轉乘' : '，多為同區短程'}；請依下方路線說明與即時 App 前往。`
+}
+
+/** Attach mode-aware daily routes and inject transit/drive steps into the schedule. */
+export function applyTransportToItinerary(
+  days: DayPlan[],
+  options: {
+    transportMode: TransportMode
+    hotelAreaHint: string
+    spots: ScenicSpot[]
+  },
+): DayPlan[] {
+  const { transportMode, hotelAreaHint, spots } = options
+  const byId = new Map(spots.map((s) => [s.id, s]))
+
+  return days.map((day, index) => {
+    const isFirst = index === 0
+    const isLast = index === days.length - 1
+    const stay = day.stayCity || hotelAreaBase(day.stayArea || hotelAreaHint)
+    const daySpots = day.spotIds
+      .map((id) => byId.get(id))
+      .filter((s): s is ScenicSpot => Boolean(s))
+
+    const points: { name: string; area: string }[] = []
+    if (isFirst) {
+      points.push({ name: '機場／車站抵達點', area: stay })
+    } else {
+      points.push({ name: `${stay} 住宿`, area: stay })
+    }
+    for (const spot of daySpots) {
+      points.push({ name: spot.name, area: spot.area || stay })
+    }
+    if (isLast) {
+      points.push({ name: '機場／車站返程', area: stay })
+    } else if (daySpots.length) {
+      points.push({ name: `${stay} 住宿`, area: stay })
+    }
+
+    const legs: DayRouteLeg[] = []
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const from = points[i]
+      const to = points[i + 1]
+      if (from.name === to.name) continue
+      const sameArea =
+        hotelAreaBase(from.area) === hotelAreaBase(to.area) ||
+        from.area.includes(to.area) ||
+        to.area.includes(from.area)
+      legs.push(buildRouteLeg(from.name, to.name, transportMode, sameArea))
+    }
+
+    const transportSummary = dayTransportSummary(transportMode, legs, stay)
+    const schedule = injectTransportIntoSchedule(day.schedule, legs, transportMode)
+
+    const modePace =
+      transportMode === 'private_driver'
+        ? '包車接送為主'
+        : transportMode === 'self_drive'
+          ? '自駕路段見下方'
+          : '大眾運輸路線見下方'
+
+    return enrichDayPlanRow({
+      ...day,
+      schedule,
+      routeLegs: legs,
+      transportSummary,
+      paceNote: day.paceNote?.includes(modePace)
+        ? day.paceNote
+        : `${modePace}；${day.paceNote || ''}`.replace(/；+$/, ''),
+    })
+  })
+}
+
+function injectTransportIntoSchedule(
+  schedule: ScheduleItem[],
+  legs: DayRouteLeg[],
+  mode: TransportMode,
+): ScheduleItem[] {
+  if (!schedule.length || !legs.length) return schedule
+
+  const legByTo = new Map(legs.map((leg) => [leg.to, leg]))
+  const next: ScheduleItem[] = []
+
+  for (const item of schedule) {
+    const leg = item.spotId ? legByTo.get(item.title) : undefined
+    if (leg) {
+      next.push({
+        time: item.time,
+        title:
+          mode === 'private_driver'
+            ? `包車前往 ${item.title}`
+            : mode === 'self_drive'
+              ? `自駕前往 ${item.title}`
+              : `轉乘前往 ${item.title}`,
+        detail: `${leg.modeLabel}｜${leg.summary} 約需 ${leg.durationHint}${
+          leg.costHint ? `｜${leg.costHint}` : ''
+        }`,
+      })
+      next.push({
+        ...item,
+        detail: `${item.detail}（抵達後開始遊覽）`,
+      })
+      continue
+    }
+    next.push(item)
+  }
+
+  const returnLeg = [...legs]
+    .reverse()
+    .find((leg) => /住宿|返程|機場/.test(leg.to))
+  if (returnLeg && next.length) {
+    const lastIdx = next.length - 1
+    const last = next[lastIdx]
+    if (/晚餐|回飯店|伴手禮|機場/.test(last.title) && !last.detail.includes('回程：')) {
+      next[lastIdx] = {
+        ...last,
+        detail: `${last.detail}｜回程：${returnLeg.modeLabel}，${returnLeg.summary}（${returnLeg.durationHint}）`,
+      }
+    }
+  }
+
+  return next
+}
+
 export function buildItinerary(options: {
   destinations: Destination[]
   selectedSpotIds: string[]
@@ -1829,18 +2087,35 @@ export function buildItinerary(options: {
   companion: Companion
   specialNeeds: string[]
   hotelAreaHint: string
+  transportMode?: TransportMode
 }): DayPlan[] {
   const requestedDays = clampDays(options.days)
-  const { destinations: dests, selectedSpotIds, pace, companion, specialNeeds, hotelAreaHint } =
-    options
+  const {
+    destinations: dests,
+    selectedSpotIds,
+    pace,
+    companion,
+    specialNeeds,
+    hotelAreaHint,
+    transportMode = specialNeeds.includes('包司機舒服版')
+      ? 'private_driver'
+      : 'public_transit',
+  } = options
+
+  const allSpots = dests.flatMap((d) => d.spots)
 
   // Prefer a handcrafted plan (e.g. 青甘大環線 14 日) when available.
   if (dests.length === 1) {
     const curated = dests[0].curatedPlans?.[requestedDays]
     if (curated?.length) {
-      return applySpotFilterToCurated(curated, selectedSpotIds).map((day) =>
+      const base = applySpotFilterToCurated(curated, selectedSpotIds).map((day) =>
         enrichDayPlanRow(day),
       )
+      return applyTransportToItinerary(base, {
+        transportMode,
+        hotelAreaHint,
+        spots: allSpots,
+      })
     }
   }
 
@@ -1848,7 +2123,6 @@ export function buildItinerary(options: {
   const lateStart = specialNeeds.some((n) => n.includes('十點'))
   const startHour = lateStart || specialNeeds.some((n) => n.includes('少走路')) ? 10 : 9
 
-  const allSpots = dests.flatMap((d) => d.spots)
   const selectedIds = ensureSpotsForDays({
     selectedSpotIds,
     allSpots,
@@ -2086,7 +2360,7 @@ export function buildItinerary(options: {
     })
   })
 
-  return plannedDays.map((day, index, arr) => {
+  const withMoves = plannedDays.map((day, index, arr) => {
     if (index === 0) return day
     const prev = arr[index - 1]
     if ((day.stayCity || '') === (prev.stayCity || '')) return day
@@ -2098,6 +2372,12 @@ export function buildItinerary(options: {
           ? `${prev.stayCity} → ${day.stayCity}；${day.mainPlan}`
           : day.mainPlan,
     }
+  })
+
+  return applyTransportToItinerary(withMoves, {
+    transportMode,
+    hotelAreaHint,
+    spots: allSpots,
   })
 }
 

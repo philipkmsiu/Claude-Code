@@ -47,13 +47,25 @@ Result view includes a planning-book style table:
 
 Weather uses Open-Meteo (live forecast when near-term; otherwise same-date climate from last year).
 
+## Transport modes
+
+On preferences, choose **包司機 / 自駕 / 大眾運輸**:
+
+- **包司機** — easiest; daily plan focuses on pickup order, not transfers
+- **自駕** — driving segments, parking reminders, road-buffer notes
+- **大眾運輸** — each day lists how to get between places (walk / metro / transfer feel, time, pass tips)
+
+## Visual journey map (Stage 4)
+
+The result page ends with an illustrated SVG **旅程地圖**: winding path, DAY stops, food / tip side bands — inspired by the Gemini travel-plan handbook flow.
+
 ## Flow
 
 1. Destination  
-2. Days + trip conditions (AI day review)  
+2. Days + trip conditions + transport mode (AI day review)  
 3. Hotel style  
 4. Spot picker (AI real spots + fit review)  
-5. Generate / regenerate itinerary  
+5. Generate / regenerate itinerary + daily routes + journey map  
 
 ## Develop
 

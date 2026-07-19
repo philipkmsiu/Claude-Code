@@ -865,8 +865,111 @@ main {
 }
 
 .style-card.selected strong,
-.style-card.selected span {
+.style-card.selected span,
+.style-card.selected em {
   color: #f4f0e4;
+}
+
+.transport-grid .style-card {
+  min-height: 9.5rem;
+}
+
+.transport-ease {
+  display: block;
+  margin-top: 0.45rem;
+  font-style: normal;
+  font-size: 0.82rem;
+  color: var(--forest);
+  opacity: 0.9;
+}
+
+.route-legs {
+  margin: 0.65rem 0 0.9rem;
+  padding: 0.75rem 0.85rem;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.08);
+  border-radius: 0.85rem;
+}
+
+.route-legs > strong {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.92rem;
+  color: var(--forest);
+}
+
+.route-legs ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.route-legs li {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.route-legs em {
+  font-style: normal;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent, #8a6b4a);
+  letter-spacing: 0.02em;
+}
+
+.route-legs span {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.route-legs p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.journey-map-section {
+  margin: 1.6rem 0 1.2rem;
+  animation: fade-up 0.7s ease both;
+}
+
+.journey-map-frame {
+  margin-top: 0.75rem;
+  border-radius: 1.2rem;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 50% 40% at 20% 20%, rgba(122, 158, 142, 0.18), transparent 60%),
+    radial-gradient(ellipse 45% 35% at 85% 30%, rgba(196, 165, 116, 0.2), transparent 55%),
+    linear-gradient(160deg, #f3efe6, #e7efe9);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.1);
+}
+
+.journey-map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.map-stop {
+  animation: map-pop 0.7s ease both;
+}
+
+.map-stop:nth-child(odd) {
+  animation-delay: 0.08s;
+}
+
+@keyframes map-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hotel-pick-grid {

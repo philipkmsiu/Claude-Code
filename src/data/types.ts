@@ -2,6 +2,19 @@ export type HotelStyle = 'value' | 'luxury' | 'luxuryValue' | 'standard' | 'clea
 export type TripPace = 'relaxed' | 'balanced' | 'packed'
 export type Companion = 'solo' | 'couple' | 'family' | 'friends'
 export type SpotTag = 'must' | 'photo' | 'popular' | 'culture' | 'nature' | 'food' | 'shopping'
+/** How the traveler moves between places each day. */
+export type TransportMode = 'private_driver' | 'self_drive' | 'public_transit'
+
+export interface DayRouteLeg {
+  from: string
+  to: string
+  /** Short label e.g. 地鐵轉乘 / 包車直達 / 自駕 */
+  modeLabel: string
+  /** How to get there / what the route is like */
+  summary: string
+  durationHint: string
+  costHint?: string
+}
 
 /** Built-in ids plus runtime custom ids like `custom-paris-…`. */
 export type DestinationId = string
@@ -78,6 +91,10 @@ export interface DayPlan {
   paceNote?: string
   /** Hotel direction (表：住宿方向). */
   hotelDirection?: string
+  /** Day-level transport guidance for the chosen mode. */
+  transportSummary?: string
+  /** Segment-by-segment how to get between stay / spots. */
+  routeLegs?: DayRouteLeg[]
   schedule: ScheduleItem[]
   budget: string
   tip: string

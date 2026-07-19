@@ -39,15 +39,19 @@ import {
   specialNeedOptions,
   spotTagLabels,
   trafficArrangementAdvice,
+  transportModeLabel,
+  transportModes,
   tripPaces,
   type Companion,
   type Destination,
   type DestinationId,
   type HotelStyle,
   type SeasonGuide,
+  type TransportMode,
   type TripPace,
 } from './data/travel'
 import { FreeTextField } from './components/FreeTextField'
+import { JourneyMap } from './components/JourneyMap'
 import {
   recommendDaysWithAi,
   reviewPlanWithAi,
@@ -86,6 +90,7 @@ function App() {
     '喜歡歷史文化',
     '想拍打卡美照',
   ])
+  const [transportMode, setTransportMode] = useState<TransportMode>('public_transit')
   const [hotelStyle, setHotelStyle] = useState<HotelStyle>('value')
   const [hotelNights, setHotelNights] = useState(6)
   const [preferConsecutiveStays, setPreferConsecutiveStays] = useState(true)
@@ -226,10 +231,19 @@ function App() {
   const trafficAdvice = useMemo(
     () =>
       trafficArrangementAdvice(travelers, {
-        privateDriver: specialNeeds.includes('包司機舒服版'),
+        transportMode,
+        privateDriver: transportMode === 'private_driver',
       }),
-    [travelers, specialNeeds],
+    [travelers, transportMode],
   )
+
+  function chooseTransportMode(next: TransportMode) {
+    setTransportMode(next)
+    setSpecialNeeds((prev) => {
+      const withoutDriver = prev.filter((need) => need !== '包司機舒服版')
+      return next === 'private_driver' ? [...withoutDriver, '包司機舒服版'] : withoutDriver
+    })
+  }
 
   function setTravelers(next: number) {
     const clamped = clampPartySize(next)
@@ -454,6 +468,7 @@ function App() {
       companion,
       specialNeeds,
       hotelAreaHint,
+      transportMode,
     })
   }, [
     selectedDestinations,
@@ -463,6 +478,7 @@ function App() {
     companion,
     specialNeeds,
     hotelAreaHint,
+    transportMode,
     planVersion,
   ])
 
@@ -834,6 +850,7 @@ function App() {
     setCompanion('couple')
     setPartySize(2)
     setPartySizeInput('2')
+    setTransportMode('public_transit')
     setPreferConsecutiveStays(true)
     setPreferredHotelName('')
     setDayWeather([])
@@ -1382,8 +1399,29 @@ function App() {
               </div>
             </div>
 
+            <h3 className="subhead">交通方式</h3>
+            <p className="muted-line">
+              包司機最輕鬆；自駕最自由；大眾運輸則會標示每日怎麼去、路線感覺如何。
+            </p>
+            <div className="style-grid transport-grid">
+              {transportModes.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`style-card ${transportMode === item.id ? 'selected' : ''}`}
+                  onClick={() => chooseTransportMode(item.id)}
+                >
+                  <strong>{item.label}</strong>
+                  <span>{item.description}</span>
+                  <em className="transport-ease">{item.easeNote}</em>
+                </button>
+              ))}
+            </div>
+
             <aside className="ai-panel ready party-logistics">
-              <strong>依 {travelers} 人預估的交通／訂房</strong>
+              <strong>
+                依 {travelers} 人 · {transportModeLabel(transportMode)} 的交通／訂房
+              </strong>
               <p>
                 <strong>訂房：</strong>
                 {hotelAdvice.note}
@@ -1412,6 +1450,10 @@ function App() {
                         } else {
                           setTravelers(6)
                         }
+                        return
+                      }
+                      if (need === '包司機舒服版') {
+                        chooseTransportMode(active ? 'public_transit' : 'private_driver')
                         return
                       }
                       setSpecialNeeds((prev) =>
@@ -1814,8 +1856,8 @@ function App() {
             <div className="result-hero">
               <p className="eyebrow">
                 {selectedDestinations.map((d) => d.nameLocal).join(' + ')} ·{' '}
-                {itinerary.length || planDays} 天實際行程 · {travelers} 人 · {paceLabel} ·{' '}
-                {companionLabel}
+                {itinerary.length || planDays} 天實際行程 · {travelers} 人 ·{' '}
+                {transportModeLabel(transportMode)} · {paceLabel} · {companionLabel}
               </p>
               <h2>{selectedDestinations.map((d) => d.nameZh).join('、')}</h2>
               <p className="result-tagline">
@@ -1919,10 +1961,19 @@ function App() {
               ) : null}
 
               <article className="info-block wide">
-                <h3>交通與訂房（依 {travelers} 人）</h3>
+                <h3>交通與訂房（依 {travelers} 人 · {transportModeLabel(transportMode)}）</h3>
                 <p>
-                  <strong>交通安排：</strong>
-                  {trafficAdvice.mode}（{trafficAdvice.vehicle}）。{trafficAdvice.note}
+                  <strong>交通模式：</strong>
+                  {transportModeLabel(transportMode)} — {trafficAdvice.mode}（
+                  {trafficAdvice.vehicle}）。{trafficAdvice.note}
+                </p>
+                <p>
+                  <strong>每日怎麼去：</strong>
+                  {transportMode === 'public_transit'
+                    ? '下方每日行程會標示轉乘路線、大約時間與交通卡建議。'
+                    : transportMode === 'self_drive'
+                      ? '下方每日行程會標示自駕路段、車程感與停車提醒。'
+                      : '包司機模式下以接送為主，較少轉乘細節，重點是會合與當日順序。'}
                 </p>
                 <p>
                   <strong>酒店房間：</strong>
@@ -2115,6 +2166,31 @@ function App() {
                       <strong>節奏／車程：</strong>
                       {day.paceNote || day.tip}
                     </p>
+                    {day.transportSummary ? (
+                      <p className="day-meta-line">
+                        <strong>當日交通：</strong>
+                        {day.transportSummary}
+                      </p>
+                    ) : null}
+                    {day.routeLegs && day.routeLegs.length > 0 ? (
+                      <div className="route-legs">
+                        <strong>怎麼去／路線感覺</strong>
+                        <ul>
+                          {day.routeLegs.map((leg) => (
+                            <li key={`${leg.from}-${leg.to}-${leg.modeLabel}`}>
+                              <em>{leg.modeLabel}</em>
+                              <span>
+                                {leg.from} → {leg.to}
+                              </span>
+                              <p>
+                                {leg.summary}（{leg.durationHint}
+                                {leg.costHint ? ` · ${leg.costHint}` : ''}）
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     <ol>
                       {day.schedule.map((item) => (
                         <li key={`${item.time}-${item.title}`}>
@@ -2134,6 +2210,16 @@ function App() {
                 ))}
               </div>
             </div>
+
+            <JourneyMap
+              destinationName={selectedDestinations.map((d) => d.nameZh).join('、')}
+              startLabel={formatDateZh(startDate)}
+              endLabel={formatDateZh(computedEndDate)}
+              days={planDays}
+              nights={nightsFromDays(planDays)}
+              transportMode={transportMode}
+              itinerary={datedItinerary}
+            />
 
             <div className="nav-row sticky-actions">
               <button
