@@ -17,6 +17,7 @@ import {
   defaultSelectedSpotIds,
   deriveFitStatus,
   destinations as presetDestinations,
+  destinationNeedsAiSpots,
   clampStartDate,
   earliestStartDate,
   endDateFromStart,
@@ -83,7 +84,10 @@ import {
 } from './components/Icons'
 import { JourneyMap } from './components/JourneyMap'
 import { KmLogo } from './components/KmLogo'
-import { DestinationLore } from './components/DestinationLore'
+import {
+  DestinationLore,
+  type AiLoreStatus,
+} from './components/DestinationLore'
 import { TripHandbookPanel } from './components/TripHandbook'
 import {
   recommendDaysWithAi,
@@ -371,6 +375,24 @@ function App() {
   const selectedDestKey = selectedDestIds.join('|')
   const selectedSpotKey = selectedSpotIds.join('|')
   const selectedDestNames = selectedDestinations.map((d) => d.nameZh).join(' + ')
+
+  function loreAiStatus(dest: Destination): AiLoreStatus {
+    if (aiSpotsLoadedKeys.includes(dest.id)) return 'ready'
+    if (aiSpotsLoading || pendingGoToResult) return 'thinking'
+    if (aiSpotsError) return 'error'
+    // Auto-research runs on preferences / hotel / spots — show thinking, not fake finals.
+    if (step === 'preferences' || step === 'hotel' || step === 'spots') {
+      return 'thinking'
+    }
+    if (destinationNeedsAiSpots(dest)) return 'placeholder'
+    return 'ready'
+  }
+
+  const anyAiThinking =
+    aiSpotsLoading ||
+    pendingGoToResult ||
+    ((step === 'preferences' || step === 'hotel' || step === 'spots') &&
+      selectedDestinations.some((d) => !aiSpotsLoadedKeys.includes(d.id)))
 
   useEffect(() => bindSoundscapeGestures(), [])
 
@@ -1266,6 +1288,13 @@ function App() {
 
       <MoodTicker />
 
+      {anyAiThinking ? (
+        <div className="ai-thinking-toast" role="status" aria-live="polite">
+          <span className="ai-thinking-spinner" aria-hidden />
+          <span>AI 正在調研目的地…請稍候，暫定範本不是最終結果</span>
+        </div>
+      ) : null}
+
       <main>
         {step === 'home' && (
           <section className="hero">
@@ -1570,7 +1599,11 @@ function App() {
                     </span>
                     <strong>{dest.nameZh}</strong>
                     <span className="dest-tag">{dest.tagline}</span>
-                    <DestinationLore destination={dest} compact />
+                    <DestinationLore
+                      destination={dest}
+                      compact
+                      aiStatus={loreAiStatus(dest)}
+                    />
                     <span className="dest-meta">
                       最少 {dest.recommendedDays.min} 天 · 最舒服{' '}
                       {dest.recommendedDays.comfortable} 天 · 建議最長{' '}
@@ -1632,17 +1665,27 @@ function App() {
             <article className="info-block wide dest-story-panel">
               <h3>目的地速寫</h3>
               <p className="muted">先認識背景與難忘之處，再決定玩幾天會更有感覺。</p>
-                {selectedDestinations.map((d) => (
-                  <DestinationLore
-                    key={d.id}
-                    destination={d}
-                    highlightSpots={d.spots.filter((spot) =>
-                      selectedSpotIds.length
-                        ? selectedSpotIds.includes(spot.id)
-                        : true,
-                    )}
-                  />
-                ))}
+              {anyAiThinking ? (
+                <aside className="ai-panel loading lore-research-panel" role="status">
+                  <strong>AI 正在完整調研目的地…</strong>
+                  <p>
+                    正在查證歷史、真實景點、美食與手信。請稍候——調研完成前顯示的骨架／範本都不是最終結果。
+                  </p>
+                </aside>
+              ) : null}
+              {selectedDestinations.map((d) => (
+                <DestinationLore
+                  key={d.id}
+                  destination={d}
+                  aiStatus={loreAiStatus(d)}
+                  aiError={aiSpotsError}
+                  highlightSpots={d.spots.filter((spot) =>
+                    selectedSpotIds.length
+                      ? selectedSpotIds.includes(spot.id)
+                      : true,
+                  )}
+                />
+              ))}
             </article>
 
             <aside className={`ai-panel ${aiLoading ? 'loading' : aiDayRec ? 'ready' : ''}`}>
@@ -2551,6 +2594,8 @@ function App() {
                   <DestinationLore
                     key={d.id}
                     destination={d}
+                    aiStatus={loreAiStatus(d)}
+                    aiError={aiSpotsError}
                     highlightSpots={d.spots.filter((spot) =>
                       selectedSpotIds.length
                         ? selectedSpotIds.includes(spot.id)
