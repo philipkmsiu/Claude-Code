@@ -146,10 +146,32 @@
   overflow: visible;
 }
 
-.km-football {
+/*
+ * Parabola trick: outer layer runs X linearly after the kick;
+ * inner layer runs Y as a rise-then-fall curve → classic arc.
+ */
+.km-football-run {
   position: absolute;
   left: 22%;
   top: 58%;
+  width: 0;
+  height: 0;
+  z-index: 3;
+  animation: km-football-x var(--km-kick-dur) linear infinite;
+  will-change: transform, opacity;
+}
+
+.km-football-arc {
+  position: absolute;
+  inset: 0;
+  animation: km-football-y var(--km-kick-dur) linear infinite;
+  will-change: transform;
+}
+
+.km-football {
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 1.15em;
   height: 1.15em;
   margin: 0;
@@ -157,22 +179,37 @@
   line-height: 1;
   display: grid;
   place-items: center;
-  transform: translate(-120%, 40%) scale(0.75) rotate(-20deg);
+  transform: translate(-50%, -50%) scale(0.85) rotate(-20deg);
   filter: drop-shadow(0 4px 6px rgba(20, 24, 40, 0.35));
-  animation: km-football-flight var(--km-kick-dur) cubic-bezier(0.2, 0.8, 0.25, 1) infinite;
-  will-change: transform, opacity;
-  z-index: 3;
+  animation: km-football-spin var(--km-kick-dur) linear infinite;
+  will-change: transform;
 }
 
 .km-boom {
   position: absolute;
-  left: 28%;
-  top: 52%;
   width: 0;
   height: 0;
   opacity: 0;
-  animation: km-boom-show var(--km-kick-dur) linear infinite;
   z-index: 4;
+  left: 22%;
+  top: 58%;
+}
+
+.km-boom-kick {
+  animation: km-boom-kick-show var(--km-kick-dur) linear infinite;
+}
+
+/* Apex boom rides the same X/Y parabola as the ball */
+.km-boom-apex {
+  animation:
+    km-football-x-move var(--km-kick-dur) linear infinite,
+    km-boom-apex-fade var(--km-kick-dur) linear infinite;
+}
+
+.km-boom-apex-lift {
+  position: absolute;
+  inset: 0;
+  animation: km-football-y var(--km-kick-dur) linear infinite;
 }
 
 .km-boom-glow {
@@ -192,7 +229,6 @@
   );
   transform: scale(0.15);
   opacity: 0;
-  animation: km-boom-glow var(--km-kick-dur) linear infinite;
 }
 
 .km-boom-flash {
@@ -201,13 +237,12 @@
   top: 50%;
   font-size: 2.6rem;
   transform: translate(-50%, -50%) scale(0.2);
-  animation: km-boom-flash var(--km-kick-dur) linear infinite;
+  opacity: 0;
   filter: drop-shadow(0 0 14px rgba(255, 180, 40, 0.95));
 }
 
 .km-boom-flash-b {
   font-size: 1.8rem;
-  animation-name: km-boom-flash-b;
 }
 
 .km-boom-ring,
@@ -222,18 +257,15 @@
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(0.2);
   opacity: 0;
-  animation: km-boom-ring var(--km-kick-dur) linear infinite;
 }
 
 .km-boom-ring-b {
   border-color: rgba(255, 70, 100, 0.85);
-  animation-delay: 50ms;
 }
 
 .km-boom-ring-c {
   border-color: rgba(255, 255, 200, 0.9);
   border-width: 2px;
-  animation-delay: 90ms;
 }
 
 .km-spark {
@@ -247,7 +279,6 @@
   background: radial-gradient(circle at 35% 35%, #fff7c2, #ffb020 45%, #ff4d2a 100%);
   box-shadow: 0 0 10px rgba(255, 160, 40, 0.95);
   opacity: 0;
-  animation: km-spark-burst var(--km-kick-dur) linear infinite;
 }
 
 .km-spark-star {
@@ -259,25 +290,79 @@
   background: linear-gradient(135deg, #fff6a8, #ff7a3c 55%, #ff3d7a);
 }
 
+/* Kick-contact burst (small) */
+.km-boom-kick .km-boom-glow {
+  animation: km-burst-glow-kick var(--km-kick-dur) linear infinite;
+}
+.km-boom-kick .km-boom-flash {
+  animation: km-burst-flash-kick var(--km-kick-dur) linear infinite;
+}
+.km-boom-kick .km-boom-flash-b {
+  animation: km-burst-flash-b-kick var(--km-kick-dur) linear infinite;
+}
+.km-boom-kick .km-boom-ring,
+.km-boom-kick .km-boom-ring-b,
+.km-boom-kick .km-boom-ring-c {
+  animation: km-burst-ring-kick var(--km-kick-dur) linear infinite;
+}
+.km-boom-kick .km-boom-ring-b {
+  animation-delay: 40ms;
+}
+.km-boom-kick .km-boom-ring-c {
+  animation-delay: 80ms;
+}
+.km-boom-kick .km-spark {
+  animation: km-burst-spark-kick var(--km-kick-dur) linear infinite;
+}
+
+/* Mid-air apex burst (big) */
+.km-boom-apex .km-boom-glow {
+  width: 7rem;
+  height: 7rem;
+  margin: -3.5rem;
+  animation: km-burst-glow-apex var(--km-kick-dur) linear infinite;
+}
+.km-boom-apex .km-boom-flash {
+  font-size: 3.1rem;
+  animation: km-burst-flash-apex var(--km-kick-dur) linear infinite;
+}
+.km-boom-apex .km-boom-flash-b {
+  animation: km-burst-flash-b-apex var(--km-kick-dur) linear infinite;
+}
+.km-boom-apex .km-boom-ring,
+.km-boom-apex .km-boom-ring-b,
+.km-boom-apex .km-boom-ring-c {
+  animation: km-burst-ring-apex var(--km-kick-dur) linear infinite;
+}
+.km-boom-apex .km-boom-ring-b {
+  animation-delay: 40ms;
+}
+.km-boom-apex .km-boom-ring-c {
+  animation-delay: 80ms;
+}
+.km-boom-apex .km-spark {
+  animation: km-burst-spark-apex var(--km-kick-dur) linear infinite;
+}
+
 .km-trail,
 .km-trail-b {
   position: absolute;
   left: 28%;
-  top: 52%;
+  top: 54%;
   width: 0.9rem;
   height: 0.9rem;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 230, 140, 0.95), rgba(255, 90, 60, 0));
   opacity: 0;
   filter: blur(1.5px);
-  animation: km-trail-streak var(--km-kick-dur) linear infinite;
+  animation: km-trail-parabola var(--km-kick-dur) linear infinite;
   z-index: 2;
 }
 
 .km-trail-b {
   width: 0.55rem;
   height: 0.55rem;
-  animation-name: km-trail-streak-b;
+  animation-name: km-trail-parabola-b;
   background: radial-gradient(circle, rgba(255, 120, 160, 0.9), rgba(255, 90, 60, 0));
 }
 
@@ -2557,214 +2642,386 @@ main {
   }
 }
 
-/* Ball flies in → sits at foot → blasted across the viewport */
-@keyframes km-football-flight {
+/* Horizontal run: approach foot, then race across the viewport */
+@keyframes km-football-x {
   0% {
     opacity: 0;
-    transform: translate(-160%, 90%) scale(0.55) rotate(-40deg);
+    transform: translate(-9rem, 0);
   }
-  8% {
+  6% {
     opacity: 1;
   }
-  26% {
-    transform: translate(-8%, 8%) scale(0.95) rotate(220deg);
-  }
-  30% {
-    transform: translate(2%, 2%) scale(1) rotate(280deg);
+  28% {
+    transform: translate(-0.4rem, 0);
   }
   32% {
-    /* impact frame — matches foot strike */
-    transform: translate(6%, -4%) scale(1.08) rotate(300deg);
+    /* kick contact */
+    transform: translate(0, 0);
   }
   48% {
     opacity: 1;
-    transform: translate(42vw, -18vh) scale(0.85) rotate(720deg);
+    transform: translate(36vw, 0);
   }
   62% {
-    opacity: 0.85;
-    transform: translate(78vw, -8vh) scale(0.55) rotate(1080deg);
+    opacity: 1;
+    transform: translate(68vw, 0);
   }
-  72% {
+  74% {
     opacity: 0;
-    transform: translate(95vw, 6vh) scale(0.3) rotate(1260deg);
+    transform: translate(96vw, 0);
   }
-  73%,
+  75%,
   100% {
     opacity: 0;
-    transform: translate(-160%, 90%) scale(0.55) rotate(-40deg);
+    transform: translate(-9rem, 0);
   }
 }
 
-@keyframes km-boom-show {
+/*
+ * Vertical arc: low at kick → high apex mid-flight → fall on the way out.
+ * Combined with km-football-x this reads as a clear parabola.
+ */
+@keyframes km-football-y {
   0%,
-  29% {
-    opacity: 0;
+  28% {
+    transform: translateY(1.4rem);
   }
-  31%,
-  52% {
-    opacity: 1;
+  32% {
+    transform: translateY(0.2rem);
   }
-  62%,
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes km-boom-glow {
-  0%,
-  30% {
-    opacity: 0;
-    transform: scale(0.15);
-  }
-  33% {
-    opacity: 1;
-    transform: scale(1.15);
+  40% {
+    transform: translateY(-12vh);
   }
   48% {
-    opacity: 0.55;
-    transform: scale(1.65);
+    /* apex — boom fires here */
+    transform: translateY(-30vh);
   }
-  60%,
+  58% {
+    transform: translateY(-18vh);
+  }
+  68% {
+    transform: translateY(2vh);
+  }
+  74%,
   100% {
-    opacity: 0;
-    transform: scale(2.1);
+    transform: translateY(14vh);
   }
 }
 
-@keyframes km-boom-flash {
+@keyframes km-football-spin {
   0%,
-  30% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.15) rotate(-8deg);
+  28% {
+    transform: translate(-50%, -50%) scale(0.85) rotate(-30deg);
   }
-  33% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.45) rotate(4deg);
-  }
-  45% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.15) rotate(-2deg);
-  }
-  58%,
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.85) rotate(8deg);
-  }
-}
-
-@keyframes km-boom-flash-b {
-  0%,
   32% {
-    opacity: 0;
-    transform: translate(-10%, -120%) scale(0.2) rotate(12deg);
+    transform: translate(-50%, -50%) scale(1.08) rotate(40deg);
   }
-  36% {
-    opacity: 1;
-    transform: translate(40%, -160%) scale(1.2) rotate(-10deg);
+  48% {
+    transform: translate(-50%, -50%) scale(1) rotate(540deg);
   }
-  50% {
-    opacity: 0.7;
-    transform: translate(90%, -210%) scale(0.9) rotate(16deg);
+  68% {
+    transform: translate(-50%, -50%) scale(0.8) rotate(980deg);
   }
-  60%,
+  74%,
   100% {
-    opacity: 0;
-    transform: translate(130%, -240%) scale(0.4) rotate(28deg);
+    transform: translate(-50%, -50%) scale(0.55) rotate(1200deg);
   }
 }
 
-@keyframes km-boom-ring {
+@keyframes km-boom-kick-show {
   0%,
   30% {
+    opacity: 0;
+  }
+  32%,
+  42% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Apex host stays in the ball path; fade only around the peak */
+@keyframes km-boom-apex-fade {
+  0%,
+  44% {
+    opacity: 0;
+  }
+  47%,
+  56% {
+    opacity: 1;
+  }
+  64%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes km-burst-glow-kick {
+  0%,
+  31% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  34% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  44% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@keyframes km-burst-flash-kick {
+  0%,
+  31% {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.2);
   }
   34% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.4);
+    transform: translate(-50%, -50%) scale(1.1);
   }
-  52% {
+  44% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(6.5);
+    transform: translate(-50%, -50%) scale(1.5);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(6.5);
+    transform: translate(-50%, -50%) scale(1.5);
   }
 }
 
-@keyframes km-spark-burst {
-  0%,
-  30% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.4);
-  }
-  34% {
-    opacity: 1;
-    transform: translate(calc(var(--sx) * 0.8rem), calc(var(--sy) * 0.8rem))
-      scale(1.35);
-  }
-  50% {
-    opacity: 0.95;
-    transform: translate(calc(var(--sx) * 3.6rem), calc(var(--sy) * 3.6rem))
-      scale(0.95);
-  }
-  64% {
-    opacity: 0;
-    transform: translate(calc(var(--sx) * 5.4rem), calc(var(--sy) * 5.4rem))
-      scale(0.15);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.4);
-  }
-}
-
-@keyframes km-trail-streak {
+@keyframes km-burst-flash-b-kick {
   0%,
   32% {
     opacity: 0;
-    transform: translate(0, 0) scale(0.6);
+    transform: translate(-20%, -80%) scale(0.2);
   }
   36% {
     opacity: 1;
-    transform: translate(8vw, -4vh) scale(1.8);
+    transform: translate(30%, -120%) scale(1);
   }
-  50% {
-    opacity: 0.55;
-    transform: translate(36vw, -14vh) scale(1.1);
-  }
-  62% {
+  46% {
     opacity: 0;
-    transform: translate(60vw, -10vh) scale(0.3);
+    transform: translate(70%, -160%) scale(0.4);
   }
   100% {
     opacity: 0;
-    transform: translate(0, 0) scale(0.6);
+    transform: translate(70%, -160%) scale(0.4);
   }
 }
 
-@keyframes km-trail-streak-b {
+@keyframes km-burst-ring-kick {
   0%,
-  34% {
+  31% {
     opacity: 0;
-    transform: translate(2vw, -1vh) scale(0.5);
+    transform: translate(-50%, -50%) scale(0.2);
   }
-  40% {
-    opacity: 0.9;
-    transform: translate(16vw, -8vh) scale(1.4);
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
   }
-  55% {
-    opacity: 0.4;
-    transform: translate(48vw, -12vh) scale(0.8);
-  }
-  66% {
+  46% {
     opacity: 0;
-    transform: translate(70vw, -6vh) scale(0.25);
+    transform: translate(-50%, -50%) scale(4);
   }
   100% {
     opacity: 0;
-    transform: translate(2vw, -1vh) scale(0.5);
+    transform: translate(-50%, -50%) scale(4);
+  }
+}
+
+@keyframes km-burst-spark-kick {
+  0%,
+  31% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(calc(var(--sx) * 0.7rem), calc(var(--sy) * 0.7rem))
+      scale(1.1);
+  }
+  46% {
+    opacity: 0;
+    transform: translate(calc(var(--sx) * 2.4rem), calc(var(--sy) * 2.4rem))
+      scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+}
+
+@keyframes km-burst-glow-apex {
+  0%,
+  46% {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+  49% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+  60% {
+    opacity: 0.45;
+    transform: scale(1.9);
+  }
+  68%,
+  100% {
+    opacity: 0;
+    transform: scale(2.3);
+  }
+}
+
+@keyframes km-burst-flash-apex {
+  0%,
+  46% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.15) rotate(-8deg);
+  }
+  49% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.55) rotate(4deg);
+  }
+  58% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1.15) rotate(-2deg);
+  }
+  68%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.9) rotate(8deg);
+  }
+}
+
+@keyframes km-burst-flash-b-apex {
+  0%,
+  48% {
+    opacity: 0;
+    transform: translate(-10%, -120%) scale(0.2) rotate(12deg);
+  }
+  52% {
+    opacity: 1;
+    transform: translate(50%, -170%) scale(1.25) rotate(-10deg);
+  }
+  62% {
+    opacity: 0.55;
+    transform: translate(110%, -220%) scale(0.8) rotate(18deg);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: translate(140%, -250%) scale(0.35) rotate(28deg);
+  }
+}
+
+@keyframes km-burst-ring-apex {
+  0%,
+  46% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  64% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(7);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(7);
+  }
+}
+
+@keyframes km-burst-spark-apex {
+  0%,
+  46% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(calc(var(--sx) * 1rem), calc(var(--sy) * 1rem))
+      scale(1.4);
+  }
+  60% {
+    opacity: 0.85;
+    transform: translate(calc(var(--sx) * 4rem), calc(var(--sy) * 4rem))
+      scale(0.95);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--sx) * 5.8rem), calc(var(--sy) * 5.8rem))
+      scale(0.15);
+  }
+}
+
+/* Trail follows the same rise-then-fall arc */
+@keyframes km-trail-parabola {
+  0%,
+  32% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+  }
+  40% {
+    opacity: 0.95;
+    transform: translate(14vw, -14vh) scale(1.5);
+  }
+  48% {
+    opacity: 1;
+    transform: translate(34vw, -30vh) scale(1.7);
+  }
+  58% {
+    opacity: 0.55;
+    transform: translate(58vw, -16vh) scale(1);
+  }
+  70% {
+    opacity: 0;
+    transform: translate(82vw, 6vh) scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+  }
+}
+
+@keyframes km-trail-parabola-b {
+  0%,
+  36% {
+    opacity: 0;
+    transform: translate(4vw, -2vh) scale(0.4);
+  }
+  44% {
+    opacity: 0.9;
+    transform: translate(22vw, -20vh) scale(1.3);
+  }
+  52% {
+    opacity: 0.7;
+    transform: translate(42vw, -28vh) scale(1.1);
+  }
+  64% {
+    opacity: 0.3;
+    transform: translate(66vw, -10vh) scale(0.7);
+  }
+  74% {
+    opacity: 0;
+    transform: translate(88vw, 8vh) scale(0.25);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(4vw, -2vh) scale(0.4);
   }
 }
 
@@ -4009,8 +4266,11 @@ a.btn {
   .hero-logo,
   .footer-brand img,
   .km-logo-live .km-logo-foot-wrap,
+  .km-football-run,
+  .km-football-arc,
   .km-football,
   .km-boom,
+  .km-boom-apex-lift,
   .km-boom-flash,
   .km-boom-flash-b,
   .km-boom-glow,

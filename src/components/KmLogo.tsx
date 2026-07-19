@@ -6,7 +6,7 @@ type Props = {
   className?: string
   size?: number
   title?: string
-  /** Football flies in, gets kicked off-screen with impact explosions (hero). */
+  /** Football flies in, gets kicked in a parabola with mid-air boom (hero). */
   spectacle?: boolean
 }
 
@@ -27,6 +27,32 @@ const SPARKS = [
   { x: -0.5, y: 0.9 },
   { x: 1.85, y: -0.15 },
 ] as const
+
+function BoomBurst({ className = '', lift = false }: { className?: string; lift?: boolean }) {
+  const bits = (
+    <>
+      <span className="km-boom-glow" />
+      <span className="km-boom-flash">💥</span>
+      <span className="km-boom-flash km-boom-flash-b">✨</span>
+      {SPARKS.map((spark, i) => (
+        <span
+          key={i}
+          className={`km-spark${i % 3 === 0 ? ' km-spark-star' : ''}`}
+          style={{ '--sx': spark.x, '--sy': spark.y } as CSSProperties}
+        />
+      ))}
+      <span className="km-boom-ring" />
+      <span className="km-boom-ring km-boom-ring-b" />
+      <span className="km-boom-ring km-boom-ring-c" />
+    </>
+  )
+
+  return (
+    <span className={`km-boom ${className}`.trim()} aria-hidden>
+      {lift ? <span className="km-boom-apex-lift">{bits}</span> : bits}
+    </span>
+  )
+}
 
 export function KmLogo({
   className = '',
@@ -61,22 +87,16 @@ export function KmLogo({
 
       {spectacle ? (
         <span className="km-kick-fx" aria-hidden>
-          <span className="km-football">⚽</span>
-          <span className="km-boom">
-            <span className="km-boom-glow" />
-            <span className="km-boom-flash">💥</span>
-            <span className="km-boom-flash km-boom-flash-b">✨</span>
-            {SPARKS.map((spark, i) => (
-              <span
-                key={i}
-                className={`km-spark${i % 3 === 0 ? ' km-spark-star' : ''}`}
-                style={{ '--sx': spark.x, '--sy': spark.y } as CSSProperties}
-              />
-            ))}
-            <span className="km-boom-ring" />
-            <span className="km-boom-ring km-boom-ring-b" />
-            <span className="km-boom-ring km-boom-ring-c" />
+          {/* Nested X + Y = true parabolic flight after the kick */}
+          <span className="km-football-run">
+            <span className="km-football-arc">
+              <span className="km-football">⚽</span>
+            </span>
           </span>
+          {/* Small kick spark at the foot */}
+          <BoomBurst className="km-boom-kick" />
+          {/* Bigger boom near the apex of the parabola */}
+          <BoomBurst className="km-boom-apex" lift />
           <span className="km-trail" />
           <span className="km-trail km-trail-b" />
         </span>
