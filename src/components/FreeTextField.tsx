@@ -81,10 +81,16 @@ export function FreeTextField({
       e.clipboardData?.getData('text') ||
       ''
 
-    // Always handle paste ourselves so Chinese text from other apps is kept.
-    e.preventDefault()
-    if (!text) return
+    // Mouse / context-menu paste sometimes gives empty clipboardData.
+    // Do NOT preventDefault in that case — let the browser paste natively.
+    if (!text) {
+      window.requestAnimationFrame(() => {
+        if (ref.current) commit(ref.current.value)
+      })
+      return
+    }
 
+    e.preventDefault()
     const el = e.currentTarget
     const start = el.selectionStart ?? draft.length
     const end = el.selectionEnd ?? draft.length

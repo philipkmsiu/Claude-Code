@@ -59,31 +59,16 @@ export function findKnownDestination(name: string): Destination | undefined {
   })
 }
 
-function templateSpotsForPlace(place: string): ScenicSpot[] {
-  const base = [
-    { name: `${place}經典地標`, tags: ['must', 'photo', 'popular'] as SpotTag[], hours: 2.5, area: '市中心', summary: '最代表性的必去地標，建議留拍照時間。' },
-    { name: `${place}老城／歷史區`, tags: ['must', 'culture', 'photo'] as SpotTag[], hours: 3, area: '老城', summary: '歷史街区漫遊，感受在地氛圍。' },
-    { name: `${place}觀景／打卡點`, tags: ['photo', 'popular'] as SpotTag[], hours: 2, area: '觀景', summary: '熱門打卡紅點，日出或日落更佳。' },
-    { name: `${place}在地美食區`, tags: ['food', 'popular'] as SpotTag[], hours: 2, area: '美食', summary: '市場或美食街，安排一頓代表菜。' },
-    { name: `${place}博物館／藝文`, tags: ['culture'] as SpotTag[], hours: 2.5, area: '藝文', summary: '雨備或深度文化日首選。' },
-    { name: `${place}公園／自然`, tags: ['nature', 'photo'] as SpotTag[], hours: 2, area: '綠地', summary: '放慢節奏的戶外時間。' },
-    { name: `${place}購物街`, tags: ['shopping'] as SpotTag[], hours: 2, area: '購物', summary: '伴手禮與逛街半日。' },
-    { name: `${place}夜景`, tags: ['photo', 'popular'] as SpotTag[], hours: 1.5, area: '夜景', summary: '晚上燈光與天際線。' },
-    { name: `${place}近郊日遊`, tags: ['must', 'nature', 'popular'] as SpotTag[], hours: 7, area: '近郊日遊', summary: '全日級近郊行程，需預留整天。' },
-    { name: `${place}隱藏巷弄`, tags: ['photo', 'food'] as SpotTag[], hours: 2, area: '巷弄', summary: '較少人潮的本地感路線。' },
-    { name: `${place}咖啡／甜點`, tags: ['food'] as SpotTag[], hours: 1.5, area: '咖啡', summary: '休息補充，適合穿插行程。' },
-    { name: `${place}特色體驗`, tags: ['popular', 'culture'] as SpotTag[], hours: 3, area: '體驗', summary: '手作、導覽或在地活動。' },
-    { name: `${place}市集`, tags: ['food', 'shopping', 'popular'] as SpotTag[], hours: 2, area: '市集', summary: '週末或晨間市集氣氛。' },
-    { name: `${place}河岸／海濱`, tags: ['nature', 'photo'] as SpotTag[], hours: 2, area: '水岸', summary: '散步與拍照的水岸路線。' },
-    { name: `${place}宗教建築`, tags: ['culture', 'photo'] as SpotTag[], hours: 1.5, area: '文化', summary: '教堂、寺廟或神社類景點。' },
-    { name: `${place}自由彈性點`, tags: ['popular'] as SpotTag[], hours: 2, area: '彈性', summary: '可依當天體力替換的備案點。' },
-    { name: `${place}第二地標`, tags: ['must', 'photo'] as SpotTag[], hours: 2, area: '市中心', summary: '另一個高辨識度必去點。' },
-    { name: `${place}展望台`, tags: ['photo', 'popular'] as SpotTag[], hours: 1.5, area: '展望', summary: '城市制高點或觀景層。' },
-    { name: `${place}親子／室內備案`, tags: ['popular'] as SpotTag[], hours: 3, area: '室內', summary: '下雨或需休息時的室內選項。' },
-    { name: `${place}機場／車站周邊`, tags: ['shopping', 'food'] as SpotTag[], hours: 1.5, area: '交通節點', summary: '抵達或離開日可安排的輕行程。' },
-  ]
+type SpotSeed = {
+  name: string
+  tags: SpotTag[]
+  hours: number
+  area: string
+  summary: string
+}
 
-  return base.map((item, index) => ({
+function spotsFromSeeds(place: string, seeds: SpotSeed[]): ScenicSpot[] {
+  return seeds.map((item, index) => ({
     id: `custom-spot-${slugifyDestination(place)}-${index + 1}`,
     name: item.name,
     nameLocal: place,
@@ -92,29 +77,198 @@ function templateSpotsForPlace(place: string): ScenicSpot[] {
     summary: item.summary,
     tags: item.tags,
     ticket: '視當地而定',
-    bestFor: ['solo', 'couple', 'family', 'friends'],
+    bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
   }))
+}
+
+function cityTemplateSeeds(place: string): SpotSeed[] {
+  return [
+    { name: `${place}經典地標`, tags: ['must', 'photo', 'popular'], hours: 2.5, area: '市中心', summary: '最代表性的必去地標，建議留拍照時間。' },
+    { name: `${place}老城／歷史區`, tags: ['must', 'culture', 'photo'], hours: 3, area: '老城', summary: '歷史街区漫遊，感受在地氛圍。' },
+    { name: `${place}觀景／打卡點`, tags: ['photo', 'popular'], hours: 2, area: '觀景', summary: '熱門打卡紅點，日出或日落更佳。' },
+    { name: `${place}在地美食區`, tags: ['food', 'popular'], hours: 2, area: '美食', summary: '市場或美食街，安排一頓代表菜。' },
+    { name: `${place}博物館／藝文`, tags: ['culture'], hours: 2.5, area: '藝文', summary: '雨備或深度文化日首選。' },
+    { name: `${place}公園／自然`, tags: ['nature', 'photo'], hours: 2, area: '綠地', summary: '放慢節奏的戶外時間。' },
+    { name: `${place}購物街`, tags: ['shopping'], hours: 2, area: '購物', summary: '伴手禮與逛街半日。' },
+    { name: `${place}夜景`, tags: ['photo', 'popular'], hours: 1.5, area: '夜景', summary: '晚上燈光與天際線。' },
+    { name: `${place}近郊日遊`, tags: ['must', 'nature', 'popular'], hours: 7, area: '近郊日遊', summary: '全日級近郊行程，需預留整天。' },
+    { name: `${place}隱藏巷弄`, tags: ['photo', 'food'], hours: 2, area: '巷弄', summary: '較少人潮的本地感路線。' },
+    { name: `${place}咖啡／甜點`, tags: ['food'], hours: 1.5, area: '咖啡', summary: '休息補充，適合穿插行程。' },
+    { name: `${place}特色體驗`, tags: ['popular', 'culture'], hours: 3, area: '體驗', summary: '手作、導覽或在地活動。' },
+    { name: `${place}市集`, tags: ['food', 'shopping', 'popular'], hours: 2, area: '市集', summary: '週末或晨間市集氣氛。' },
+    { name: `${place}河岸／海濱`, tags: ['nature', 'photo'], hours: 2, area: '水岸', summary: '散步與拍照的水岸路線。' },
+    { name: `${place}宗教建築`, tags: ['culture', 'photo'], hours: 1.5, area: '文化', summary: '教堂、寺廟或神社類景點。' },
+    { name: `${place}自由彈性點`, tags: ['popular'], hours: 2, area: '彈性', summary: '可依當天體力替換的備案點。' },
+    { name: `${place}第二地標`, tags: ['must', 'photo'], hours: 2, area: '市中心', summary: '另一個高辨識度必去點。' },
+    { name: `${place}展望台`, tags: ['photo', 'popular'], hours: 1.5, area: '展望', summary: '城市制高點或觀景層。' },
+    { name: `${place}親子／室內備案`, tags: ['popular'], hours: 3, area: '室內', summary: '下雨或需休息時的室內選項。' },
+    { name: `${place}機場／車站周邊`, tags: ['shopping', 'food'], hours: 1.5, area: '交通節點', summary: '抵達或離開日可安排的輕行程。' },
+  ]
+}
+
+function xinjiangTemplateSeeds(): SpotSeed[] {
+  return [
+    { name: '烏魯木齊抵達適應', tags: ['must'], hours: 4, area: '烏魯木齊', summary: '飛抵後休息適應，不要趕路。' },
+    { name: '天山天池', tags: ['nature', 'photo', 'popular'], hours: 6, area: '北疆・天池', summary: '北疆開場經典湖景。' },
+    { name: '喀納斯湖', tags: ['must', 'nature', 'photo', 'popular'], hours: 8, area: '北疆・阿勒泰', summary: '北疆核心，建議至少留足一日。' },
+    { name: '禾木村', tags: ['must', 'photo', 'nature'], hours: 8, area: '北疆・阿勒泰', summary: '晨霧與村落，慢遊必排。' },
+    { name: '白哈巴／邊陲風光', tags: ['photo', 'nature'], hours: 6, area: '北疆・阿勒泰', summary: '可與喀納斯連線。' },
+    { name: '魔鬼城／烏爾禾', tags: ['photo', 'nature', 'popular'], hours: 5, area: '北疆・準噶爾', summary: '雅丹地貌打卡。' },
+    { name: '賽里木湖', tags: ['must', 'photo', 'nature', 'popular'], hours: 7, area: '北疆・博爾塔拉', summary: '大西洋最後一滴眼淚，環湖要留時間。' },
+    { name: '那拉提／空中草原', tags: ['must', 'nature', 'photo'], hours: 7, area: '北疆・伊犁', summary: '草原慢遊，適合舒服版。' },
+    { name: '伊寧／六星街', tags: ['culture', 'food', 'photo'], hours: 4, area: '北疆・伊犁', summary: '休整、美食與城市氣息。' },
+    { name: '獨庫公路段（季節限定）', tags: ['must', 'photo', 'nature', 'popular'], hours: 9, area: '南北疆過渡', summary: '開通季才走；是長線精華，需整天。' },
+    { name: '巴音布魯克', tags: ['nature', 'photo'], hours: 7, area: '北疆・巴州', summary: '九曲十八彎日落。' },
+    { name: '庫車／天山神秘大峽谷', tags: ['nature', 'photo', 'culture'], hours: 6, area: '南疆・阿克蘇', summary: '南北疆銜接常見停留。' },
+    { name: '喀什古城', tags: ['must', 'culture', 'photo', 'popular'], hours: 6, area: '南疆・喀什', summary: '南疆人文核心，建議住至少兩晚。' },
+    { name: '香妃園／艾提尕爾清真寺', tags: ['culture', 'photo'], hours: 3, area: '南疆・喀什', summary: '古城文化半日。' },
+    { name: '帕米爾高原／白沙湖', tags: ['must', 'nature', 'photo', 'popular'], hours: 9, area: '南疆・塔什庫爾幹', summary: '高原長途日，務必慢適應。' },
+    { name: '卡拉庫里湖', tags: ['photo', 'nature', 'must'], hours: 6, area: '南疆・塔什庫爾幹', summary: '雪山倒影經典。' },
+    { name: '和田玉都／夜市', tags: ['food', 'shopping', 'culture'], hours: 4, area: '南疆・和田', summary: '南疆東返可停。' },
+    { name: '沙漠公路／塔里木', tags: ['nature', 'photo'], hours: 8, area: '南疆・沙漠', summary: '長距離移動日，景觀獨特。' },
+    { name: '吐魯番葡萄溝／火焰山', tags: ['must', 'photo', 'popular'], hours: 6, area: '東疆・吐魯番', summary: '回烏魯木齊前常見收尾。' },
+    { name: '彈性休息／補拍日', tags: ['popular'], hours: 4, area: '彈性', summary: '慢遊必留的恢復日。' },
+  ]
+}
+
+/** Infer trip length from destination wording (環線 / 南北疆 / 慢遊 etc.). */
+export function inferCustomTripProfile(name: string): {
+  recommendedDays: Destination['recommendedDays']
+  tagline: string
+  intro: string
+  bestSeason: string
+  spots: ScenicSpot[]
+  tips: string[]
+  flexDayIdeas: string[]
+} {
+  const text = name.trim()
+  const slow = /慢遊|舒適|深度|悠閒|放慢/.test(text)
+  const loop =
+    /環線|南北疆|北疆.*南疆|南疆.*北疆|大環線|自駕|公路/.test(text) ||
+    (/新疆/.test(text) && /南北|環/.test(text))
+  const xinjiang = /新疆|北疆|南疆|喀納斯|喀什|伊犁|帕米爾/.test(text)
+  const multiCity = /[＋+及與和／/]/.test(text) || (text.match(/[市縣州島]/g)?.length ?? 0) >= 2
+
+  if (xinjiang && (loop || /南北疆/.test(text) || ( /北疆/.test(text) && /南疆/.test(text) ))) {
+    const comfortable = slow ? 18 : 16
+    return {
+      recommendedDays: {
+        min: 12,
+        comfortable,
+        suggestedLongest: 21,
+        note: `${text}：南北疆合起來是長線。最少約 12 天（偏趕）；舒適慢遊建議 ${comfortable} 天；想更鬆可到 21 天。`,
+      },
+      tagline: '長線公路行程・南北疆需要較多天數',
+      intro: `${text} 屬於新疆長線慢遊：北疆自然（喀納斯、賽里木、伊犁）與南疆人文／高原（喀什、帕米爾）距離都很遠，不適合用一般城市遊的 3–5 天去估。`,
+      bestSeason: '多數路段 6–9 月較合適；獨庫等季節性公路需確認開通',
+      spots: spotsFromSeeds(text, xinjiangTemplateSeeds()),
+      flexDayIdeas: [
+        '北疆多留一天看天氣',
+        '喀什古城再住一晚',
+        '高原適應休息日',
+        '吐魯番收尾彈性日',
+      ],
+      tips: [
+        '南北疆舒適慢遊通常是兩週以上，不是短假期行程。',
+        '長距離包車／自駕為主，每天車程要控管，別排太滿。',
+        '高原與溫差大：防曬、薄羽絨、潤唇膏都要帶。',
+        '可在景點步驟刪減不想去的點，AI 會重估正常完成天數。',
+      ],
+    }
+  }
+
+  if (xinjiang) {
+    return {
+      recommendedDays: {
+        min: 7,
+        comfortable: slow ? 12 : 10,
+        suggestedLongest: 16,
+        note: `${text}：只玩北疆或南疆單邊，舒服大約 10–12 天；若之後要南北疆都去，請再加長。`,
+      },
+      tagline: '新疆長線・天數要比一般城市多',
+      intro: `${text} 在新疆，景點之間車程長。系統已提高建議天數；若你其實要南北疆都去，請在名稱加上「南北疆」以便給出更長建議。`,
+      bestSeason: '6–9 月為主，視北疆或南疆而定',
+      spots: spotsFromSeeds(text, xinjiangTemplateSeeds().slice(0, 14)),
+      flexDayIdeas: ['天氣備案日', '古城慢遊日', '長途後休息日'],
+      tips: [
+        '新疆單邊深度也很少低於一週。',
+        '確認熱門景點門票與區間車。',
+      ],
+    }
+  }
+
+  if (loop || /自駕|公路旅行|房車/.test(text)) {
+    return {
+      recommendedDays: {
+        min: 8,
+        comfortable: slow ? 14 : 12,
+        suggestedLongest: 18,
+        note: `${text}：環線／公路長線，建議至少 8 天，舒服約 ${slow ? 14 : 12} 天。`,
+      },
+      tagline: '公路／環線行程・建議拉長天數',
+      intro: `${text} 看起來是長線移動型行程，系統已用較長天數去建議，並帶入多個區域型景點骨架。`,
+      bestSeason: '請依路況與季節查詢',
+      spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
+      flexDayIdeas: ['趕路緩衝日', '天氣備案日', '重點景區多留一晚'],
+      tips: ['長線行程請預留彈性日，避免天天長途。'],
+    }
+  }
+
+  if (multiCity || slow) {
+    return {
+      recommendedDays: {
+        min: 5,
+        comfortable: slow ? 9 : 7,
+        suggestedLongest: 14,
+        note: `${text}：多地或慢遊節奏，舒服大約 ${slow ? 9 : 7} 天，可拉到 14 天。`,
+      },
+      tagline: '多地／慢遊・天數略長',
+      intro: `${text} 由你自行加入。因名稱像多地或慢遊，建議天數已略為提高。`,
+      bestSeason: '請依當地氣候選擇',
+      spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
+      flexDayIdeas: [`${text}再訪最愛街区`, `${text}購物日`, `${text}雨備日`],
+      tips: ['可再新增你真正想去的景點，讓天數估算更準。'],
+    }
+  }
+
+  return {
+    recommendedDays: {
+      min: 3,
+      comfortable: 5,
+      suggestedLongest: 12,
+      note: `${text}：先以 3–5 天打底；勾選景點後 AI 會再重估。`,
+    },
+    tagline: '你輸入的目的地・AI 會依景點量建議天數',
+    intro: `${text} 由你自行加入。系統已先帶入常見行程骨架，你可刪減或再新增景點。`,
+    bestSeason: '請依當地氣候選擇；旺季建議提早訂房與熱門票',
+    spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
+    flexDayIdeas: [
+      `${text}再訪最愛街区`,
+      `${text}購物與伴手禮日`,
+      `${text}雨備室內日`,
+      `${text}近郊加點日`,
+    ],
+    tips: [
+      '這是你自行輸入的目的地：請再確認交通與最佳季節。',
+      '可在景點步驟新增你真正想去的景點名稱。',
+    ],
+  }
 }
 
 /** Build a plannable destination from a user-typed place name. */
 export function createCustomDestination(rawName: string): Destination {
   const name = rawName.trim()
   const id = `custom-${slugifyDestination(name)}-${Date.now().toString(36)}`
-  const spots = templateSpotsForPlace(name)
+  const profile = inferCustomTripProfile(name)
 
   return {
     id,
     nameZh: name,
     nameLocal: name,
-    tagline: '你輸入的目的地・AI 會依景點量建議天數',
-    intro: `${name} 由你自行加入。系統已先帶入常見行程骨架（地標、老城、美食、近郊日遊等），你可刪減或再新增自己的景點，AI 會依選擇估算正常完成天數。`,
-    bestSeason: '請依當地氣候選擇；旺季建議提早訂房與熱門票',
-    recommendedDays: {
-      min: 3,
-      comfortable: 5,
-      suggestedLongest: 12,
-      note: `${name}：先以 3–5 天打底；景點勾選後 AI 會再告訴你是否該加長或縮短。`,
-    },
+    tagline: profile.tagline,
+    intro: profile.intro,
+    bestSeason: profile.bestSeason,
+    recommendedDays: profile.recommendedDays,
     weather: {
       spring: '請出發前查當地氣溫與降雨',
       summer: '請出發前查當地氣溫與降雨',
@@ -123,42 +277,33 @@ export function createCustomDestination(rawName: string): Destination {
     },
     hotels: [
       {
-        name: `${name}市中心高性價比旅店`,
-        area: `${name}・市中心`,
-        nightsHint: '建議連住，少換宿',
+        name: `${name}沿線高性價比旅店`,
+        area: '主要基地城市',
+        nightsHint: '分段連住，減少換宿',
         pricePerNight: '視淡旺季',
-        highlight: '交通方便，適合把預算留給景點與美食',
+        highlight: '長線行程建議分北疆／南疆等基地住',
         styles: ['value', 'standard', 'clean'],
       },
       {
-        name: `${name}精品／度假酒店`,
-        area: `${name}・精華區`,
-        nightsHint: '2–4 晚儀式感',
+        name: `${name}景區度假酒店`,
+        area: '重點景區',
+        nightsHint: '2–3 晚儀式感',
         pricePerNight: '中高檔',
-        highlight: '舒服收工，適合情侶或慶祝行程',
+        highlight: '重點區可升級住宿提升舒適度',
         styles: ['luxury', 'luxuryValue'],
       },
       {
-        name: `${name}公寓式／清掃評分高旅宿`,
-        area: `${name}・安靜區`,
-        nightsHint: '長住友善',
+        name: `${name}清掃評分高旅宿`,
+        area: '過渡城市',
+        nightsHint: '趕路日 overnight',
         pricePerNight: '中價',
-        highlight: '清潔優先、空間較大',
+        highlight: '清潔優先，適合長途中途休息',
         styles: ['clean', 'value', 'standard'],
       },
     ],
-    spots,
-    flexDayIdeas: [
-      `${name}再訪最愛街区`,
-      `${name}購物與伴手禮日`,
-      `${name}雨備室內日`,
-      `${name}近郊加點日`,
-    ],
-    tips: [
-      '這是你自行輸入的目的地：請再確認簽證、交通與最佳季節。',
-      '可在景點步驟新增你真正想去的店家／景點名稱。',
-      '若景點很多，看 AI「正常完成天數」建議再調整行程長度。',
-    ],
+    spots: profile.spots,
+    flexDayIdeas: profile.flexDayIdeas,
+    tips: profile.tips,
   }
 }
 
