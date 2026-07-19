@@ -679,6 +679,8 @@ function App() {
     setCompanion('couple')
     setPartySize(2)
     setPartySizeInput('2')
+    setPreferConsecutiveStays(true)
+    setPreferredHotelName('')
   }
 
   useEffect(() => {
