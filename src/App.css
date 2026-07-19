@@ -37,6 +37,64 @@
   animation: fade-down 0.7s ease both;
 }
 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(31, 61, 54, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  box-shadow: 0 6px 18px rgba(31, 61, 54, 0.06);
+}
+
+.sound-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(74, 122, 110, 0.35);
+}
+
+.sound-toggle.on {
+  background: linear-gradient(
+    135deg,
+    rgba(232, 244, 239, 0.95),
+    rgba(255, 250, 240, 0.92)
+  );
+}
+
+.sound-toggle.muted {
+  opacity: 0.78;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.footer-sound-note {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: rgba(31, 61, 54, 0.55);
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -3247,6 +3305,11 @@ main {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .topbar-right {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .hero-brand {

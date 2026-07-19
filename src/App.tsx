@@ -94,6 +94,7 @@ import {
   type AiPlanReview,
 } from './lib/aiClient'
 import { readClipboardText } from './lib/clipboard'
+import { bindSoundscapeGestures, soundscape } from './lib/soundscape'
 import { formatWeatherLine, loadDayWeather } from './lib/weather'
 import type { DayWeather } from './data/types'
 import './App.css'
@@ -148,9 +149,13 @@ function App() {
   const [aiSpotsLoadedKeys, setAiSpotsLoadedKeys] = useState<string[]>([])
   const [pendingGoToResult, setPendingGoToResult] = useState(false)
   const [aiError, setAiError] = useState('')
+  const [soundMuted, setSoundMuted] = useState(() => soundscape.isMuted)
+  const [soundUnlocked, setSoundUnlocked] = useState(() => soundscape.isUnlocked)
   const destComposing = useRef(false)
   const reviewTimer = useRef<number | null>(null)
   const aiSpotsInFlight = useRef(false)
+  const prevStepRef = useRef<Step>(step)
+  const aiReadySoundRef = useRef(false)
   const aiReviewCache = useRef<{
     key: string
     review: AiPlanReview
@@ -366,6 +371,26 @@ function App() {
   const selectedDestKey = selectedDestIds.join('|')
   const selectedSpotKey = selectedSpotIds.join('|')
   const selectedDestNames = selectedDestinations.map((d) => d.nameZh).join(' + ')
+
+  useEffect(() => bindSoundscapeGestures(), [])
+
+  useEffect(
+    () =>
+      soundscape.subscribe(({ muted, unlocked }) => {
+        setSoundMuted(muted)
+        setSoundUnlocked(unlocked)
+      }),
+    [],
+  )
+
+  // Soft motion cues when the wizard steps change.
+  useEffect(() => {
+    if (prevStepRef.current === step) return
+    prevStepRef.current = step
+    if (step === 'result') soundscape.play('ready')
+    else if (step === 'home') soundscape.play('softPop')
+    else soundscape.play('whoosh')
+  }, [step])
 
   const runAiDayRecommendation = async (
     destName: string,
@@ -679,6 +704,7 @@ function App() {
   }
 
   function toggleDestination(id: DestinationId) {
+    soundscape.play('tick')
     setSelectedDestIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id)
       if (prev.length >= 3) return [...prev.slice(1), id]
@@ -1034,6 +1060,7 @@ function App() {
   }
 
   function toggleSpot(id: string) {
+    soundscape.play('tick')
     setSelectedSpotIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
@@ -1131,6 +1158,17 @@ function App() {
     // Intentionally keyed by destination selection + step; loader manages in-flight state.
   }, [step, selectedDestKey])
 
+  // Soft chime once when AI research becomes ready for the current destinations.
+  useEffect(() => {
+    const ready =
+      selectedDestinations.length > 0 &&
+      selectedDestinations.every((dest) => aiSpotsLoadedKeys.includes(dest.id))
+    if (ready && !aiReadySoundRef.current) {
+      soundscape.play('chime')
+    }
+    aiReadySoundRef.current = ready
+  }, [aiSpotsLoadedKeys, selectedDestKey, selectedDestinations.length])
+
   // After AI profile lands in state, continue to the planner if the user already asked.
   useEffect(() => {
     if (!pendingGoToResult || aiSpotsLoading) return
@@ -1185,19 +1223,45 @@ function App() {
             <small>AI 旅遊規劃 ✨</small>
           </span>
         </button>
-        {step !== 'home' && (
-          <nav className="steps" aria-label="規劃步驟">
-            {stepItems.map((item) => (
-              <StepPill
-                key={item.id}
-                active={step === item.id}
-                label={item.label}
-                icon={item.icon}
-                emoji={item.emoji}
-              />
-            ))}
-          </nav>
-        )}
+        <div className="topbar-right">
+          {step !== 'home' && (
+            <nav className="steps" aria-label="規劃步驟">
+              {stepItems.map((item) => (
+                <StepPill
+                  key={item.id}
+                  active={step === item.id}
+                  label={item.label}
+                  icon={item.icon}
+                  emoji={item.emoji}
+                />
+              ))}
+            </nav>
+          )}
+          <button
+            type="button"
+            className={`sound-toggle ${soundMuted ? 'muted' : 'on'}`}
+            aria-pressed={!soundMuted}
+            title={
+              soundMuted
+                ? '開啟放鬆背景音樂與動效音'
+                : '關閉背景音樂與動效音'
+            }
+            onClick={() => {
+              soundscape.toggleMuted()
+              if (soundscape.isMuted) return
+              soundscape.play('softPop')
+            }}
+          >
+            <span aria-hidden>{soundMuted ? '🔇' : '🎵'}</span>
+            <span>
+              {soundMuted
+                ? '音效關'
+                : soundUnlocked
+                  ? '放鬆音樂'
+                  : '點開音樂'}
+            </span>
+          </button>
+        </div>
       </header>
 
       <MoodTicker />
@@ -2924,6 +2988,9 @@ function App() {
           <IconArrowRight size={12} />
           <span aria-hidden>🎨</span>
           <IconPoster size={14} /> 海報
+        </span>
+        <span className="footer-sound-note">
+          {soundMuted ? '背景音樂已關閉' : '放鬆背景音與動效音為應用內合成'}
         </span>
       </footer>
     </div>
