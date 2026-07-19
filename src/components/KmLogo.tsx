@@ -14,14 +14,18 @@ type Props = {
 const ASSET_V = 'v4'
 
 const SPARKS = [
-  { x: 1, y: -1.1, delay: '0ms' },
-  { x: 1.35, y: -0.35, delay: '20ms' },
-  { x: 1.2, y: 0.55, delay: '35ms' },
-  { x: 0.55, y: -1.35, delay: '15ms' },
-  { x: 0.15, y: -1.5, delay: '40ms' },
-  { x: 1.45, y: 0.15, delay: '55ms' },
-  { x: 0.75, y: 1.05, delay: '25ms' },
-  { x: -0.2, y: -1.25, delay: '45ms' },
+  { x: 1.1, y: -1.2 },
+  { x: 1.55, y: -0.4 },
+  { x: 1.4, y: 0.7 },
+  { x: 0.65, y: -1.55 },
+  { x: 0.1, y: -1.7 },
+  { x: 1.7, y: 0.2 },
+  { x: 0.9, y: 1.25 },
+  { x: -0.35, y: -1.4 },
+  { x: 1.25, y: -0.85 },
+  { x: 0.4, y: 1.45 },
+  { x: -0.5, y: 0.9 },
+  { x: 1.85, y: -0.15 },
 ] as const
 
 export function KmLogo({
@@ -59,24 +63,22 @@ export function KmLogo({
         <span className="km-kick-fx" aria-hidden>
           <span className="km-football">⚽</span>
           <span className="km-boom">
+            <span className="km-boom-glow" />
             <span className="km-boom-flash">💥</span>
+            <span className="km-boom-flash km-boom-flash-b">✨</span>
             {SPARKS.map((spark, i) => (
               <span
                 key={i}
-                className="km-spark"
-                style={
-                  {
-                    '--sx': spark.x,
-                    '--sy': spark.y,
-                    animationDelay: spark.delay,
-                  } as CSSProperties
-                }
+                className={`km-spark${i % 3 === 0 ? ' km-spark-star' : ''}`}
+                style={{ '--sx': spark.x, '--sy': spark.y } as CSSProperties}
               />
             ))}
             <span className="km-boom-ring" />
             <span className="km-boom-ring km-boom-ring-b" />
+            <span className="km-boom-ring km-boom-ring-c" />
           </span>
           <span className="km-trail" />
+          <span className="km-trail km-trail-b" />
         </span>
       ) : null}
     </span>

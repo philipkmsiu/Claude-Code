@@ -134,6 +134,10 @@
   --km-kick-dur: 2.8s;
 }
 
+.km-logo-spectacle .km-logo-foot-wrap {
+  animation-name: km-foot-kick-hard;
+}
+
 .km-kick-fx {
   position: absolute;
   inset: 0;
@@ -149,7 +153,7 @@
   width: 1.15em;
   height: 1.15em;
   margin: 0;
-  font-size: clamp(1.05rem, 0.42em + 0.55rem, 1.85rem);
+  font-size: 1.75rem;
   line-height: 1;
   display: grid;
   place-items: center;
@@ -157,36 +161,64 @@
   filter: drop-shadow(0 4px 6px rgba(20, 24, 40, 0.35));
   animation: km-football-flight var(--km-kick-dur) cubic-bezier(0.2, 0.8, 0.25, 1) infinite;
   will-change: transform, opacity;
+  z-index: 3;
 }
 
 .km-boom {
   position: absolute;
-  left: 30%;
-  top: 56%;
+  left: 28%;
+  top: 52%;
   width: 0;
   height: 0;
   opacity: 0;
   animation: km-boom-show var(--km-kick-dur) linear infinite;
+  z-index: 4;
+}
+
+.km-boom-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5.5rem;
+  height: 5.5rem;
+  margin: -2.75rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 240, 160, 0.95) 0%,
+    rgba(255, 140, 40, 0.65) 35%,
+    rgba(255, 60, 80, 0.2) 60%,
+    transparent 72%
+  );
+  transform: scale(0.15);
+  opacity: 0;
+  animation: km-boom-glow var(--km-kick-dur) linear infinite;
 }
 
 .km-boom-flash {
   position: absolute;
   left: 50%;
   top: 50%;
-  font-size: clamp(1.4rem, 0.55em + 0.7rem, 2.4rem);
+  font-size: 2.6rem;
   transform: translate(-50%, -50%) scale(0.2);
   animation: km-boom-flash var(--km-kick-dur) linear infinite;
-  filter: drop-shadow(0 0 10px rgba(255, 180, 40, 0.85));
+  filter: drop-shadow(0 0 14px rgba(255, 180, 40, 0.95));
+}
+
+.km-boom-flash-b {
+  font-size: 1.8rem;
+  animation-name: km-boom-flash-b;
 }
 
 .km-boom-ring,
-.km-boom-ring-b {
+.km-boom-ring-b,
+.km-boom-ring-c {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 0.6rem;
-  height: 0.6rem;
-  border: 2px solid rgba(255, 170, 50, 0.95);
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 3px solid rgba(255, 190, 60, 0.95);
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(0.2);
   opacity: 0;
@@ -194,41 +226,59 @@
 }
 
 .km-boom-ring-b {
-  border-color: rgba(255, 80, 90, 0.75);
-  animation-delay: 40ms;
+  border-color: rgba(255, 70, 100, 0.85);
+  animation-delay: 50ms;
+}
+
+.km-boom-ring-c {
+  border-color: rgba(255, 255, 200, 0.9);
+  border-width: 2px;
+  animation-delay: 90ms;
 }
 
 .km-spark {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 0.38rem;
-  height: 0.38rem;
-  margin: -0.19rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin: -0.275rem;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fff7c2, #ffb020 45%, #ff4d2a 100%);
-  box-shadow: 0 0 8px rgba(255, 160, 40, 0.9);
+  box-shadow: 0 0 10px rgba(255, 160, 40, 0.95);
   opacity: 0;
   animation: km-spark-burst var(--km-kick-dur) linear infinite;
 }
 
-.km-spark:nth-child(odd) {
-  width: 0.28rem;
-  height: 0.28rem;
-  background: radial-gradient(circle at 35% 35%, #fff, #ffd24a 40%, #ff6b9d 100%);
+.km-spark-star {
+  width: 0.7rem;
+  height: 0.7rem;
+  margin: -0.35rem;
+  border-radius: 0.1rem;
+  rotate: 45deg;
+  background: linear-gradient(135deg, #fff6a8, #ff7a3c 55%, #ff3d7a);
 }
 
-.km-trail {
+.km-trail,
+.km-trail-b {
   position: absolute;
-  left: 30%;
-  top: 56%;
+  left: 28%;
+  top: 52%;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 230, 140, 0.95), rgba(255, 90, 60, 0));
+  opacity: 0;
+  filter: blur(1.5px);
+  animation: km-trail-streak var(--km-kick-dur) linear infinite;
+  z-index: 2;
+}
+
+.km-trail-b {
   width: 0.55rem;
   height: 0.55rem;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 220, 120, 0.95), rgba(255, 90, 60, 0));
-  opacity: 0;
-  filter: blur(1px);
-  animation: km-trail-streak var(--km-kick-dur) linear infinite;
+  animation-name: km-trail-streak-b;
+  background: radial-gradient(circle, rgba(255, 120, 160, 0.9), rgba(255, 90, 60, 0));
 }
 
 .footer-km {
@@ -299,6 +349,7 @@ main {
 
 .hero-copy {
   padding-bottom: 2rem;
+  overflow: visible;
   animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -373,9 +424,12 @@ main {
 }
 
 .hero-logo-wrap {
+  position: relative;
+  z-index: 6;
   display: inline-block;
   background: transparent;
   line-height: 0;
+  overflow: visible;
 }
 
 .hero-brand {
@@ -2389,6 +2443,29 @@ main {
   }
 }
 
+@keyframes km-foot-kick-hard {
+  0%,
+  18% {
+    transform: rotate(18deg) scale(1);
+  }
+  28% {
+    transform: rotate(28deg) scale(1.04);
+  }
+  32% {
+    transform: rotate(-68deg) scale(1.12);
+  }
+  40% {
+    transform: rotate(24deg) scale(1.05);
+  }
+  55% {
+    transform: rotate(-10deg) scale(1);
+  }
+  68%,
+  100% {
+    transform: rotate(12deg) scale(1);
+  }
+}
+
 /* Ball flies in → sits at foot → blasted across the viewport */
 @keyframes km-football-flight {
   0% {
@@ -2429,16 +2506,37 @@ main {
 
 @keyframes km-boom-show {
   0%,
-  30% {
+  29% {
     opacity: 0;
   }
-  32%,
-  46% {
+  31%,
+  52% {
     opacity: 1;
   }
-  58%,
+  62%,
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes km-boom-glow {
+  0%,
+  30% {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+  33% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  48% {
+    opacity: 0.55;
+    transform: scale(1.65);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: scale(2.1);
   }
 }
 
@@ -2446,63 +2544,84 @@ main {
   0%,
   30% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.15);
+    transform: translate(-50%, -50%) scale(0.15) rotate(-8deg);
   }
   33% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.25);
+    transform: translate(-50%, -50%) scale(1.45) rotate(4deg);
   }
-  42% {
-    opacity: 0.85;
-    transform: translate(-50%, -50%) scale(1);
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15) rotate(-2deg);
   }
-  55%,
+  58%,
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(1.6);
+    transform: translate(-50%, -50%) scale(1.85) rotate(8deg);
+  }
+}
+
+@keyframes km-boom-flash-b {
+  0%,
+  32% {
+    opacity: 0;
+    transform: translate(-10%, -120%) scale(0.2) rotate(12deg);
+  }
+  36% {
+    opacity: 1;
+    transform: translate(40%, -160%) scale(1.2) rotate(-10deg);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translate(90%, -210%) scale(0.9) rotate(16deg);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: translate(130%, -240%) scale(0.4) rotate(28deg);
   }
 }
 
 @keyframes km-boom-ring {
   0%,
-  31% {
+  30% {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.2);
   }
   34% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.2);
+    transform: translate(-50%, -50%) scale(1.4);
   }
-  48% {
+  52% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(4.5);
+    transform: translate(-50%, -50%) scale(6.5);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(4.5);
+    transform: translate(-50%, -50%) scale(6.5);
   }
 }
 
 @keyframes km-spark-burst {
   0%,
-  31% {
+  30% {
     opacity: 0;
     transform: translate(0, 0) scale(0.4);
   }
   34% {
     opacity: 1;
-    transform: translate(calc(var(--sx) * 0.55rem), calc(var(--sy) * 0.55rem))
-      scale(1.15);
+    transform: translate(calc(var(--sx) * 0.8rem), calc(var(--sy) * 0.8rem))
+      scale(1.35);
   }
-  48% {
-    opacity: 0.9;
-    transform: translate(calc(var(--sx) * 2.8rem), calc(var(--sy) * 2.8rem))
-      scale(0.85);
+  50% {
+    opacity: 0.95;
+    transform: translate(calc(var(--sx) * 3.6rem), calc(var(--sy) * 3.6rem))
+      scale(0.95);
   }
-  60% {
+  64% {
     opacity: 0;
-    transform: translate(calc(var(--sx) * 4.2rem), calc(var(--sy) * 4.2rem))
-      scale(0.2);
+    transform: translate(calc(var(--sx) * 5.4rem), calc(var(--sy) * 5.4rem))
+      scale(0.15);
   }
   100% {
     opacity: 0;
@@ -2517,12 +2636,12 @@ main {
     transform: translate(0, 0) scale(0.6);
   }
   36% {
-    opacity: 0.9;
-    transform: translate(8vw, -4vh) scale(1.4);
+    opacity: 1;
+    transform: translate(8vw, -4vh) scale(1.8);
   }
   50% {
-    opacity: 0.45;
-    transform: translate(36vw, -14vh) scale(0.9);
+    opacity: 0.55;
+    transform: translate(36vw, -14vh) scale(1.1);
   }
   62% {
     opacity: 0;
@@ -2531,6 +2650,30 @@ main {
   100% {
     opacity: 0;
     transform: translate(0, 0) scale(0.6);
+  }
+}
+
+@keyframes km-trail-streak-b {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translate(2vw, -1vh) scale(0.5);
+  }
+  40% {
+    opacity: 0.9;
+    transform: translate(16vw, -8vh) scale(1.4);
+  }
+  55% {
+    opacity: 0.4;
+    transform: translate(48vw, -12vh) scale(0.8);
+  }
+  66% {
+    opacity: 0;
+    transform: translate(70vw, -6vh) scale(0.25);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(2vw, -1vh) scale(0.5);
   }
 }
 
@@ -3778,10 +3921,14 @@ a.btn {
   .km-football,
   .km-boom,
   .km-boom-flash,
+  .km-boom-flash-b,
+  .km-boom-glow,
   .km-boom-ring,
   .km-boom-ring-b,
+  .km-boom-ring-c,
   .km-spark,
-  .km-trail {
+  .km-trail,
+  .km-trail-b {
     animation: none !important;
   }
 
