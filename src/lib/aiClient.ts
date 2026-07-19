@@ -64,6 +64,19 @@ export type AiSpotSuggestion = {
     suggestedLongest: number
     note: string
   }
+  seasonGuide?: {
+    bestMonths: number[]
+    worstMonths: number[]
+    bestReason: string
+    worstReason: string
+    note: string
+  }
+  weather?: {
+    spring: string
+    summer: string
+    autumn: string
+    winter: string
+  }
   mustEat?: AiPosterDish[]
   mustDrink?: AiPosterDrink[]
   mustBuy?: AiPosterDish[]

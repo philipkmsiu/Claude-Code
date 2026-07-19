@@ -374,7 +374,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
     const content = await chatCompletion([
       {
         role: 'system',
-        content: `你是專業旅遊規劃 AI。使用者選了任何目的地，你都要先完整調研，再輸出可直接做行程規劃的資料包。
+        content: `你是專業旅遊規劃 AI。不論目的地是哪裡（熱門城市、偏鄉、自訂地名都一樣），都必須先自行完成完整調研與分析，再輸出可直接做行程規劃的資料包。使用者不會再逐一提示你要查什麼——你要主動涵蓋。
 只回傳 JSON：
 {
   "intro": string,
@@ -384,6 +384,19 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
   "tips": string[],
   "flexDayIdeas": string[],
   "recommendedDays": { "min": number, "comfortable": number, "suggestedLongest": number, "note": string },
+  "seasonGuide": {
+    "bestMonths": number[],
+    "worstMonths": number[],
+    "bestReason": string,
+    "worstReason": string,
+    "note": string
+  },
+  "weather": {
+    "spring": string,
+    "summer": string,
+    "autumn": string,
+    "winter": string
+  },
   "mustEat": [{ "name": string, "daysLabel": string, "motif": string }],
   "mustDrink": [{ "name": string, "motif": string }],
   "mustBuy": [{ "name": string, "daysLabel": string, "motif": string }],
@@ -411,17 +424,19 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
     }
   ]
 }
-硬性規則（任何目的地都一樣，禁止偷懶套模板）：
+硬性規則（任何目的地都一樣，禁止偷懶套模板、禁止等使用者補充）：
+- 先在內部完成：地理／城市結構、季節氣候、交通節奏、必去真實景點、在地飲食與手信、住宿分區、天數尺度分析；再填 JSON
 - 必須給 ${targetCount}–${targetCount + 4} 個真實景點
 - name 必須是真實景點／街區／體驗名稱；禁止「經典地標」「老城／歷史區」「XX經典地標」
 - summary 2–3 句繁體中文：歷史／場景氛圍＋為何值得去＋怎麼排
-- nearbyFood、souvenirs（手信／伴手禮）每個景點必填，要具體
+- nearbyFood、souvenirs（手信／伴手禮）每個景點必填，要具體菜名／店型／特產
 - background 3–4 句；memorable 4–6 條完整句子
 - hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
-- mustEat 5–7 道具體當地必吃（菜名／小吃名，不是「街頭小吃」「代表菜晚餐」）
-- mustDrink 3–4 種具體飲品；mustBuy 3–5 樣具體手信
+- mustEat 5–7 道具體當地必吃；mustDrink 3–4；mustBuy 3–5 樣具體手信
+- seasonGuide.bestMonths / worstMonths 為 1–12 整數陣列，不可兩者相同；weather 四季各一句實用描述
 - recommendedDays 要符合該目的地真實尺度（城市遊別灌成 20 天；長線可較長）
 - area 用真實城市／城區，方便同城排同一天
+- tips 含交通／門票／排隊／天氣應變等可執行建議
 - 全文繁體中文；不要 Markdown`,
       },
       {
@@ -434,7 +449,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
-          ask: '請先完整調研這個目的地，再輸出：歷史背景、難忘之處、真實景點（含附近美食與手信）、分城市住宿、必吃必喝必買手信、建議天數。禁止空泛類別句。',
+          ask: '請先自行完整調研並分析這個目的地（無需使用者再提示），再輸出：季節氣候、歷史背景、難忘之處、真實景點（含附近美食與手信）、分城市住宿、必吃必喝必買、建議天數與實用 tips。禁止空泛類別句。',
         }),
       },
     ], 0.35)
@@ -451,6 +466,19 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
         comfortable?: number
         suggestedLongest?: number
         note?: string
+      }
+      seasonGuide?: {
+        bestMonths?: number[]
+        worstMonths?: number[]
+        bestReason?: string
+        worstReason?: string
+        note?: string
+      }
+      weather?: {
+        spring?: string
+        summer?: string
+        autumn?: string
+        winter?: string
       }
       mustEat?: { name?: string; daysLabel?: string; motif?: string }[]
       mustDrink?: { name?: string; motif?: string }[]
@@ -495,6 +523,14 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       ? parsed.flexDayIdeas.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 6)
       : []
     const rd = parsed.recommendedDays || {}
+    const sg = parsed.seasonGuide || {}
+    const bestMonths = Array.isArray(sg.bestMonths)
+      ? sg.bestMonths.map(Number).filter((m) => m >= 1 && m <= 12)
+      : []
+    const worstMonths = Array.isArray(sg.worstMonths)
+      ? sg.worstMonths.map(Number).filter((m) => m >= 1 && m <= 12)
+      : []
+    const wx = parsed.weather || {}
 
     sendJson(res, 200, {
       source: 'crazyrouter',
@@ -509,6 +545,19 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
         comfortable: Number(rd.comfortable) || 0,
         suggestedLongest: Number(rd.suggestedLongest) || 0,
         note: String(rd.note || '').trim(),
+      },
+      seasonGuide: {
+        bestMonths: [...new Set(bestMonths)].sort((a, b) => a - b),
+        worstMonths: [...new Set(worstMonths)].sort((a, b) => a - b),
+        bestReason: String(sg.bestReason || '').trim(),
+        worstReason: String(sg.worstReason || '').trim(),
+        note: String(sg.note || '').trim(),
+      },
+      weather: {
+        spring: String(wx.spring || '').trim(),
+        summer: String(wx.summer || '').trim(),
+        autumn: String(wx.autumn || '').trim(),
+        winter: String(wx.winter || '').trim(),
       },
       mustEat: mustEat
         .map((item) => ({

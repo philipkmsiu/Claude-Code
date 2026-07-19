@@ -786,6 +786,11 @@ function App() {
     const span = daysBetween(clampedStart, endDate)
     setTripDays(span ?? advice.comfortable)
     setInputError('')
+    setAiSpotsError('')
+    // Drop research for destinations no longer selected; new ones will auto-load.
+    setAiSpotsLoadedKeys((prev) =>
+      prev.filter((id) => selectedDestIds.includes(id)),
+    )
     setStep('preferences')
   }
 
@@ -828,6 +833,8 @@ function App() {
         tips?: string[]
         flexDayIdeas?: string[]
         recommendedDays?: Destination['recommendedDays']
+        seasonGuide?: SeasonGuide
+        weather?: Destination['weather']
         hotels?: Destination['hotels']
         visualPoster?: NonNullable<Destination['handbook']>['visualPoster']
       }[] = []
@@ -846,17 +853,30 @@ function App() {
         if (aiSpots.length < 8) {
           throw new Error(`AI 給 ${dest.nameZh} 的真實景點太少，請再試一次`)
         }
+        if (!result.mustEat || result.mustEat.length < 3) {
+          throw new Error(`AI 尚未完成 ${dest.nameZh} 的必吃／手信調研，請再試一次`)
+        }
         const userSpots = dest.spots.filter((spot) =>
           spot.id.startsWith('user-spot-'),
         )
-        // Keep curated handbook spot ids so Qinggan/Xinjiang day templates still match.
-        const keepCuratedSpots = Boolean(dest.curatedPlans) && !force
         const aiHotels = hotelsFromAi(dest.nameZh, result.hotels || [])
+        if (aiHotels.length < 2) {
+          throw new Error(`AI 尚未完成 ${dest.nameZh} 的住宿調研，請再試一次`)
+        }
         const poster = visualPosterFromAi(dest.nameZh, result, {
           days: planDays,
           nights: nightsFromDays(planDays),
           transportMode,
         })
+        const seasonGuide = result.seasonGuide
+          ? seasonGuideFromAi(result.seasonGuide)
+          : null
+        const weather = result.weather
+        const hasWeather =
+          weather &&
+          [weather.spring, weather.summer, weather.autumn, weather.winter].every(
+            (part) => Boolean(part?.trim()),
+          )
         const rd = result.recommendedDays
         const recommendedDays =
           rd &&
@@ -872,9 +892,8 @@ function App() {
             : undefined
         updates.push({
           id: dest.id,
-          spots: keepCuratedSpots
-            ? [...userSpots, ...dest.spots.filter((s) => !s.id.startsWith('user-spot-'))]
-            : [...userSpots, ...aiSpots],
+          // Always prefer AI-researched spots so every destination uses the same pipeline.
+          spots: [...userSpots, ...aiSpots],
           intro: result.intro,
           tagline: result.tagline,
           background: result.background,
@@ -882,7 +901,16 @@ function App() {
           tips: result.tips,
           flexDayIdeas: result.flexDayIdeas,
           recommendedDays,
-          hotels: aiHotels.length >= 2 ? aiHotels : undefined,
+          seasonGuide: seasonGuide || undefined,
+          weather: hasWeather
+            ? {
+                spring: weather!.spring.trim(),
+                summer: weather!.summer.trim(),
+                autumn: weather!.autumn.trim(),
+                winter: weather!.winter.trim(),
+              }
+            : undefined,
+          hotels: aiHotels,
           visualPoster: poster,
         })
         if (result.intro) notes.push(result.intro)
@@ -899,6 +927,8 @@ function App() {
           if (!base) continue
           byId.set(update.id, {
             ...base,
+            // AI research replaces static day templates so planning uses analyzed data.
+            curatedPlans: undefined,
             spots: update.spots,
             intro: update.intro?.trim() || base.intro,
             tagline:
@@ -920,6 +950,11 @@ function App() {
                 ? update.flexDayIdeas
                 : base.flexDayIdeas,
             recommendedDays: update.recommendedDays || base.recommendedDays,
+            seasonGuide: update.seasonGuide || base.seasonGuide,
+            bestSeason: update.seasonGuide
+              ? `最適合 ${formatMonthsZh(update.seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(update.seasonGuide.worstMonths)}`
+              : base.bestSeason,
+            weather: update.weather || base.weather,
             hotels: update.hotels?.length ? update.hotels : base.hotels,
             handbook: {
               ...(base.handbook || {}),
@@ -1033,8 +1068,9 @@ function App() {
     const aiReady = selectedDestinations.every((dest) =>
       aiSpotsLoadedKeys.includes(dest.id),
     )
-    // Always finish AI research before building the planner (same for every destination).
-    if (!aiReady && !aiSpotsError) {
+    // Never build a planner until the LLM has finished researching the destination.
+    if (!aiReady) {
+      setAiSpotsError('')
       setPendingGoToResult(true)
       void loadAiSpotsForDestinations(false)
       return
@@ -1101,9 +1137,11 @@ function App() {
     const aiReady = selectedDestinations.every((dest) =>
       aiSpotsLoadedKeys.includes(dest.id),
     )
-    if (!aiReady && !aiSpotsError) return
+    if (!aiReady) {
+      if (aiSpotsError) setPendingGoToResult(false)
+      return
+    }
     setPendingGoToResult(false)
-    if (!aiReady && aiSpotsError) return
     finalizeItinerary()
   }, [
     pendingGoToResult,
@@ -1208,6 +1246,8 @@ function App() {
                     const dest = presetDestinations.find((d) => d.id === 'qinggan')!
                     const start = earliestStartDate()
                     setSelectedDestIds(['qinggan'])
+                    setAiSpotsLoadedKeys([])
+                    setPendingGoToResult(false)
                     setTripDays(14)
                     setJourneyStart(start)
                     setPace('relaxed')
@@ -1222,8 +1262,8 @@ function App() {
                     ])
                     setHotelStyle('luxuryValue')
                     setSelectedSpotIds(defaultSelectedSpotIds(dest.spots, dest))
-                    setStep('result')
-                    setPlanVersion((v) => v + 1)
+                    // Same path as any destination: AI researches first, then planner.
+                    setStep('preferences')
                   }}
                 >
                   <span aria-hidden>🏜️</span>
@@ -2122,7 +2162,7 @@ function App() {
               </p>
               <h2>挑選景點 ✨</h2>
               <p>
-                無論你選哪個目的地，AI 都會先完整調研（真實景點、附近美食、手信、住宿、必吃必買），完成後再產生行程。紅色標籤是必去／打卡紅點／熱門；不想去就取消。
+                選好地點後 AI 會自動完成調研與分析（季節氣候、真實景點、附近美食、手信、住宿、必吃必買），無需再逐一指示；調研完成後才能產生行程。紅色標籤是必去／打卡紅點／熱門。
               </p>
             </div>
 
@@ -2138,14 +2178,14 @@ function App() {
             >
               <strong>
                 {aiSpotsLoading || pendingGoToResult
-                  ? 'AI 正在完整調研目的地（景點／美食／手信／住宿）…'
+                  ? 'AI 正在自動調研與分析目的地…'
                   : aiSpotsError
-                    ? 'AI 目的地調研暫時失敗'
+                    ? 'AI 調研未完成，無法產生行程'
                     : selectedDestinations.every((d) =>
                           aiSpotsLoadedKeys.includes(d.id),
                         )
-                      ? 'AI 已完成目的地調研，可產生行程'
-                      : '準備請 AI 調研目的地'}
+                      ? 'AI 已完成調研分析，可產生行程'
+                      : 'AI 即將自動調研此目的地'}
               </strong>
               {aiSpotsError ? <p className="input-error">{aiSpotsError}</p> : null}
               {aiSpotsNote && !aiSpotsLoading ? <p>{aiSpotsNote}</p> : null}
@@ -2162,7 +2202,7 @@ function App() {
                   void loadAiSpotsForDestinations(true)
                 }}
               >
-                {aiSpotsLoading ? 'AI 調研中…' : '重新請 AI 完整調研'}
+                {aiSpotsLoading ? 'AI 調研中…' : '重新自動調研'}
               </button>
             </aside>
 
@@ -2336,16 +2376,17 @@ function App() {
                   selectedSpotIds.length === 0 ||
                   aiSpotsLoading ||
                   pendingGoToResult ||
-                  (!selectedDestinations.every((d) =>
+                  !selectedDestinations.every((d) =>
                     aiSpotsLoadedKeys.includes(d.id),
-                  ) &&
-                    !aiSpotsError)
+                  )
                 }
                 onClick={regenerate}
               >
                 {aiSpotsLoading || pendingGoToResult
-                  ? 'AI 調研完成後產生行程…'
-                  : `依選擇產生 ${planDays} 天行程`}
+                  ? 'AI 調研分析完成後產生行程…'
+                  : aiSpotsError
+                    ? '請先完成 AI 調研'
+                    : `依選擇產生 ${planDays} 天行程`}
               </button>
             </div>
           </section>
