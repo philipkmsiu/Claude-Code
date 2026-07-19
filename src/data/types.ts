@@ -198,6 +198,10 @@ export interface Destination {
   nameLocal: string
   tagline: string
   intro: string
+  /** Brief history / cultural background (1–3 sentences). */
+  background: string
+  /** Memorable or interesting things travelers often remember. */
+  memorable: string[]
   bestSeason: string
   /** Structured month advice; prefer this over free-text bestSeason in UI. */
   seasonGuide?: SeasonGuide

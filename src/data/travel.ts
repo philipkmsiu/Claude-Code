@@ -162,6 +162,8 @@ export function inferCustomTripProfile(name: string): {
   recommendedDays: Destination['recommendedDays']
   tagline: string
   intro: string
+  background: string
+  memorable: string[]
   bestSeason: string
   seasonGuide: SeasonGuide
   spots: ScenicSpot[]
@@ -176,6 +178,7 @@ export function inferCustomTripProfile(name: string): {
     (/新疆/.test(text) && /南北|環/.test(text))
   const xinjiang = /新疆|北疆|南疆|喀納斯|喀什|伊犁|帕米爾/.test(text)
   const multiCity = /[＋+及與和／/]/.test(text) || (text.match(/[市縣州島]/g)?.length ?? 0) >= 2
+  const paris = /巴黎|Paris/i.test(text)
 
   // Single Chinese historic cities: keep advice in a realistic city-break range.
   if (/西安|西京|兵馬俑/.test(text) && !loop) {
@@ -188,6 +191,14 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '古都城市遊・天數保持務實',
       intro: `${text} 以古城、博物館與近郊日遊為主。系統會避免把城市遊估成超長環線；若勾選過多景點，請刪減或小幅加天，而不是直接拉到 20 天。`,
+      background:
+        '西安是周秦漢唐等十三朝古都，也是絲綢之路的起點城市。城牆、碑林、大雁塔與兵馬俑，把「帝國都城」與「地下軍團」濃縮在可步行、可日遊的尺度裡。',
+      memorable: [
+        '兵馬俑地下軍團的震撼尺度',
+        '騎行或步行西安城牆看日落',
+        '回民街的泡饃、烤肉與夜色',
+        '華山長空棧道與蒼龍嶺的記憶點',
+      ],
       bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
       seasonGuide,
       spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
@@ -195,6 +206,35 @@ export function inferCustomTripProfile(name: string): {
       tips: [
         '兵馬俑建議一早到達；華山請獨立留一整天。',
         '若系統提示天數不夠，優先取消較遠或重複的點，而不是盲目加到 20 天。',
+      ],
+    }
+  }
+
+  if (paris) {
+    return {
+      recommendedDays: {
+        min: 4,
+        comfortable: slow ? 7 : 6,
+        suggestedLongest: 10,
+        note: `${text}：市區精華約 4–6 天；想慢逛美術館與近郊，7–10 天更舒服。`,
+      },
+      tagline: '藝術之都・博物館與街角生活',
+      intro: `${text} 以博物館、塞納河與街區漫遊為主。別把每天排滿打卡；留時間坐咖啡館，行程會更好記。`,
+      background:
+        '巴黎是法國首都，也是近代藝術、時尚與城市規劃的重要舞台。從聖母院、羅浮宮到艾菲爾鐵塔，城市本身就像一座可步行的大型博物館。',
+      memorable: [
+        '塞納河黃昏與橋上的風',
+        '羅浮宮或奧賽待上一整個半天',
+        '蒙馬特石階與白聖殿俯瞰',
+        '街角咖啡館裡「什麼都不急」的下午',
+      ],
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
+      spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
+      flexDayIdeas: ['凡爾賽宮日遊', '蒙馬特慢遊日', '雨備博物館日'],
+      tips: [
+        '熱門館需預約時段；星期一／二部分場館休館請先查。',
+        '地鐵＋步行最有效率；把同一區景點排在同一天。',
       ],
     }
   }
@@ -210,6 +250,14 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '長線公路行程・南北疆需要較多天數',
       intro: `${text} 屬於新疆長線慢遊：北疆自然（喀納斯、賽里木、伊犁）與南疆人文／高原（喀什、帕米爾）距離都很遠，不適合用一般城市遊的 3–5 天去估。`,
+      background:
+        '新疆古稱西域，絲路東西交流在此匯聚：北疆是森林草原與高山湖泊，南疆是綠洲古城與帕米爾高原。走南北疆，等於同時讀「自然史詩」與「人文長卷」。',
+      memorable: [
+        '喀納斯／禾木秋色與木屋煙火',
+        '賽里木湖的純淨藍色',
+        '喀什老城與巴扎的氣味、音樂',
+        '帕米爾高原的雪山盤山路',
+      ],
       bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
       seasonGuide,
       spots: spotsFromSeeds(text, xinjiangTemplateSeeds()),
@@ -238,6 +286,14 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '新疆長線・天數要比一般城市多',
       intro: `${text} 在新疆，景點之間車程長。系統已提高建議天數；若你其實要南北疆都去，請在名稱加上「南北疆」以便給出更長建議。`,
+      background:
+        '新疆幅員遼闊，單邊深度遊已能感受到西域的尺度：草原、雪山、綠洲與市集交錯。重點不是「去很多點」，而是讓風景有時間進記憶。',
+      memorable: [
+        '長公路兩旁不斷變換的地形色帶',
+        '夜裡星空與溫差很大的體感',
+        '羊肉、抓飯與奶茶的味道記憶',
+        '某一站突然安靜下來的湖邊或山谷',
+      ],
       bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
       seasonGuide,
       spots: spotsFromSeeds(text, xinjiangTemplateSeeds().slice(0, 14)),
@@ -259,6 +315,13 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '公路／環線行程・建議拉長天數',
       intro: `${text} 看起來是長線移動型行程，系統已用較長天數去建議，並帶入多個區域型景點骨架。`,
+      background: `${text} 偏公路／環線型旅行：風景與移動本身就是主菜。這類路線往往串起不同地形與聚落，適合用較長天數換取舒適與彈性。`,
+      memorable: [
+        '車窗外連續變換的地貌',
+        '某一個不意停下的觀景點',
+        '換宿前最後一眼的晚霞',
+        '和同伴分享的長途聊天與歌單',
+      ],
       bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
       seasonGuide,
       spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
@@ -277,6 +340,13 @@ export function inferCustomTripProfile(name: string): {
       },
       tagline: '多地／慢遊・天數略長',
       intro: `${text} 由你自行加入。因名稱像多地或慢遊，建議天數已略為提高。`,
+      background: `${text} 適合用稍長天數慢慢認識：多留街區、食物與日常節奏，比塞滿打卡清單更容易帶走完整印象。`,
+      memorable: [
+        '某一條會想再走一次的街',
+        '一頓意外好吃的在地餐',
+        '傍晚光線最好的拍照時刻',
+        '沒排進行程、卻最記得的小角落',
+      ],
       bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
       seasonGuide,
       spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
@@ -294,6 +364,13 @@ export function inferCustomTripProfile(name: string): {
     },
     tagline: '你輸入的目的地・AI 會依景點量建議天數',
     intro: `${text} 由你自行加入。系統已先帶入常見行程骨架，你可刪減或再新增景點。`,
+    background: `${text} 的魅力，通常藏在地標之外的日常：街道尺度、食物氣味、人們的節奏。先抓幾天精華，再依興趣加深，會比一次排滿更記得住。`,
+    memorable: [
+      '第一眼的城市天際線或老城入口',
+      '一頓代表當地味道的餐',
+      '夜裡最有氣氛的那條街',
+      '離開前想再拍一次的畫面',
+    ],
     bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
     seasonGuide,
     spots: spotsFromSeeds(text, cityTemplateSeeds(text)),
@@ -396,6 +473,8 @@ export function createCustomDestination(rawName: string): Destination {
     nameLocal: name,
     tagline: profile.tagline,
     intro: profile.intro,
+    background: profile.background,
+    memorable: profile.memorable,
     bestSeason: profile.bestSeason,
     seasonGuide: profile.seasonGuide,
     recommendedDays: profile.recommendedDays,
@@ -1077,6 +1156,14 @@ export const destinations: Destination[] = [
     tagline: '對應 AI 行程範例：城市活力 × 古都氛圍',
     intro:
       '大阪負責吃與節奏，京都負責歷史與打卡；中間可加奈良或神戶。這是 PDF 實際範例的核心組合，適合第一次去日本關西的旅人。',
+    background:
+      '關西是日本歷史與庶民文化交會之處：京都長期作為古都，神社佛閣與四季景色深厚；大阪則以商人城市聞名，吃喝與街頭活力特別強。兩城互補，是第一次去日本最容易愛上的組合。',
+    memorable: [
+      '伏見千本鳥居的朱紅色長廊',
+      '道頓堀夜晚的巨型招牌與蒸汽',
+      '清水寺舞台外的山景與二年坂',
+      '黑門市場一串接著一串的朝食',
+    ],
     bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
     seasonGuide: {
       bestMonths: [3, 4, 5, 10, 11],
@@ -1147,6 +1234,14 @@ export const destinations: Destination[] = [
     tagline: '美食、霓虹與主題樂園的關西門戶',
     intro:
       '如果你這次主要想吃、購物、玩樂園，大阪可以當單一目的地。經典市區 3–4 天就很飽；加 USJ 或日遊會再拉長。',
+    background:
+      '大阪古稱「天下廚房」，商人文化讓這座城市把吃看得很認真：章魚燒、串炸、旋轉壽司都是日常。霓虹、橋與河道構成關西最有節奏感的夜景，也是主題樂園與購物的便利基地。',
+    memorable: [
+      '道頓堀橋上那一口熱騰騰的章魚燒',
+      '通天閣／新世界的復古庶民味',
+      '大阪城天守與護城河的開闊感',
+      '環球影城玩到腿軟的快樂疲憊',
+    ],
     bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
     seasonGuide: {
       bestMonths: [3, 4, 5, 10, 11],
@@ -1203,6 +1298,14 @@ export const destinations: Destination[] = [
     tagline: '神社佛閣、巷弄與季節風景',
     intro:
       '京都適合把節奏放慢。寺廟神社密度高，別排太滿；多留拍照與抹茶時間會更享受。',
+    background:
+      '京都曾是日本千年古都，神社佛閣、町家巷弄與茶道文化層層疊疊。真正動人的不只是名寺，還有早晚光影裡安靜的小路，以及季節把整座城市重新上色的方式。',
+    memorable: [
+      '金閣寺倒影在鏡湖的那一瞬間',
+      '祇園黄昏可能掠過的和服身影',
+      '嵐山竹林裡沙沙作響的綠光',
+      '一杯宇治抹茶留在舌尖的苦香',
+    ],
     bestSeason: '最適合 3–4 月、11 月；最不建議 7–8 月',
     seasonGuide: {
       bestMonths: [3, 4, 11],
@@ -1251,6 +1354,14 @@ export const destinations: Destination[] = [
     tagline: '巨大都會：街頭、博物館與主題樂園',
     intro:
       '東京可以玩很深。第一次去，先抓 2–3 個區域深挖比全市奔波更好；天數拉長就能把迪士尼、鎌倉、箱根加進來。',
+    background:
+      '東京是江戶以來不斷疊加的巨型都會：淺草保留老東京氣息，澀谷與新宿是當代都市節奏，六本木與上野則打開藝文面向。每個駅圏幾乎都是一座小城市，值得分區慢慢認識。',
+    memorable: [
+      '澀谷十字路口人潮同時湧出的畫面',
+      '淺草雷門與仲見世的香火味',
+      'teamLab 裡光與水的沉浸感',
+      '便利店深夜買飯團的日常幸福感',
+    ],
     bestSeason: '最適合 3–5 月、10–11 月；最不建議 7–8 月',
     seasonGuide: {
       bestMonths: [3, 4, 5, 10, 11],
@@ -1328,6 +1439,14 @@ export const destinations: Destination[] = [
     tagline: '夜市、博物館與近郊山水',
     intro:
       '台北很適合當短假或長住基地：市區密度高，天數拉長就能加九份、北投、淡水或宜蘭。',
+    background:
+      '台北是台灣的政治與文化中心，也把山、河、夜市與博物館擠進很短的通勤距離。從故宮到象山、從老街到文創園區，城市尺度親切，卻能同時給你深度與輕鬆。',
+    memorable: [
+      '夜市裡胡椒餅剛出爐的胡椒香',
+      '象山步道回望 101 的經典構圖',
+      '九份山城燈火在霧氣裡亮起',
+      '一頓台式早餐開啟的悠閒早晨',
+    ],
     bestSeason: '最適合 10–4 月；最不建議 6–8 月',
     seasonGuide: {
       bestMonths: [10, 11, 12, 1, 2, 3, 4],
@@ -1397,6 +1516,14 @@ export const destinations: Destination[] = [
     tagline: '宮殿、韓屋、逛街與韓食',
     intro:
       '首爾市區緊湊，3–4 天能抓到感覺；拉長天數就能加華川、水原或更深度的街區生活。',
+    background:
+      '首爾是朝鮮王朝五百年的都城，也是當代韓流的舞台。景福宮與北村韓屋訴說舊日秩序，弘大、明洞與聖水則是流行與設計的前線——古今並存，是這座城市最迷人的張力。',
+    memorable: [
+      '穿韓服走在景福宮石道上的儀式感',
+      '北村巷弄裡忽然開闊的城市俯瞰',
+      '一鍋起司火鍋或烤五花肉的熱氣',
+      '深夜便利店與韓屋燈火並存的街景',
+    ],
     bestSeason: '最適合 4–6 月、9–11 月；最不建議 12–2 月',
     seasonGuide: {
       bestMonths: [4, 5, 6, 9, 10, 11],

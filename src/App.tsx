@@ -81,6 +81,7 @@ import {
 } from './components/Icons'
 import { JourneyMap } from './components/JourneyMap'
 import { KmLogo } from './components/KmLogo'
+import { DestinationLore } from './components/DestinationLore'
 import { TripHandbookPanel } from './components/TripHandbook'
 import {
   recommendDaysWithAi,
@@ -1315,6 +1316,7 @@ function App() {
                     </span>
                     <strong>{dest.nameZh}</strong>
                     <span className="dest-tag">{dest.tagline}</span>
+                    <DestinationLore destination={dest} compact />
                     <span className="dest-meta">
                       最少 {dest.recommendedDays.min} 天 · 最舒服{' '}
                       {dest.recommendedDays.comfortable} 天 · 建議最長{' '}
@@ -1372,6 +1374,14 @@ function App() {
                 tone="coral"
               />
             </div>
+
+            <article className="info-block wide dest-story-panel">
+              <h3>目的地速寫</h3>
+              <p className="muted">先認識背景與難忘之處，再決定玩幾天會更有感覺。</p>
+              {selectedDestinations.map((d) => (
+                <DestinationLore key={d.id} destination={d} />
+              ))}
+            </article>
 
             <aside className={`ai-panel ${aiLoading ? 'loading' : aiDayRec ? 'ready' : ''}`}>
               <strong>
@@ -2246,13 +2256,10 @@ function App() {
             )}
 
             <div className="result-grid">
-              <article className="info-block">
-                <h3>當地簡介</h3>
+              <article className="info-block wide">
+                <h3>當地簡介・歷史與難忘之處</h3>
                 {selectedDestinations.map((d) => (
-                  <p key={d.id}>
-                    <strong>{d.nameZh}：</strong>
-                    {d.intro}
-                  </p>
+                  <DestinationLore key={d.id} destination={d} />
                 ))}
               </article>
 
