@@ -544,6 +544,177 @@ export function defaultSelectedSpotIds(
   return [...must, ...photo.slice(0, 6), ...popular.slice(0, 4)].slice(0, 14)
 }
 
+export type DurationFitStatus = 'too_packed' | 'too_light' | 'balanced' | 'empty'
+
+export interface DurationAssessment {
+  status: DurationFitStatus
+  chosenDays: number
+  /** Tight but doable length for the selected spots. */
+  minDays: number
+  /** Normal / recommended completion duration. */
+  recommendedDays: number
+  /** Comfortable length with rest / photo buffer. */
+  comfortableDays: number
+  totalSpotHours: number
+  longTripCount: number
+  areaCount: number
+  title: string
+  message: string
+}
+
+/**
+ * Compare the user's chosen trip length with how long the selected spots
+ * normally take to complete at the chosen pace.
+ */
+export function assessDurationFit(options: {
+  spots: ScenicSpot[]
+  chosenDays: number
+  pace: TripPace
+  specialNeeds?: string[]
+  destination?: Destination | null
+}): DurationAssessment {
+  const chosenDays = clampDays(options.chosenDays)
+  const selected = options.spots
+  const pace = options.pace
+  const specialNeeds = options.specialNeeds ?? []
+  const dest = options.destination
+
+  if (!selected.length) {
+    return {
+      status: 'empty',
+      chosenDays,
+      minDays: dest?.recommendedDays.min ?? MIN_TRIP_DAYS,
+      recommendedDays: dest?.recommendedDays.comfortable ?? chosenDays,
+      comfortableDays: dest?.recommendedDays.suggestedLongest ?? chosenDays,
+      totalSpotHours: 0,
+      longTripCount: 0,
+      areaCount: 0,
+      title: '尚未選擇景點',
+      message: '先勾選想去的景點，系統會估算正常完成需要幾天。',
+    }
+  }
+
+  const hoursPerDay =
+    pace === 'packed' ? 9 : pace === 'relaxed' ? 5.5 : 7
+  const spotsPerDay =
+    tripPaces.find((p) => p.id === pace)?.spotsPerDay ?? 3
+
+  const totalSpotHours = selected.reduce((sum, s) => sum + s.stayHours, 0)
+  const longTrips = selected.filter((s) => s.stayHours >= 6)
+  const shortSpots = selected.filter((s) => s.stayHours < 6)
+  const areas = new Set(selected.map((s) => s.area))
+  const areaCount = areas.size
+
+  // Each long day-trip roughly occupies a full day.
+  const longTripDays = longTrips.length
+  // Short spots packed by daily capacity (hours + count).
+  const shortByHours = Math.ceil(
+    shortSpots.reduce((sum, s) => sum + s.stayHours, 0) / hoursPerDay,
+  )
+  const shortByCount = Math.ceil(shortSpots.length / spotsPerDay)
+  const shortDays = Math.max(shortByHours, shortByCount, shortSpots.length ? 1 : 0)
+
+  // Moving between many areas / bases needs transit or buffer days.
+  const transitBuffers = Math.max(0, areaCount - 1)
+  const photoHeavy = selected.filter((s) => s.tags.includes('photo')).length
+  const photoBuffer = photoHeavy >= 5 || specialNeeds.some((n) => n.includes('打卡')) ? 1 : 0
+  const altitudeBuffer = specialNeeds.some((n) => n.includes('高原')) ? 1 : 0
+  const arrivalDeparture = 1 // arrival or soft start
+
+  let minDays = clampDays(longTripDays + shortDays + Math.ceil(transitBuffers * 0.5))
+  let recommendedDays = clampDays(
+    longTripDays + shortDays + transitBuffers + arrivalDeparture + photoBuffer,
+  )
+  let comfortableDays = clampDays(
+    recommendedDays + 1 + altitudeBuffer + (pace === 'relaxed' ? 1 : 0),
+  )
+
+  // If destination has a curated plan near this spot load, prefer its advice.
+  if (dest?.curatedPlans) {
+    const curatedLengths = Object.keys(dest.curatedPlans)
+      .map(Number)
+      .sort((a, b) => a - b)
+    const fullSelectRatio = selected.length / Math.max(dest.spots.length, 1)
+    if (fullSelectRatio >= 0.75 && curatedLengths.length) {
+      const curated = curatedLengths[0]
+      minDays = clampDays(Math.min(minDays, dest.recommendedDays.min))
+      recommendedDays = clampDays(Math.max(recommendedDays, dest.recommendedDays.comfortable))
+      comfortableDays = clampDays(
+        Math.max(comfortableDays, dest.recommendedDays.suggestedLongest, curated),
+      )
+      // Selecting almost all curated spots → normal completion is the comfortable length.
+      if (fullSelectRatio >= 0.9) {
+        recommendedDays = dest.recommendedDays.comfortable
+        minDays = dest.recommendedDays.min
+        comfortableDays = dest.recommendedDays.suggestedLongest
+      }
+    } else if (fullSelectRatio < 0.5) {
+      // Heavily trimmed curated route can finish sooner.
+      recommendedDays = clampDays(Math.min(recommendedDays, dest.recommendedDays.comfortable - 2))
+      comfortableDays = clampDays(Math.min(comfortableDays, dest.recommendedDays.comfortable))
+      minDays = clampDays(Math.min(minDays, recommendedDays - 1))
+    }
+  }
+
+  // Ensure ordering min <= recommended <= comfortable
+  recommendedDays = clampDays(Math.max(recommendedDays, minDays))
+  comfortableDays = clampDays(Math.max(comfortableDays, recommendedDays))
+
+  const packedThreshold = recommendedDays
+  const lightThreshold = Math.max(recommendedDays + 2, comfortableDays)
+
+  let status: DurationFitStatus = 'balanced'
+  if (chosenDays < packedThreshold) status = 'too_packed'
+  else if (chosenDays > lightThreshold) status = 'too_light'
+
+  const hoursLabel = `${Math.round(totalSpotHours)} 小時景點量`
+  const areaLabel = `${areaCount} 個區域`
+  const longLabel = longTripDays ? `、${longTripDays} 個全日級行程` : ''
+
+  if (status === 'too_packed') {
+    return {
+      status,
+      chosenDays,
+      minDays,
+      recommendedDays,
+      comfortableDays,
+      totalSpotHours,
+      longTripCount: longTripDays,
+      areaCount,
+      title: '景點偏多，天數可能不夠',
+      message: `你選了 ${selected.length} 個景點（約 ${hoursLabel}，${areaLabel}${longLabel}）。以「${tripPaces.find((p) => p.id === pace)?.label ?? '平衡'}」節奏，正常完成大約需要 ${recommendedDays} 天（最少 ${minDays} 天，舒服可到 ${comfortableDays} 天）。現在的 ${chosenDays} 天會偏趕，建議加長天數或減少景點。`,
+    }
+  }
+
+  if (status === 'too_light') {
+    return {
+      status,
+      chosenDays,
+      minDays,
+      recommendedDays,
+      comfortableDays,
+      totalSpotHours,
+      longTripCount: longTripDays,
+      areaCount,
+      title: '天數偏多，景點相對不足',
+      message: `以目前 ${selected.length} 個景點估算，正常完成約 ${recommendedDays} 天就夠（舒服版 ${comfortableDays} 天）。你選了 ${chosenDays} 天，多出來的日子會變成彈性／休息日；也可以再加景點，或把天數調回建議值。`,
+    }
+  }
+
+  return {
+    status,
+    chosenDays,
+    minDays,
+    recommendedDays,
+    comfortableDays,
+    totalSpotHours,
+    longTripCount: longTripDays,
+    areaCount,
+    title: '天數與景點搭配剛好',
+    message: `目前 ${chosenDays} 天可以正常完成這 ${selected.length} 個景點（約 ${hoursLabel}，${areaLabel}${longLabel}）。建議完成天數 ${recommendedDays} 天；想更鬆可留到 ${comfortableDays} 天。`,
+  }
+}
+
 function sortSpotsForTraveler(
   spots: ScenicSpot[],
   companion: Companion,

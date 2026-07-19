@@ -3,6 +3,7 @@ import {
   MAX_TRIP_DAYS,
   MIN_TRIP_DAYS,
   aggregateDayAdvice,
+  assessDurationFit,
   buildItinerary,
   clampDays,
   companions,
@@ -77,6 +78,23 @@ function App() {
   const hotelAreaHint = hotels[0]?.area || primary?.nameZh || '市區'
   const budgetSummary = primary?.budgetSummary
   const travelTips = primary?.tips ?? []
+
+  const selectedSpotObjects = useMemo(
+    () => allSpots.filter((s) => selectedSpotIds.includes(s.id)),
+    [allSpots, selectedSpotIds],
+  )
+
+  const durationFit = useMemo(
+    () =>
+      assessDurationFit({
+        spots: selectedSpotObjects,
+        chosenDays: planDays,
+        pace,
+        specialNeeds,
+        destination: primary,
+      }),
+    [selectedSpotObjects, planDays, pace, specialNeeds, primary],
+  )
   const styleLabel = hotelStyles.find((s) => s.id === hotelStyle)?.label ?? ''
   const paceLabel = tripPaces.find((p) => p.id === pace)?.label ?? ''
   const companionLabel = companions.find((c) => c.id === companion)?.label ?? ''
@@ -618,6 +636,13 @@ function App() {
               </div>
             </div>
 
+            <DurationFitPanel
+              assessment={durationFit}
+              onApplyRecommended={() => setTripDays(durationFit.recommendedDays)}
+              onApplyComfortable={() => setTripDays(durationFit.comfortableDays)}
+              onApplyMin={() => setTripDays(durationFit.minDays)}
+            />
+
             <div className="spot-grid">
               {allSpots.map((spot) => {
                 const active = selectedSpotIds.includes(spot.id)
@@ -709,6 +734,15 @@ function App() {
                   {planDays} 天 {nightsFromDays(planDays)} 夜
                 </p>
                 <p>
+                  <strong>依景點估算正常完成：</strong>
+                  {durationFit.recommendedDays} 天
+                  {durationFit.status === 'too_packed'
+                    ? '（目前偏趕）'
+                    : durationFit.status === 'too_light'
+                      ? '（目前偏鬆）'
+                      : '（搭配剛好）'}
+                </p>
+                <p>
                   <strong>天氣參考：</strong>
                   {weather}
                 </p>
@@ -772,6 +806,22 @@ function App() {
                 </article>
               )}
             </div>
+
+            <DurationFitPanel
+              assessment={durationFit}
+              onApplyRecommended={() => {
+                setTripDays(durationFit.recommendedDays)
+                setPlanVersion((v) => v + 1)
+              }}
+              onApplyComfortable={() => {
+                setTripDays(durationFit.comfortableDays)
+                setPlanVersion((v) => v + 1)
+              }}
+              onApplyMin={() => {
+                setTripDays(durationFit.minDays)
+                setPlanVersion((v) => v + 1)
+              }}
+            />
 
             <div className="itinerary">
               <div className="section-head">
@@ -849,6 +899,59 @@ function App() {
 
 function StepPill({ active, label }: { active: boolean; label: string }) {
   return <span className={`step-pill ${active ? 'active' : ''}`}>{label}</span>
+}
+
+function DurationFitPanel({
+  assessment,
+  onApplyRecommended,
+  onApplyComfortable,
+  onApplyMin,
+}: {
+  assessment: ReturnType<typeof assessDurationFit>
+  onApplyRecommended: () => void
+  onApplyComfortable: () => void
+  onApplyMin: () => void
+}) {
+  if (assessment.status === 'empty') {
+    return (
+      <aside className="duration-fit empty">
+        <strong>{assessment.title}</strong>
+        <p>{assessment.message}</p>
+      </aside>
+    )
+  }
+
+  return (
+    <aside className={`duration-fit ${assessment.status}`}>
+      <div className="duration-fit-head">
+        <strong>{assessment.title}</strong>
+        <div className="duration-fit-metrics">
+          <span>你選 {assessment.chosenDays} 天</span>
+          <span>正常完成 {assessment.recommendedDays} 天</span>
+          <span>最少 {assessment.minDays} 天</span>
+          <span>舒服 {assessment.comfortableDays} 天</span>
+        </div>
+      </div>
+      <p>{assessment.message}</p>
+      {assessment.status !== 'balanced' && (
+        <div className="cta-row">
+          <button type="button" className="btn primary" onClick={onApplyRecommended}>
+            改用正常完成 {assessment.recommendedDays} 天
+          </button>
+          {assessment.status === 'too_packed' && (
+            <button type="button" className="btn ghost" onClick={onApplyComfortable}>
+              改用舒服 {assessment.comfortableDays} 天
+            </button>
+          )}
+          {assessment.status === 'too_light' && (
+            <button type="button" className="btn ghost" onClick={onApplyMin}>
+              改用最少 {assessment.minDays} 天
+            </button>
+          )}
+        </div>
+      )}
+    </aside>
+  )
 }
 
 export default App
