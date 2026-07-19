@@ -209,7 +209,7 @@ function App() {
           />
           <span className="brand-text">
             KM Travel Planner
-            <small>Gemini 旅遊規劃</small>
+            <small>AI 旅遊規劃</small>
           </span>
         </button>
         {step !== 'home' && (
@@ -235,7 +235,7 @@ function App() {
               <h1 className="hero-brand">
                 KM Travel Planner
               </h1>
-              <p className="eyebrow">依 Gemini 旅遊規劃 PDF 做成的可互動行程工具</p>
+              <p className="eyebrow">依 AI 旅遊規劃做成的可互動行程工具</p>
               <p className="hero-lead">
                 先選一個地方，看最短／最舒服要幾天；你也可以自己輸入天數（到 {MAX_TRIP_DAYS}{' '}
                 天）。再勾景點、產生行程，不滿意就改完重跑。

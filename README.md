@@ -1,11 +1,11 @@
 # KM Travel Planner
 
-Interactive travel planner based on the Gemini 旅遊規劃 PDF.
+Interactive **AI** travel planner.
 
 ## Branding
 
 App name: **KM Travel Planner**  
-Logo: `public/km-logo.svg` (placeholder mark — replace with your exported `CompanyLogo_Only` PNG/SVG when available; `.ai` files are not web-ready)
+Logo: `public/km-logo.svg`
 
 ## Day choice
 
@@ -15,7 +15,7 @@ After picking a place:
 - **最舒服天數**
 - **建議最長**
 
-Or type your own length (2–21 days).
+Or type your own length (2–21 days). The AI also checks whether your selected spots fit those days.
 
 ## Flow
 

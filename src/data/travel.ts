@@ -135,7 +135,7 @@ export const destinations: Destination[] = [
     id: 'kansai',
     nameZh: '關西（大阪＋京都）',
     nameLocal: '関西',
-    tagline: '對應 Gemini PDF 範例：城市活力 × 古都氛圍',
+    tagline: '對應 AI 行程範例：城市活力 × 古都氛圍',
     intro:
       '大阪負責吃與節奏，京都負責歷史與打卡；中間可加奈良或神戶。這是 PDF 實際範例的核心組合，適合第一次去日本關西的旅人。',
     bestSeason: '3–5 月櫻花、10–11 月紅葉；夏天熱、冬天可抓梅花季',
