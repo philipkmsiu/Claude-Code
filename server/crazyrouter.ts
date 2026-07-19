@@ -821,13 +821,18 @@ async function handlePlacePhoto(req: IncomingMessage, res: ServerResponse) {
     const offset = Number(url.searchParams.get('offset') || 0) || 0
     const wikiTitle = (url.searchParams.get('wiki') || '').trim()
     const region = (url.searchParams.get('region') || '').trim()
-    const regionSuffix = /japan|kansai|tokyo|osaka|kyoto|korea|seoul|europe|germany|paris/i.test(
-      `${q} ${fallback} ${region}`,
-    )
+    const blob = `${q} ${fallback} ${region}`
+    const regionSuffix = /japan|kansai|tokyo|osaka|kyoto|korea|seoul/i.test(blob)
       ? region || 'Japan'
-      : /china|xi.?an|xinjiang|qinghai|silk/i.test(`${q} ${fallback} ${region}`)
-        ? 'China'
-        : region || 'travel landmark'
+      : /uk|united kingdom|britain|london|edinburgh|cambridge|oxford|york|bath|cardiff|liverpool|stonehenge|england|scotland|wales/i.test(
+            blob,
+          )
+        ? region || 'United Kingdom'
+        : /europe|germany|paris|berlin|munich|cologne/i.test(blob)
+          ? region || 'Europe'
+          : /china|xi.?an|xinjiang|qinghai|silk/i.test(blob)
+            ? 'China'
+            : region || 'travel landmark'
 
     const attempts = [
       q,
@@ -838,8 +843,9 @@ async function handlePlacePhoto(req: IncomingMessage, res: ServerResponse) {
       wikiTitle,
     ].filter((item, index, arr) => item && arr.indexOf(item) === index)
 
-    // Prefer Wikipedia summary thumbnails for named landmarks (fewer maps/diagrams).
-    if (wikiTitle) {
+    // Prefer Wikipedia thumbs for named landmarks — but skip when offset>0 so
+    // callers can request alternate frames instead of the same wiki image.
+    if (wikiTitle && offset <= 0) {
       const wikiThumb = await fetchWikipediaThumb(wikiTitle)
       if (wikiThumb) {
         const proxied = `/api/place-photo-file?src=${encodeURIComponent(wikiThumb)}`

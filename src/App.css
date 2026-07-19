@@ -2021,9 +2021,20 @@ main {
   line-height: 1;
 }
 
+.poster-side {
+  position: relative;
+  z-index: 4;
+  min-width: 0;
+  isolation: isolate;
+}
+
 .poster-side strong {
   display: block;
   font-size: 0.82rem;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .poster-side em {
@@ -2031,6 +2042,12 @@ main {
   font-style: normal;
   font-size: 0.7rem;
   color: var(--poster-soft);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.poster-side li > div {
+  min-width: 0;
 }
 
 .poster-tips {
@@ -3734,7 +3751,9 @@ main {
 
 .poster-path-col {
   position: relative;
+  z-index: 1;
   min-height: 420px;
+  overflow: hidden; /* keep day cards from stacking over side food/tips columns */
 }
 
 .serpentine-svg {
@@ -3749,7 +3768,8 @@ main {
 .poster-day-abs {
   position: absolute;
   z-index: 2;
-  width: min(320px, 72%);
+  width: min(250px, 58%);
+  max-width: 100%;
   display: grid;
   justify-items: center;
   gap: 0.35rem;

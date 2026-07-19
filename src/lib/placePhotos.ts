@@ -116,6 +116,38 @@ const SEARCH_HINT: Record<string, string> = {
   科隆大教堂: 'Cologne Cathedral facade',
   布蘭登堡門: 'Brandenburg Gate Berlin',
   柏林圍牆: 'Berlin Wall Memorial',
+  // United Kingdom
+  白金漢宮: 'Buckingham Palace London facade',
+  倫敦: 'Tower Bridge London',
+  大英博物館: 'British Museum London facade',
+  倫敦塔橋: 'Tower Bridge London',
+  塔橋: 'Tower Bridge London',
+  牛津: 'Radcliffe Camera Oxford',
+  牛津大學: 'University of Oxford Radcliffe Camera',
+  劍橋: 'King\'s College Chapel Cambridge',
+  劍橋大學: 'King\'s College Chapel Cambridge',
+  愛丁堡: 'Edinburgh Castle rock',
+  愛丁堡城堡: 'Edinburgh Castle Scotland',
+  巨人堤道: 'Giant\'s Causeway hexagonal columns',
+  巨人之路: 'Giant\'s Causeway Northern Ireland',
+  北愛爾蘭: 'Giant\'s Causeway coastline',
+  巨石陣: 'Stonehenge Wiltshire aerial',
+  威爾特郡: 'Stonehenge stones',
+  卡地夫: 'Cardiff Castle keep',
+  卡地夫城堡: 'Cardiff Castle Wales',
+  巴斯: 'Roman Baths Bath England',
+  羅馬浴場: 'Roman Baths Bath England',
+  湖區: 'Lake District Derwentwater',
+  湖區國家公園: 'Lake District mountains lake',
+  利物浦: 'Royal Albert Dock Liverpool',
+  披頭四故事館: 'The Beatles Story Liverpool',
+  披頭四: 'The Beatles Story Liverpool',
+  約克: 'York Minster cathedral',
+  約克大教堂: 'York Minster west front',
+  巴斯修道院: 'Bath Abbey England',
+  溫莎城堡: 'Windsor Castle England',
+  大本鐘: 'Big Ben Elizabeth Tower London',
+  西敏寺: 'Westminster Abbey London',
 }
 
 /** English Wikipedia page titles for stable scenic thumbnails. */
@@ -158,6 +190,35 @@ const WIKI_TITLE: Record<string, string> = {
   柏林圍牆: 'Berlin Wall Memorial',
   博物館島: 'Museum Island',
   海德堡城堡: 'Heidelberg Castle',
+  白金漢宮: 'Buckingham Palace',
+  倫敦塔橋: 'Tower Bridge',
+  塔橋: 'Tower Bridge',
+  大英博物館: 'British Museum',
+  牛津: 'Radcliffe Camera',
+  牛津大學: 'University of Oxford',
+  劍橋: "King's College, Cambridge",
+  劍橋大學: "King's College, Cambridge",
+  愛丁堡: 'Edinburgh Castle',
+  愛丁堡城堡: 'Edinburgh Castle',
+  巨人堤道: "Giant's Causeway",
+  巨人之路: "Giant's Causeway",
+  北愛爾蘭: "Giant's Causeway",
+  巨石陣: 'Stonehenge',
+  威爾特郡: 'Stonehenge',
+  卡地夫: 'Cardiff Castle',
+  卡地夫城堡: 'Cardiff Castle',
+  巴斯: 'Roman Baths, Bath',
+  羅馬浴場: 'Roman Baths, Bath',
+  湖區: 'Lake District',
+  湖區國家公園: 'Lake District',
+  利物浦: 'Royal Albert Dock',
+  披頭四故事館: 'The Beatles Story',
+  披頭四: 'The Beatles Story',
+  約克: 'York Minster',
+  約克大教堂: 'York Minster',
+  大本鐘: 'Big Ben',
+  西敏寺: 'Westminster Abbey',
+  溫莎城堡: 'Windsor Castle',
 }
 
 function normalizeKey(raw: string): string {
@@ -196,6 +257,13 @@ function photoRegion(destinationName: string, query: string): string {
     return 'Japan'
   }
   if (/首爾|韓國|Korea|Seoul/i.test(text)) return 'South Korea'
+  if (
+    /英國|UK|United Kingdom|Britain|倫敦|愛丁堡|劍橋|牛津|約克|巴斯|卡地夫|湖區|巨人|巨石|利物浦|英格蘭|蘇格蘭|威爾斯|威爾士|北愛爾蘭|London|Edinburgh|Cambridge|Oxford|York|Bath|Cardiff|Liverpool|Stonehenge/i.test(
+      text,
+    )
+  ) {
+    return 'United Kingdom'
+  }
   if (/德國|柏林|慕尼黑|科隆|Germany|german|Europe|巴黎|France/i.test(text)) {
     return 'Europe'
   }
@@ -218,14 +286,19 @@ function wikiTitleFor(query: string): string | null {
 
 export async function resolvePlacePhoto(
   query: string,
-  options?: { avoidUrls?: Set<string>; destinationName?: string },
+  options?: {
+    avoidUrls?: Set<string>
+    destinationName?: string
+    offset?: number
+  },
 ): Promise<string | null> {
   const key = normalizeKey(query)
   if (!key) return null
   const avoid = options?.avoidUrls
   const destinationName = options?.destinationName || ''
   const region = photoRegion(destinationName, key)
-  const cacheKey = `${region}::${key}`
+  const offset = Math.max(0, options?.offset || 0)
+  const cacheKey = offset ? `${region}::${key}::o${offset}` : `${region}::${key}`
 
   const cached = photoCache.get(cacheKey)
   if (cached && (!avoid || !avoid.has(cached))) return cached
@@ -244,7 +317,9 @@ export async function resolvePlacePhoto(
       fallback: key,
       region,
     })
-    if (wiki) params.set('wiki', wiki)
+    if (offset > 0) params.set('offset', String(offset))
+    // Only use Wikipedia first-hit when not seeking an alternate frame.
+    if (wiki && offset <= 0) params.set('wiki', wiki)
     const res = await fetch(`/api/place-photo?${params.toString()}`)
     if (!res.ok) {
       photoCache.set(cacheKey, null)
@@ -254,10 +329,12 @@ export async function resolvePlacePhoto(
     const url = data.url || null
     if (url && avoid?.has(url)) {
       // Ask again with offset / different wording to avoid repeating the same wall photo.
+      // Omit wiki on retries so we don't keep getting the same Wikipedia thumb.
       for (const [suffix, offset] of [
         ['scenic view', 1],
-        ['night view', 2],
-        ['panorama', 3],
+        ['exterior daytime', 2],
+        ['landscape panorama', 3],
+        ['tourist photo', 4],
       ] as const) {
         const retryParams = new URLSearchParams({
           q: `${hint} ${suffix}`,
@@ -265,7 +342,6 @@ export async function resolvePlacePhoto(
           region,
           offset: String(offset),
         })
-        if (wiki) retryParams.set('wiki', wiki)
         const retry = await fetch(`/api/place-photo?${retryParams.toString()}`)
         if (!retry.ok) continue
         const retryData = (await retry.json()) as { url?: string | null }
@@ -314,6 +390,17 @@ const CITY_SCENIC: Record<string, string[]> = {
   柏林: ['布蘭登堡門', '柏林圍牆'],
   慕尼黑: ['新天鵝堡'],
   科隆: ['科隆大教堂'],
+  倫敦: ['白金漢宮', '塔橋', '大本鐘', '大英博物館'],
+  牛津: ['牛津大學', '牛津'],
+  劍橋: ['劍橋大學', '劍橋'],
+  愛丁堡: ['愛丁堡城堡', '愛丁堡'],
+  北愛爾蘭: ['巨人堤道', '巨人之路'],
+  威爾特郡: ['巨石陣'],
+  卡地夫: ['卡地夫城堡', '卡地夫'],
+  巴斯: ['羅馬浴場', '巴斯'],
+  湖區: ['湖區國家公園', '湖區'],
+  利物浦: ['披頭四故事館', '利物浦'],
+  約克: ['約克大教堂', '約克'],
 }
 
 /** Candidate queries for one day, most specific first. */
@@ -348,8 +435,14 @@ export async function resolveDayPhotos(
   const used = new Set<string>()
   const results: (string | null)[] = []
 
-  for (const day of days) {
-    const candidates = dayPhotoCandidates(day, destinationName)
+  for (const [dayIndex, day] of days.entries()) {
+    const candidates = [
+      ...dayPhotoCandidates(day, destinationName),
+      // Day-index variants help Commons return different frames for similar UK cities.
+      ...(day.stayCity
+        ? [`${day.stayCity} landmark`, `${day.stayCity} scenic`]
+        : []),
+    ]
     let picked: string | null = null
     for (const candidate of candidates) {
       const url = await resolvePlacePhoto(candidate, {
@@ -362,20 +455,21 @@ export async function resolveDayPhotos(
         break
       }
     }
-    // Last resort: allow a city photo even if seen before, rather than a blank/broken slot.
+    // Last resort: still avoid reusing another day's photo (blank > duplicate).
     if (!picked) {
-      for (const candidate of [
-        ...candidates,
-        ...dayPhotoCandidates(
-          { stayCity: day.stayCity, theme: day.theme },
-          destinationName,
-        ),
-        destinationName,
-      ]) {
-        const url = await resolvePlacePhoto(candidate, { destinationName })
-        if (url) {
-          picked = url
-          break
+      const city = (day.stayCity || day.theme || destinationName || '').trim()
+      if (city) {
+        for (const offset of [dayIndex + 1, dayIndex + 2, dayIndex + 3]) {
+          const url = await resolvePlacePhoto(city, {
+            avoidUrls: used,
+            destinationName,
+            offset,
+          })
+          if (url && !used.has(url)) {
+            picked = url
+            used.add(url)
+            break
+          }
         }
       }
     }
