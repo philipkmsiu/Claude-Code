@@ -1,0 +1,45 @@
+:root {
+  --forest: #1f3d36;
+  --forest-soft: #3f6b5d;
+  --ochre: #c9963a;
+  --ochre-deep: #a67a2a;
+  --ink: #1c2622;
+  --ink-soft: #3d4a44;
+  --muted: #6a756f;
+  --display: 'Bricolage Grotesque', 'Noto Sans TC', sans-serif;
+  --body: 'Noto Sans TC', 'Bricolage Grotesque', sans-serif;
+  font-family: var(--body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--ink);
+  background: #e7efe9;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
