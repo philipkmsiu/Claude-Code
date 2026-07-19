@@ -47,7 +47,10 @@ export function JourneyMap({
   }, [visualPoster, destinationName, days, nights, transportMode])
 
   const pathGeometry = useMemo(
-    () => buildSerpentinePath(itinerary.length, edition === 'scrapbook' ? 168 : 148),
+    () =>
+      buildSerpentinePath(itinerary.length, {
+        style: edition === 'scrapbook' ? 'scrapbook' : 'photo',
+      }),
     [itinerary.length, edition],
   )
 
@@ -137,8 +140,9 @@ export function JourneyMap({
         <div>
           <h3>階段四 · 視覺化旅遊地圖</h3>
           <p>
-            兩個完全不同的版本：<strong>相片版</strong>用每日不重複的真實景點照片；
-            <strong>插畫海報版</strong>是 Gemini 規劃書那種手繪水彩風（不用相片）。可分別下載 PNG。
+            兩個完全不同的版本：<strong>相片版</strong>用真實景點照片；
+            <strong>插畫海報版</strong>照 Gemini 旅程地圖 sample——手繪水彩、S
+            形路線、每日獨特插畫圓（絕不用相片）。可分別下載 PNG。
           </p>
         </div>
         <div className="edition-actions">
@@ -292,17 +296,29 @@ export function JourneyMap({
                     ) : null}
 
                     {edition === 'scrapbook' ? (
-                      <div className="scrapbook-node">
-                        <div className="scrapbook-ring illustrated">
-                          {/* Illustration edition never uses photos — unique hand-drawn scenes only. */}
-                          <GeminiDayArt day={day} index={index} />
-                        </div>
-                        <div className="day-node deluxe-node scrapbook-badge">
-                          <span>DAY</span>
-                          <strong>{index + 1}</strong>
+                      <div
+                        className={`scrapbook-node gemini-layout ${
+                          point.x < pathGeometry.width / 2 ? 'caption-right' : 'caption-left'
+                        }`}
+                      >
+                        <div className="scrapbook-art-stack">
+                          <div
+                            className="scrapbook-ring illustrated"
+                            style={{
+                              ['--ring-accent' as string]: pathGeometry.segmentColors[index],
+                            }}
+                          >
+                            {/* Pure hand-drawn watercolor — never photographs. */}
+                            <GeminiDayArt day={day} index={index} />
+                          </div>
+                          <div className="day-node deluxe-node scrapbook-badge">
+                            <span>DAY</span>
+                            <strong>{index + 1}</strong>
+                          </div>
                         </div>
                         <div className="scrapbook-caption">
                           <h5>{day.stayCity || day.stayArea || day.theme}</h5>
+                          <p className="scrapbook-highlights-label">重點景區</p>
                           <ul>
                             {bullets.map((b) => (
                               <li key={b}>{b}</li>
@@ -398,15 +414,32 @@ export function JourneyMap({
   )
 }
 
-function buildSerpentinePath(dayCount: number, gap = 148) {
+function buildSerpentinePath(
+  dayCount: number,
+  options?: { style?: 'photo' | 'scrapbook'; gap?: number },
+) {
+  const scrapbook = options?.style === 'scrapbook'
   const n = Math.max(dayCount, 1)
-  const width = 420
-  const top = 40
-  const height = top + n * gap + 120
+  // Gemini sample: wide S-curve that uses the full middle canvas (not a thin vertical ribbon).
+  const width = scrapbook ? 640 : 420
+  const gap = options?.gap ?? (scrapbook ? 168 : 148)
+  const top = scrapbook ? 36 : 40
+  const height = top + n * gap + 130
+  const amplitude = scrapbook ? width * 0.32 : 62
+  const segmentColors = [
+    '#5b8fa8',
+    '#6f8f7f',
+    '#c4a574',
+    '#c17a5a',
+    '#8a5a6a',
+    '#7a9e8e',
+  ]
+
   const points = Array.from({ length: n }, (_, i) => {
     const y = top + i * gap
-    const wave = Math.sin(i * 0.95) * 62
-    const x = width / 2 + wave
+    // Hard left / right zigzag (sample planner map), softened with a slight sine.
+    const side = i % 2 === 0 ? -1 : 1
+    const x = width / 2 + side * amplitude * (scrapbook ? 0.92 : 0.55) + Math.sin(i * 0.7) * 10
     return { x, y }
   })
   const d =
@@ -417,10 +450,19 @@ function buildSerpentinePath(dayCount: number, gap = 148) {
             if (i === 0) return `M ${p.x} ${p.y}`
             const prev = points[i - 1]
             const cy = (prev.y + p.y) / 2
-            return `C ${prev.x} ${cy}, ${p.x} ${cy}, ${p.x} ${p.y}`
+            // Wide horizontal sweep between alternating sides.
+            const bulge = scrapbook ? (p.x + prev.x) / 2 : prev.x
+            return `C ${bulge} ${cy}, ${bulge} ${cy}, ${p.x} ${p.y}`
           })
           .join(' ')
-  return { width, height, d, points, finishY: top + n * gap + 28 }
+  return {
+    width,
+    height,
+    d,
+    points,
+    finishY: top + n * gap + 28,
+    segmentColors: Array.from({ length: n }, (_, i) => segmentColors[i % segmentColors.length]),
+  }
 }
 
 function dayBullets(day: DayPlan): string[] {
@@ -443,78 +485,67 @@ function dayBullets(day: DayPlan): string[] {
   return [day.theme].filter(Boolean)
 }
 
-/** Painted watercolor bases shipped with the app (Gemini scrapbook look — never photos). */
-const WATERCOLOR_BASE: Record<string, string> = {
-  heritage: '/poster/poster-scene-heritage.png',
-  landscape: '/poster/poster-scene-landscape.png',
-  lake: '/poster/poster-scene-lake.png',
-  street: '/poster/poster-scene-street.png',
-  city: '/poster/poster-scene-street.png',
-  rest: '/poster/poster-scene-lake.png',
-  travel: '/poster/poster-scene-landscape.png',
-}
-
-/** Gemini-style unique watercolor scene — never a photograph. */
+/** Gemini sample style: hand-painted watercolor circle — SVG only, never a photo. */
 function GeminiDayArt({ day, index }: { day: DayPlan; index: number }) {
-  const kind = sceneKind(day)
   const motif = landmarkMotif(day)
-  const base = WATERCOLOR_BASE[kind] || WATERCOLOR_BASE.city
-  // Distinct crop / wash per day so even same scene-kind never looks identical.
-  const positions = [
-    '28% 32%',
-    '68% 38%',
-    '42% 62%',
-    '58% 24%',
-    '34% 70%',
-    '72% 52%',
-    '48% 44%',
-    '22% 48%',
+  const palettes = [
+    { sky: '#dfe9e4', ground: '#c4a574', accent: '#6f8f7f', ink: '#4a4338' },
+    { sky: '#e8dcc8', ground: '#8a6b4a', accent: '#5b8fa8', ink: '#5c5348' },
+    { sky: '#d9e4dc', ground: '#7a9e8e', accent: '#c17a5a', ink: '#3f4a44' },
+    { sky: '#f0e4d4', ground: '#b08a5a', accent: '#8a5a6a', ink: '#5a4038' },
+    { sky: '#e4ebe8', ground: '#6b8fa8', accent: '#9a6b3f', ink: '#445058' },
+    { sky: '#efe6d8', ground: '#9a7a58', accent: '#6f8f7f', ink: '#4e463c' },
   ]
-  const washes = [
-    'hue-rotate(-8deg) saturate(0.82) contrast(0.94) brightness(1.04)',
-    'hue-rotate(14deg) saturate(0.78) contrast(0.96) brightness(1.02)',
-    'hue-rotate(-18deg) saturate(0.88) contrast(0.92) brightness(1.05)',
-    'hue-rotate(22deg) saturate(0.8) contrast(0.95) brightness(1.01)',
-    'hue-rotate(6deg) saturate(0.85) sepia(0.12) contrast(0.93)',
-    'hue-rotate(-22deg) saturate(0.76) contrast(0.97) brightness(1.03)',
-  ]
-  const paperTints = ['#f6ecdc', '#e8f0e6', '#f3e4d4', '#e7ebe8', '#f0e8d8', '#ebe4d8']
-  const pos = positions[index % positions.length]
-  const filter = washes[index % washes.length]
-  const tint = paperTints[index % paperTints.length]
+  const p = palettes[index % palettes.length]
 
   return (
-    <div className="day-scene circular gemini-art" aria-hidden>
-      <div className="gemini-wash" style={{ background: tint }} />
-      <img
-        className="gemini-scene-img"
-        src={base}
-        alt=""
-        draggable={false}
-        style={{ objectPosition: pos, filter }}
-      />
-      <svg viewBox="0 0 120 120" className="gemini-overlay">
+    <div className="day-scene circular gemini-art painted-only" aria-hidden>
+      <svg viewBox="0 0 120 120" className="gemini-paint-svg">
         <defs>
-          <radialGradient id={`vignette-${index}`} cx="50%" cy="45%" r="60%">
-            <stop offset="55%" stopColor="transparent" />
-            <stop offset="100%" stopColor="rgba(90,70,50,0.28)" />
+          <radialGradient id={`sky-${index}`} cx="40%" cy="30%" r="75%">
+            <stop offset="0%" stopColor="#fffaf2" />
+            <stop offset="55%" stopColor={p.sky} />
+            <stop offset="100%" stopColor={p.ground} stopOpacity="0.55" />
           </radialGradient>
-          <filter id={`ink-${index}`}>
-            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" />
+          <filter id={`wash-${index}`}>
+            <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" seed={index + 3} result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="2.8" />
+          </filter>
+          <filter id={`bleed-${index}`}>
+            <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed={index + 11} result="n" />
+            <feDiffuseLighting in="n" lightingColor={p.accent} surfaceScale="1.2" result="lit">
+              <feDistantLight azimuth="40" elevation="55" />
+            </feDiffuseLighting>
+            <feBlend in="SourceGraphic" in2="lit" mode="soft-light" />
           </filter>
         </defs>
-        <circle cx="60" cy="60" r="58" fill={`url(#vignette-${index})`} />
-        <g filter={`url(#ink-${index})`} opacity="0.92">
-          <LandmarkSketch motif={motif} index={index} />
+        <circle cx="60" cy="60" r="58" fill={`url(#sky-${index})`} />
+        <g filter={`url(#wash-${index})`}>
+          {/* Soft watercolor blotches — paper wash, not photography */}
+          <ellipse cx={28 + (index % 3) * 6} cy="30" rx="18" ry="10" fill="#fff8ee" opacity="0.55" />
+          <circle cx={90 - (index % 4) * 4} cy="26" r="11" fill={p.accent} opacity="0.28" />
+          <ellipse cx="60" cy="96" rx="46" ry="16" fill={p.ground} opacity="0.35" />
+          <g filter={`url(#bleed-${index})`} opacity="0.95">
+            <LandmarkSketch motif={motif} index={index} />
+          </g>
         </g>
+        <circle
+          cx="60"
+          cy="60"
+          r="57"
+          fill="none"
+          stroke={p.ink}
+          strokeWidth="1.4"
+          opacity="0.35"
+        />
         <text
           x="60"
           y="112"
           textAnchor="middle"
-          fontSize="8"
-          fill="#5c6b63"
-          fontFamily="Georgia, serif"
+          fontSize="7.5"
+          fill={p.ink}
+          fontFamily="Georgia, 'Noto Serif TC', serif"
+          opacity="0.85"
         >
           {motifLabel(motif)}
         </text>

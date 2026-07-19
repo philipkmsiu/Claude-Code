@@ -1059,6 +1059,24 @@ main {
   align-items: start;
 }
 
+/* Gemini sample: wider middle canvas + readable side columns */
+.journey-poster.scrapbook .poster-body {
+  grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) minmax(150px, 200px);
+  gap: 0.85rem;
+}
+
+.journey-poster.scrapbook .poster-side strong {
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.journey-poster.scrapbook .poster-tips {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  padding-left: 0;
+  list-style: none;
+}
+
 .poster-side h4,
 .tips-title {
   margin: 0 0 0.55rem;
@@ -1991,7 +2009,7 @@ main {
     font-size: 0.95rem;
   }
 
-  .day-card li {
+  .day-card > ol > li {
     grid-template-columns: 1fr;
     gap: 0.2rem;
   }
@@ -2229,12 +2247,21 @@ main {
   animation: map-pop 0.55s ease both;
 }
 
+.poster-day-abs.scrapbook {
+  width: min(300px, 48%);
+}
+
 .poster-day-abs.card-left {
   transform: translate(calc(-50% - 18px), -12px);
 }
 
 .poster-day-abs.card-right {
   transform: translate(calc(-50% + 18px), -12px);
+}
+
+.poster-day-abs.scrapbook.card-left,
+.poster-day-abs.scrapbook.card-right {
+  transform: translate(-50%, -18px);
 }
 
 .deluxe-node {
@@ -2376,6 +2403,7 @@ main {
 }
 
 .journey-poster.scrapbook {
+  width: min(1100px, 100%);
   background:
     radial-gradient(ellipse 45% 22% at 12% 4%, rgba(214, 170, 110, 0.28), transparent 55%),
     radial-gradient(ellipse 40% 20% at 88% 6%, rgba(120, 160, 170, 0.22), transparent 50%),
@@ -2473,6 +2501,28 @@ main {
   width: min(250px, 100%);
 }
 
+.scrapbook-node.gemini-layout {
+  width: min(300px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.scrapbook-node.gemini-layout.caption-right {
+  flex-direction: row;
+}
+
+.scrapbook-node.gemini-layout.caption-left {
+  flex-direction: row-reverse;
+}
+
+.scrapbook-art-stack {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  flex: 0 0 auto;
+}
+
 .scrapbook-ring {
   width: 7.2rem;
   height: 7.2rem;
@@ -2504,16 +2554,29 @@ main {
 
 .scrapbook-caption {
   width: 100%;
-  padding: 0.45rem 0.55rem 0.55rem;
+  min-width: 7.5rem;
+  max-width: 10.5rem;
+  padding: 0.5rem 0.65rem 0.6rem;
   border-radius: 0.75rem;
-  background: rgba(255, 252, 245, 0.88);
-  box-shadow: inset 0 0 0 1px rgba(90, 70, 50, 0.12);
-  text-align: center;
+  background: rgba(255, 252, 245, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(90, 70, 50, 0.12),
+    0 4px 10px rgba(60, 50, 40, 0.06);
+  text-align: left;
 }
 
 .scrapbook-caption h5 {
-  margin: 0 0 0.25rem;
-  font-size: 0.9rem;
+  margin: 0 0 0.15rem;
+  font-size: 0.95rem;
+  color: #2c3a34;
+}
+
+.scrapbook-highlights-label {
+  margin: 0 0 0.2rem;
+  font-family: var(--body);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: #9a6b3f;
 }
 
 .scrapbook-caption ul {
@@ -2521,13 +2584,9 @@ main {
   padding-left: 1rem;
   text-align: left;
   font-family: var(--body);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--poster-soft);
-  line-height: 1.35;
-}
-
-.poster-day-abs.scrapbook {
-  width: min(260px, 70%);
+  line-height: 1.4;
 }
 
 .photo-card .day-scene {
@@ -2641,11 +2700,13 @@ a.btn {
 }
 
 .scrapbook-ring.illustrated {
+  width: 7.8rem;
+  height: 7.8rem;
   background:
     radial-gradient(circle at 30% 25%, rgba(255, 250, 240, 0.95), transparent 50%),
     linear-gradient(145deg, #f6ecdc, #dce8df);
   box-shadow:
-    inset 0 0 0 3px rgba(154, 107, 63, 0.28),
+    inset 0 0 0 3px color-mix(in srgb, var(--ring-accent, #9a6b3f) 55%, transparent),
     0 8px 16px rgba(60, 50, 40, 0.1);
 }
 
@@ -2654,28 +2715,12 @@ a.btn {
   background: transparent !important;
 }
 
-.gemini-wash {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  opacity: 0.55;
-  mix-blend-mode: multiply;
-  pointer-events: none;
+.gemini-art.painted-only {
+  background:
+    radial-gradient(circle at 35% 30%, #fffaf2, #f0e8d8 70%) !important;
 }
 
-.gemini-scene-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.gemini-overlay {
-  position: relative;
-  z-index: 1;
+.gemini-paint-svg {
   width: 100%;
   height: 100%;
   display: block;
