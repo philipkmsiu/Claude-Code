@@ -1,4 +1,5 @@
 import type { Destination, ScenicSpot } from '../data/types'
+import { ensureRichSpotCopy } from '../data/travel'
 
 type Props = {
   destination: Destination
@@ -24,9 +25,15 @@ function pickSceneSpots(
       Math.min(s.summary.length / 40, 3)
     return score(b) - score(a)
   })
+  const enriched = ranked.map((s) =>
+    ensureRichSpotCopy(s, destination.nameZh),
+  )
   // Prefer spots that already have a real paragraph, not one-liners.
-  const rich = ranked.filter((s) => (s.summary?.trim().length ?? 0) >= 28)
-  const list = (rich.length ? rich : ranked).slice(0, compactLimit(highlightSpots))
+  const rich = enriched.filter((s) => (s.summary?.trim().length ?? 0) >= 40)
+  const list = (rich.length ? rich : enriched).slice(
+    0,
+    compactLimit(highlightSpots),
+  )
   return list
 }
 

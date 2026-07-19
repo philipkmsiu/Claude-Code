@@ -36,6 +36,7 @@ import {
   hotelsFromAi,
   nightsFromDays,
   parseDestinationNames,
+  ensureRichSpotCopy,
   scenicSpotsFromAi,
   seasonGuideFromAi,
   seasonKey,
@@ -2177,7 +2178,11 @@ function App() {
             </form>
 
             <div className="spot-grid">
-              {allSpots.map((spot) => {
+              {allSpots.map((rawSpot) => {
+                const spot = ensureRichSpotCopy(
+                  rawSpot,
+                  selectedDestinations[0]?.nameZh || '',
+                )
                 const active = selectedSpotIds.includes(spot.id)
                 const isRed =
                   spot.tags.includes('must') ||

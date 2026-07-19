@@ -628,6 +628,30 @@ const ALLOWED_SPOT_TAGS: SpotTag[] = [
 ]
 
 /** Map Crazyrouter spot suggestions onto ScenicSpot records. */
+/** Expand thin one-liners like「經典必去」into a readable scene note. */
+export function ensureRichSpotCopy(
+  spot: ScenicSpot,
+  destinationName = '',
+): ScenicSpot {
+  const fallback = foodAndGiftsForArea(spot.area, destinationName)
+  let summary = (spot.summary || '').trim()
+  const tooThin =
+    summary.length < 36 ||
+    /經典必去|经典必去|必去。$|好拍。$|紅點。$|聖地。$|代表。$/.test(summary)
+  if (tooThin) {
+    const base = summary.replace(/[。．.]+$/, '')
+    summary = `${spot.name}位於${spot.area}，是認識當地很關鍵的一站。${
+      base ? `${base}。` : ''
+    }建議留足停留與拍照時間，讓建築、氣味與人的節奏有機會進記憶，而不是只留下「打卡過」三個字。`
+  }
+  return {
+    ...spot,
+    summary,
+    nearbyFood: spot.nearbyFood?.trim() || fallback.nearbyFood,
+    souvenirs: spot.souvenirs?.trim() || fallback.souvenirs,
+  }
+}
+
 /** Fallback food / 手信 tips when a spot has none (by city keyword). */
 export function foodAndGiftsForArea(
   area: string,
@@ -1623,28 +1647,314 @@ export const spotTagLabels: Record<SpotTag, string> = {
 }
 
 const kansaiSpots: ScenicSpot[] = [
-  { id: 'osa-dotonbori', name: '道頓堀', nameLocal: '道頓堀', area: '大阪・難波', stayHours: 2, summary: '霓虹與美食的大阪門面，夜晚最華麗。', tags: ['must', 'photo', 'popular', 'food'], ticket: '免費', bestFor: ['solo', 'couple', 'friends', 'family'] },
-  { id: 'osa-shinsaibashi', name: '心齋橋商店街', nameLocal: '心斎橋', area: '大阪・難波', stayHours: 2, summary: '購物主軸，藥妝與潮流品牌集中。', tags: ['shopping', 'popular'], ticket: '免費', bestFor: ['couple', 'friends', 'family'] },
-  { id: 'osa-osakacastle', name: '大阪城', nameLocal: '大阪城', area: '大阪・大阪城', stayHours: 2.5, summary: '天守閣與公園，經典必去。', tags: ['must', 'photo', 'culture'], ticket: '天守閣約 ¥600', bestFor: ['solo', 'couple', 'family', 'friends'] },
-  { id: 'osa-umeda', name: '梅田空中庭園', nameLocal: '空中庭園展望台', area: '大阪・梅田', stayHours: 1.5, summary: '懸空展望台，夜景打卡紅點。', tags: ['photo', 'popular'], ticket: '約 ¥2000', bestFor: ['couple', 'friends'] },
-  { id: 'osa-kuromon', name: '黑門市場', nameLocal: '黒門市場', area: '大阪・難波', stayHours: 1.5, summary: '海鮮與串炸朝食好去處。', tags: ['food', 'popular'], ticket: '餐費自理', bestFor: ['solo', 'couple', 'friends'] },
-  { id: 'osa-shinsekai', name: '新世界・通天閣', nameLocal: '新世界・通天閣', area: '大阪・新世界', stayHours: 2, summary: '復古街区与串炸文化。', tags: ['photo', 'food', 'popular'], ticket: '通天閣另計', bestFor: ['friends', 'couple', 'solo'] },
-  { id: 'osa-universal', name: '環球影城', nameLocal: 'USJ', area: '大阪・此花', stayHours: 9, summary: '主題樂園全日遊，需提早入場。', tags: ['must', 'popular'], ticket: '一日券另計', bestFor: ['family', 'friends', 'couple'] },
-  { id: 'osa-kaiyukan', name: '海遊館', nameLocal: '海遊館', area: '大阪・港區', stayHours: 3, summary: '巨型水族箱，親子友善。', tags: ['popular', 'nature'], ticket: '約 ¥2700', bestFor: ['family', 'couple'] },
-  { id: 'osa-namba-yasaka', name: '難波八阪神社', nameLocal: '難波八阪神社', area: '大阪・難波', stayHours: 0.75, summary: '獅子頭舞台，超好拍。', tags: ['photo', 'culture'], ticket: '免費', bestFor: ['couple', 'friends', 'solo'] },
-  { id: 'osa-teamlab', name: 'teamLab 大阪', nameLocal: 'teamLab', area: '大阪', stayHours: 2, summary: '數位藝術沉浸展，需預約。', tags: ['photo', 'popular'], ticket: '視場次', bestFor: ['couple', 'friends', 'family'] },
-  { id: 'kyo-fushimi', name: '伏見稻荷大社', nameLocal: '伏見稲荷大社', area: '京都・伏見', stayHours: 2.5, summary: '千本鳥居，關西第一打卡紅點。', tags: ['must', 'photo', 'popular', 'culture'], ticket: '免費', bestFor: ['solo', 'couple', 'friends', 'family'] },
-  { id: 'kyo-kiyomizu', name: '清水寺', nameLocal: '清水寺', area: '京都・東山', stayHours: 2, summary: '舞台眺望与二年坂三年坂。', tags: ['must', 'photo', 'culture'], ticket: '約 ¥400', bestFor: ['solo', 'couple', 'family', 'friends'] },
-  { id: 'kyo-gion', name: '祇園・花見小路', nameLocal: '祇園', area: '京都・祇園', stayHours: 2, summary: '黄昏最美，可能巧遇舞妓氛围。', tags: ['must', 'photo', 'culture'], ticket: '免費', bestFor: ['couple', 'solo', 'friends'] },
-  { id: 'kyo-arashiyama', name: '嵐山竹林', nameLocal: '竹林の道', area: '京都・嵐山', stayHours: 3, summary: '竹林、渡月橋，建議早到避人潮。', tags: ['must', 'photo', 'nature'], ticket: '竹林免費', bestFor: ['couple', 'family', 'friends'] },
-  { id: 'kyo-kinkaku', name: '金閣寺', nameLocal: '金閣寺', area: '京都・北區', stayHours: 1.5, summary: '镜湖映金阁，经典必去。', tags: ['must', 'photo', 'culture'], ticket: '約 ¥500', bestFor: ['solo', 'couple', 'family', 'friends'] },
-  { id: 'kyo-nishiki', name: '錦市場', nameLocal: '錦市場', area: '京都・河原町', stayHours: 1.5, summary: '京都廚房，小吃巡礼。', tags: ['food', 'popular'], ticket: '餐費自理', bestFor: ['solo', 'couple', 'friends'] },
-  { id: 'kyo-philosopher', name: '哲學之道', nameLocal: '哲学の道', area: '京都・左京', stayHours: 2, summary: '櫻花季最美散步道。', tags: ['nature', 'photo'], ticket: '免費', bestFor: ['couple', 'solo'] },
-  { id: 'kyo-nijocastle', name: '二条城', nameLocal: '二条城', area: '京都・中京', stayHours: 2, summary: '德川屋敷与夜莺廊下。', tags: ['culture', 'popular'], ticket: '約 ¥800', bestFor: ['couple', 'family', 'friends'] },
-  { id: 'kyo-kimono', name: '和服體驗', nameLocal: '着物体験', area: '京都・東山', stayHours: 3, summary: '穿和服走二年坂，照片超值。', tags: ['photo', 'popular'], ticket: '視套裝', bestFor: ['couple', 'friends'] },
-  { id: 'kyo-ujitea', name: '宇治半日茶體驗', nameLocal: '宇治', area: '京都・宇治', stayHours: 4, summary: '抹茶與平等院，適合加天數時安排。', tags: ['food', 'culture', 'photo'], ticket: '交通+體驗另計', bestFor: ['couple', 'friends', 'solo'] },
-  { id: 'nara-park', name: '奈良公園與鹿', nameLocal: '奈良公園', area: '奈良日遊', stayHours: 5, summary: '餵鹿、東大寺，關西超值日遊。', tags: ['must', 'photo', 'nature'], ticket: '公園免費', bestFor: ['family', 'couple', 'friends'] },
-  { id: 'kobe-harbor', name: '神戶港與牛排', nameLocal: '神戸', area: '神戶日遊', stayHours: 6, summary: '港都風景與神戶牛晚餐。', tags: ['food', 'photo', 'popular'], ticket: '餐費較高', bestFor: ['couple', 'friends'] },
+  {
+    id: 'osa-dotonbori',
+    name: '道頓堀',
+    nameLocal: '道頓堀',
+    area: '大阪・難波',
+    stayHours: 2,
+    summary:
+      '道頓堀是大阪的霓虹心臟：巨型招牌、蒸汽與橋上人群把整條河岸變成夜晚派對。格力高奔跑員看板幾乎成了「我到大阪了」的證明照；建議傍晚後來，吃完再慢慢走橋兩邊，比白天更有戲劇感。',
+    nearbyFood: '章魚燒、螃蟹料理、拉麵與站食壽司；橋邊攤位與餐廳都方便。',
+    souvenirs: '大阪燒／章魚燒相關小物、當地零食、格力高主題明信片。',
+    tags: ['must', 'photo', 'popular', 'food'],
+    ticket: '免費',
+    bestFor: ['solo', 'couple', 'friends', 'family'],
+  },
+  {
+    id: 'osa-shinsaibashi',
+    name: '心齋橋商店街',
+    nameLocal: '心斎橋',
+    area: '大阪・難波',
+    stayHours: 2,
+    summary:
+      '心齋橋是關西購物的主幹道：藥妝、潮流品牌與百貨把整條拱廊街塞滿。它不只是逛街，也是觀察大阪人節奏的好地方；可與道頓堀連走，白天買東西、晚上看霓虹最順。',
+    nearbyFood: '商店街內的可樂餅、迴轉壽司、甜點店；也可靠近美國村找年輕味的簡餐。',
+    souvenirs: '藥妝、面膜、日本零食大禮包、心齋橋限定包裝甜點。',
+    tags: ['shopping', 'popular'],
+    ticket: '免費',
+    bestFor: ['couple', 'friends', 'family'],
+  },
+  {
+    id: 'osa-osakacastle',
+    name: '大阪城',
+    nameLocal: '大阪城',
+    area: '大阪・大阪城',
+    stayHours: 2.5,
+    summary:
+      '大阪城由豐臣秀吉奠定霸業意象，今日天守閣雖為重建，仍是理解「大阪為何敢叫天下廚房」的歷史座標。護城河、石垣與公園四季景色都很上相；上樓看展再走到外圍拍天守倒影，會比只說「經典必去」更有畫面。',
+    nearbyFood: '公園周邊便當、大阪燒店；也可回本町／淀屋橋一帶吃更精緻的定食。',
+    souvenirs: '大阪城天守模型、武士主題明信片、當地饅頭點心。',
+    tags: ['must', 'photo', 'culture'],
+    ticket: '天守閣約 ¥600',
+    bestFor: ['solo', 'couple', 'family', 'friends'],
+  },
+  {
+    id: 'osa-umeda',
+    name: '梅田空中庭園',
+    nameLocal: '空中庭園展望台',
+    area: '大阪・梅田',
+    stayHours: 1.5,
+    summary:
+      '空中庭園把觀景台「懸」在兩棟大樓之間，走上去會有種踩在城市上空的輕微暈眩與快樂。白天看大阪盆地展開，晚上燈光更適合情侶與夜景控；若行程偏難波，也可把它當北大阪的收尾眺望。',
+    nearbyFood: '梅田地下街與百貨美食層選擇超多：拉麵、壽司、甜點都能解決。',
+    souvenirs: '百貨限定甜點、梅田展望台明信片、日本伴手禮專賣店禮盒。',
+    tags: ['photo', 'popular'],
+    ticket: '約 ¥2000',
+    bestFor: ['couple', 'friends'],
+  },
+  {
+    id: 'osa-kuromon',
+    name: '黑門市場',
+    nameLocal: '黒門市場',
+    area: '大阪・難波',
+    stayHours: 1.5,
+    summary:
+      '黑門市場被稱為大阪的廚房：海鮮丼、烤牡蠣、玉子燒與串炸可以一路吃到撐。最適合當朝食或早午餐，邊走邊吃比坐下來點全餐更有市場感；吃飽再出發，整天行程都會比較開心。',
+    nearbyFood: '就在市場裡解決：海鮮丼、烤貝、炸物、水果串；別急著找餐廳。',
+    souvenirs: '海產乾貨、日式調味料、真空包裝熟食（注意海關規定）。',
+    tags: ['food', 'popular'],
+    ticket: '餐費自理',
+    bestFor: ['solo', 'couple', 'friends'],
+  },
+  {
+    id: 'osa-shinsekai',
+    name: '新世界・通天閣',
+    nameLocal: '新世界・通天閣',
+    area: '大阪・新世界',
+    stayHours: 2,
+    summary:
+      '新世界保留昭和復古气味：通天閣、霓虹與串炸店把「老派大阪」濃縮在幾條街。這裡不像心齋橋那麼光鮮，卻更有庶民溫度；點一盤串炸配啤酒，會突然懂大阪人為什麼那麼會玩。',
+    nearbyFood: '串炸是王道，另有咖哩、拉麵；通天閣周邊店家密度很高。',
+    souvenirs: '通天閣模型、串炸主題小物、復古大阪明信片。',
+    tags: ['photo', 'food', 'popular'],
+    ticket: '通天閣另計',
+    bestFor: ['friends', 'couple', 'solo'],
+  },
+  {
+    id: 'osa-universal',
+    name: '環球影城',
+    nameLocal: 'USJ',
+    area: '大阪・此花',
+    stayHours: 9,
+    summary:
+      '環球影城是關西最吃體力的全日行程：熱門設施與遊行會把一天塞得滿滿的。建議早入場、先攻必玩項目，中午再慢慢吃園區餐；把它獨立成一天，比硬塞進大阪城＋道頓堀同一天舒服太多。',
+    nearbyFood: '園區主題餐廳與快速餐；出園後也可回難波補一頓章魚燒。',
+    souvenirs: '園區限定公仔、權杖、主題零食——行李箱要預留空間。',
+    tags: ['must', 'popular'],
+    ticket: '一日券另計',
+    bestFor: ['family', 'friends', 'couple'],
+  },
+  {
+    id: 'osa-kaiyukan',
+    name: '海遊館',
+    nameLocal: '海遊館',
+    area: '大阪・港區',
+    stayHours: 3,
+    summary:
+      '海遊館以巨大水族箱著稱，鯨鯊悠游的那面牆常常讓大人小孩一起安靜下來。港區氣氛與難波不同，較適合想換節奏、避開純逛街的半日；雨天或大熱天尤其友善。',
+    nearbyFood: '館內餐廳或港區商場簡餐；也可搭配天保山一帶的觀光餐。',
+    souvenirs: '海洋生物娃娃、海遊館限定文具、水族館主題零食。',
+    tags: ['popular', 'nature'],
+    ticket: '約 ¥2700',
+    bestFor: ['family', 'couple'],
+  },
+  {
+    id: 'osa-namba-yasaka',
+    name: '難波八阪神社',
+    nameLocal: '難波八阪神社',
+    area: '大阪・難波',
+    stayHours: 0.75,
+    summary:
+      '難波八阪神社以巨大獅子頭舞台聞名，張開的大口像要把整年霉運吞掉。它就在難波生活圈裡，很適合當道頓堀行程的「文化小插曲」：拍完照再鑽回美食街，節奏剛剛好。',
+    nearbyFood: '回難波／道頓堀繼續吃章魚燒或拉麵即可。',
+    souvenirs: '神社御守、獅子頭明信片。',
+    tags: ['photo', 'culture'],
+    ticket: '免費',
+    bestFor: ['couple', 'friends', 'solo'],
+  },
+  {
+    id: 'osa-teamlab',
+    name: 'teamLab 大阪',
+    nameLocal: 'teamLab',
+    area: '大阪',
+    stayHours: 2,
+    summary:
+      'teamLab 用光影與互動裝置把展覽變成可走進去的夢境，很適合想拍抽象美照、又想躲雨的時段。務必提前預約場次；進去後放慢腳步，讓投影跟著你移動，比趕打卡清單更值得。',
+    nearbyFood: '依場館周邊商場或車站美食街解決；結束後可接難波晚餐。',
+    souvenirs: '展覽周邊海報、明信片、設計小物。',
+    tags: ['photo', 'popular'],
+    ticket: '視場次',
+    bestFor: ['couple', 'friends', 'family'],
+  },
+  {
+    id: 'kyo-fushimi',
+    name: '伏見稻荷大社',
+    nameLocal: '伏見稲荷大社',
+    area: '京都・伏見',
+    stayHours: 2.5,
+    summary:
+      '伏見稻荷的千本鳥居像一道朱紅色隧道，越往上走人越少、山越靜。它是稻荷信仰的總本宮，也是關西最有「我會記住這趟日本」的畫面之一；建議清晨或傍晚去，避開正午旅行團洪流。',
+    nearbyFood: '鳥居口的稻荷壽司、抹茶冰淇淋、烤糰子；山上也有簡陋茶屋。',
+    souvenirs: '狐狸御守、稻荷主題明信片、朱紅色小物。',
+    tags: ['must', 'photo', 'popular', 'culture'],
+    ticket: '免費',
+    bestFor: ['solo', 'couple', 'friends', 'family'],
+  },
+  {
+    id: 'kyo-kiyomizu',
+    name: '清水寺',
+    nameLocal: '清水寺',
+    area: '京都・東山',
+    stayHours: 2,
+    summary:
+      '清水寺的木造舞台懸在山邊，向外一看是京都盆地與四季山景。搭配二年坂、三年坂的石階與茶舖，整段路幾乎是「京都刻板印象精華輯」；慢慢走比急著拍舞台更舒服，膝蓋也會感謝你。',
+    nearbyFood: '二年坂的抹茶甜點、豆腐料理、串糰；也可找京豆腐定食。',
+    souvenirs: '清水燒風格小物、和紙、抹茶菓子、扇子。',
+    tags: ['must', 'photo', 'culture'],
+    ticket: '約 ¥400',
+    bestFor: ['solo', 'couple', 'family', 'friends'],
+  },
+  {
+    id: 'kyo-gion',
+    name: '祇園・花見小路',
+    nameLocal: '祇園',
+    area: '京都・祇園',
+    stayHours: 2,
+    summary:
+      '祇園在黃昏時最美：石板路、町家燈籠，偶而會瞥見去上班的舞妓身影。請保持距離、不要追拍；把這裡當成「京都夜生活的序章」，走到建仁寺或鴨川旁坐一下，氣氛會自己長出來。',
+    nearbyFood: '京料理、甜酒、抹茶甜點；預算高可挑戰懷石，平價也可吃烏龍麵。',
+    souvenirs: '和風雜貨、香味小物、祇園燈籠主題明信片。',
+    tags: ['must', 'photo', 'culture'],
+    ticket: '免費',
+    bestFor: ['couple', 'solo', 'friends'],
+  },
+  {
+    id: 'kyo-arashiyama',
+    name: '嵐山竹林',
+    nameLocal: '竹林の道',
+    area: '京都・嵐山',
+    stayHours: 3,
+    summary:
+      '嵐山竹林的光線會被竹葉切成細細的綠，走進去像暫時離開觀光噪音。渡月橋、天龍寺與小火車可連成半日；一定要早到，十點後人潮會把「幽靜」換成「排隊拍照」。',
+    nearbyFood: '湯豆腐、京生麩、竹筒飯與沿途茶屋；橋邊也有烤糰子。',
+    souvenirs: '竹製小物、抹茶點心、嵐山風景明信片。',
+    tags: ['must', 'photo', 'nature'],
+    ticket: '竹林免費',
+    bestFor: ['couple', 'family', 'friends'],
+  },
+  {
+    id: 'kyo-kinkaku',
+    name: '金閣寺',
+    nameLocal: '金閣寺',
+    area: '京都・北區',
+    stayHours: 1.5,
+    summary:
+      '金閣寺（鹿苑寺）以金箔包覆的舍利殿倒映鏡湖，是足利義滿留下的北山文化象徵。陽光一出來整座樓像被點燃；人雖多，但走到鏡湖最佳角度停半分鐘，仍會明白它為什麼能當京都名片——遠比「經典必去」四個字有重量。',
+    nearbyFood: '寺外茶屋的抹茶與和果子；也可回北大路一帶吃京定食。',
+    souvenirs: '金閣造型擺飾、金箔點心、寺廟印章御朱印相關小物。',
+    tags: ['must', 'photo', 'culture'],
+    ticket: '約 ¥500',
+    bestFor: ['solo', 'couple', 'family', 'friends'],
+  },
+  {
+    id: 'kyo-nishiki',
+    name: '錦市場',
+    nameLocal: '錦市場',
+    area: '京都・河原町',
+    stayHours: 1.5,
+    summary:
+      '錦市場被稱作京都的廚房：漬物、烤海鮮、玉子燒與甜酒舖把窄巷塞得熱鬧又香。最適合邊走邊吃當早午餐，順便觀察京都日常的食物節奏；吃完再轉河原町或二条，動線很順。',
+    nearbyFood: '市場內一路串吃即可：烤子持、豆腐甜點、牛肉串、抹茶甜品。',
+    souvenirs: '京漬物、茶葉、日式調味料、和果子禮盒。',
+    tags: ['food', 'popular'],
+    ticket: '餐費自理',
+    bestFor: ['solo', 'couple', 'friends'],
+  },
+  {
+    id: 'kyo-philosopher',
+    name: '哲學之道',
+    nameLocal: '哲学の道',
+    area: '京都・左京',
+    stayHours: 2,
+    summary:
+      '哲學之道沿著疏水慢慢延伸，櫻花季會變成粉色隧道，平常則是適合放空的散步線。可接銀閣寺或南禪寺；別排太滿，讓這段路當「京都的呼吸時間」，照片反而會更好看。',
+    nearbyFood: '道旁咖啡、豆腐甜點、抹茶霜淇淋。',
+    souvenirs: '手作小物、京都風景明信片、茶點。',
+    tags: ['nature', 'photo'],
+    ticket: '免費',
+    bestFor: ['couple', 'solo'],
+  },
+  {
+    id: 'kyo-nijocastle',
+    name: '二条城',
+    nameLocal: '二条城',
+    area: '京都・中京',
+    stayHours: 2,
+    summary:
+      '二条城是德川家在京都的權力舞台，鶯廊（鶯張り）踩起來會發出防刺客的聲響。比起神社的空靈，這裡更像走進歷史劇布景；看完障壁畫再逛園，會對江戶與京都的關係更有感覺。',
+    nearbyFood: '城外咖啡館或二條車站一帶定食；也可轉往錦市場吃。',
+    souvenirs: '城郭明信片、歷史主題書籤、京都地圖小物。',
+    tags: ['culture', 'popular'],
+    ticket: '約 ¥800',
+    bestFor: ['couple', 'family', 'friends'],
+  },
+  {
+    id: 'kyo-kimono',
+    name: '和服體驗',
+    nameLocal: '着物体験',
+    area: '京都・東山',
+    stayHours: 3,
+    summary:
+      '穿上和服走二年坂、產寧坂，石階與振袖會把照片氣質直接拉高。這不是「多一個景點」，而是讓你用身體參與京都街景；選早上光線柔和時段，並預留上廁所與休息的時間。',
+    nearbyFood: '穿著和服適合吃甜點、茶屋輕食，避免太油或難收拾的餐。',
+    souvenirs: '和風髮飾、手帕、體驗店聯名小物。',
+    tags: ['photo', 'popular'],
+    ticket: '視套裝',
+    bestFor: ['couple', 'friends'],
+  },
+  {
+    id: 'kyo-ujitea',
+    name: '宇治半日茶體驗',
+    nameLocal: '宇治',
+    area: '京都・宇治',
+    stayHours: 4,
+    summary:
+      '宇治是日本抹茶文化的重要產地，平等院鳳凰堂又把平安王朝的優雅留在水邊。半日行程很適合「加一天也不後悔」：喝茶、吃抹茶甜品、看鳳凰堂，節奏比京都市中心更鬆。',
+    nearbyFood: '抹茶芭菲、茶蕎麥麵、平等院表參道的茶點心。',
+    souvenirs: '宇治茶、抹茶粉、茶菓禮盒。',
+    tags: ['food', 'culture', 'photo'],
+    ticket: '交通+體驗另計',
+    bestFor: ['couple', 'friends', 'solo'],
+  },
+  {
+    id: 'nara-park',
+    name: '奈良公園與鹿',
+    nameLocal: '奈良公園',
+    area: '奈良日遊',
+    stayHours: 5,
+    summary:
+      '奈良公園的鹿會直接向你鞠躬討仙貝，東大寺大佛則把「奈良曾是都城」的尺度一下子推到眼前。這是關西性價比很高的日遊：餵鹿、看大佛、逛商店街，一天就能帶走柔軟又震撼的記憶。',
+    nearbyFood: '鹿仙貝（給鹿）、柿葉壽司、茶粥與商店街小吃。',
+    souvenirs: '鹿主題點心、奈良墨、東大寺明信片。',
+    tags: ['must', 'photo', 'nature'],
+    ticket: '公園免費',
+    bestFor: ['family', 'couple', 'friends'],
+  },
+  {
+    id: 'kobe-harbor',
+    name: '神戶港與牛排',
+    nameLocal: '神戸',
+    area: '神戶日遊',
+    stayHours: 6,
+    summary:
+      '神戶把港都風與洋風街景疊在一起，夜景與牛排是最經典的組合。白天可走北野異人館或港口，晚上為神戶牛留預算與胃口；它很適合當大阪的「精緻一日出走」。',
+    nearbyFood: '神戶牛牛排是招牌，也有可樂餅、點心與港區咖啡。',
+    souvenirs: '神戶紅茶、風月堂戈爾芙甜點、港口主題禮盒。',
+    tags: ['food', 'photo', 'popular'],
+    ticket: '餐費較高',
+    bestFor: ['couple', 'friends'],
+  },
 ]
 
 export const destinations: Destination[] = [
@@ -1656,9 +1966,9 @@ export const destinations: Destination[] = [
     nameLocal: '関西',
     tagline: '對應 AI 行程範例：城市活力 × 古都氛圍',
     intro:
-      '大阪負責吃與節奏，京都負責歷史與打卡；中間可加奈良或神戶。這是 PDF 實際範例的核心組合，適合第一次去日本關西的旅人。',
+      '大阪負責吃與節奏，京都負責歷史與打卡；中間可加奈良餵鹿或神戶看港景吃牛排。這是第一次去日本關西最穩的組合：白天讓古都與城郭進眼睛，晚上把霓虹與串炸留給肚子。',
     background:
-      '關西是日本歷史與庶民文化交會之處：京都長期作為古都，神社佛閣與四季景色深厚；大阪則以商人城市聞名，吃喝與街頭活力特別強。兩城互補，是第一次去日本最容易愛上的組合。',
+      '關西是日本歷史與庶民文化交會之處：京都長期作為古都，神社佛閣、町家與四季景色把「日本印象」濃縮得特別清楚；大阪則以商人城市聞名，吃喝、招牌與街頭活力特別強。兩城互補——一個讓你慢下來看細節，一個讓你跟著人潮開心起來——所以特別適合第一次到訪的旅人。',
     memorable: [
       '伏見稻荷的千本鳥居像一道朱紅色隧道，走進去會有種「怎麼還沒走完」的快樂迷路感。',
       '道頓堀夜晚招牌與蒸汽一起冒，章魚燒剛出爐時，整條橋都像在開派對。',
@@ -1987,14 +2297,14 @@ export const destinations: Destination[] = [
       },
     ],
     spots: [
-      { id: 'tpe-101', name: '台北101', nameLocal: '台北101', area: '信義', stayHours: 2, summary: '城市地標，展望或商場都可。', tags: ['must', 'photo', 'popular'], ticket: '展望另計', bestFor: ['couple', 'family', 'friends'] },
-      { id: 'tpe-palace', name: '故宮博物院', nameLocal: '國立故宮博物院', area: '士林', stayHours: 3, summary: '文化深度第一站。', tags: ['must', 'culture'], ticket: '約 NT$350', bestFor: ['solo', 'couple', 'family'] },
-      { id: 'tpe-shilin', name: '士林夜市', nameLocal: '士林夜市', area: '士林', stayHours: 2, summary: '夜市入門代表。', tags: ['food', 'popular'], ticket: '餐費自理', bestFor: ['friends', 'family', 'couple'] },
-      { id: 'tpe-jiufen', name: '九份老街', nameLocal: '九份', area: '日遊', stayHours: 5, summary: '山城燈火，經典日遊。', tags: ['must', 'photo', 'popular'], ticket: '交通另計', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'tpe-101', name: '台北101', nameLocal: '台北101', area: '信義', stayHours: 2, summary: '台北101是城市天際線的驚嘆號，展望台與商場把觀光與日常購物疊在同一座樓。不一定非上看台，站在廣場仰望玻璃帷幕切光，也已經很台北；傍晚燈光亮起時更適合拍照。', nearbyFood: '信義區百貨美食、牛肉麵與甜點名店。', souvenirs: '101主題伴手禮、台灣茶點、鳳梨酥禮盒。', tags: ['must', 'photo', 'popular'], ticket: '展望另計', bestFor: ['couple', 'family', 'friends'] },
+      { id: 'tpe-palace', name: '故宮博物院', nameLocal: '國立故宮博物院', area: '士林', stayHours: 3, summary: '故宮把中華文物的長河收進士林山腳，翠玉白菜與肉形石只是最出名的兩件。建議挑一兩個朝代或主題深看，比走馬看花更能帶走「原來歷史可以這麼近」的感覺。', nearbyFood: '故宮晶華或士林周邊簡餐、小籠包。', souvenirs: '故宮文創、書籤、文物複製小物。', tags: ['must', 'culture'], ticket: '約 NT$350', bestFor: ['solo', 'couple', 'family'] },
+      { id: 'tpe-shilin', name: '士林夜市', nameLocal: '士林夜市', area: '士林', stayHours: 2, summary: '士林夜市是很多人的台灣第一夜：胡椒餅、大餅包小餅、豪大大雞排與人潮一起上桌。吵、熱、香，卻也很誠實——想認識台北的夜晚胃口，從這裡開始最直覺。', nearbyFood: '胡椒餅、雞排、蚵仔煎、飲料攤一路吃。', souvenirs: '台灣零食、鳳梨酥、伴手禮街的茶點。', tags: ['food', 'popular'], ticket: '餐費自理', bestFor: ['friends', 'family', 'couple'] },
+      { id: 'tpe-jiufen', name: '九份老街', nameLocal: '九份', area: '日遊', stayHours: 5, summary: '九份山城在霧氣與燈籠裡特別像老電影，階梯茶館與海景是日遊經典。傍晚留下看燈火會亮起來的瞬間，比中午只拍老街招牌更值得；回程留意交通尖峰。', nearbyFood: '芋圓、魚丸湯、草仔粿與茶館茶點。', souvenirs: '茶葉、九份明信片、花生糖。', tags: ['must', 'photo', 'popular'], ticket: '交通另計', bestFor: ['couple', 'friends', 'family'] },
       { id: 'tpe-beitou', name: '北投溫泉', nameLocal: '北投', area: '北投', stayHours: 3, summary: '泡湯放空日。', tags: ['nature', 'popular'], ticket: '視湯屋', bestFor: ['couple', 'family'] },
-      { id: 'tpe-danshui', name: '淡水河岸', nameLocal: '淡水', area: '淡水', stayHours: 3, summary: '夕陽與老街。', tags: ['photo', 'food'], ticket: '免費', bestFor: ['couple', 'friends', 'family'] },
-      { id: 'tpe-longshan', name: '龍山館與剝皮寮', nameLocal: '龍山寺', area: '萬華', stayHours: 2, summary: '老台北巷弄。', tags: ['culture', 'photo'], ticket: '免費', bestFor: ['solo', 'couple'] },
-      { id: 'tpe-elephant', name: '象山步道', nameLocal: '象山', area: '信義', stayHours: 2, summary: '101 景觀打卡紅點。', tags: ['photo', 'nature', 'must'], ticket: '免費', bestFor: ['couple', 'friends', 'solo'] },
+      { id: 'tpe-danshui', name: '淡水河岸', nameLocal: '淡水', area: '淡水', stayHours: 3, summary: '淡水河岸把夕陽、漁人碼頭與老街小吃串成半日旅程。風大時很舒服，鐵蛋與阿給是記憶體味道；適合當市區行程的藍色收尾。', nearbyFood: '阿給、鐵蛋、魚酥與河岸邊小吃。', souvenirs: '鐵蛋、魚酥、淡水花生糖。', tags: ['photo', 'food'], ticket: '免費', bestFor: ['couple', 'friends', 'family'] },
+      { id: 'tpe-longshan', name: '龍山館與剝皮寮', nameLocal: '龍山寺', area: '萬華', stayHours: 2, summary: '龍山寺香火鼎盛，隔壁剝皮寮則把老台北巷弄保存成可散步的時光膠囊。宗教、市井與電影感街景擠在同一區，很適合慢慢晃，不要只站門口拍張照就走。', nearbyFood: '華西街小吃、蚵仔麵線、藥燉排骨。', souvenirs: '文創小物、台灣茶、香火相關平安符（看需求）。', tags: ['culture', 'photo'], ticket: '免費', bestFor: ['solo', 'couple'] },
+      { id: 'tpe-elephant', name: '象山步道', nameLocal: '象山', area: '信義', stayHours: 2, summary: '象山步道不長，卻能把101放進最經典的前景構圖裡。夕陽前上樓，城市燈火一盞盞亮，會懂為什麼大家願意為這張照片爬山；請穿防滑鞋，階梯比想像陡。', nearbyFood: '下山後信義區火鍋、牛肉麵或百貨美食。', souvenirs: '台北天際線明信片、台灣設計小物。', tags: ['photo', 'nature', 'must'], ticket: '免費', bestFor: ['couple', 'friends', 'solo'] },
       { id: 'tpe-dihua', name: '迪化街', nameLocal: '迪化街', area: '大同', stayHours: 2, summary: '年貨與選物。', tags: ['shopping', 'culture'], ticket: '免費', bestFor: ['solo', 'couple', 'friends'] },
       { id: 'tpe-raohe', name: '饒河夜市', nameLocal: '饒河街夜市', area: '松山', stayHours: 1.5, summary: '較好逛的夜市之一。', tags: ['food', 'popular'], ticket: '餐費自理', bestFor: ['friends', 'couple'] },
       { id: 'tpe-maokong', name: '貓空纜車', nameLocal: '貓空', area: '文山', stayHours: 3, summary: '茶園與夜景。', tags: ['nature', 'photo'], ticket: '纜車另計', bestFor: ['couple', 'family'] },
@@ -2072,11 +2382,11 @@ export const destinations: Destination[] = [
       },
     ],
     spots: [
-      { id: 'sel-gyeongbok', name: '景福宮', nameLocal: '경복궁', area: '鐘路', stayHours: 2.5, summary: '首爾第一宮殿，可配韓服。', tags: ['must', 'photo', 'culture'], ticket: '約 ₩3000', bestFor: ['couple', 'family', 'friends', 'solo'] },
-      { id: 'sel-bukchon', name: '北村韓屋村', nameLocal: '북촌', area: '鐘路', stayHours: 2, summary: '韓屋巷弄打卡紅點。', tags: ['must', 'photo', 'popular'], ticket: '免費', bestFor: ['couple', 'friends', 'solo'] },
-      { id: 'sel-myeongdong', name: '明洞購物', nameLocal: '명동', area: '明洞', stayHours: 2.5, summary: '藥妝與街頭美食。', tags: ['shopping', 'food', 'popular'], ticket: '免費', bestFor: ['friends', 'couple', 'family'] },
-      { id: 'sel-hongdae', name: '弘大', nameLocal: '홍대', area: '弘大', stayHours: 2.5, summary: '年輕街頭、酒吧與選物。', tags: ['shopping', 'food', 'popular'], ticket: '免費', bestFor: ['friends', 'solo', 'couple'] },
-      { id: 'sel-dongdaemun', name: '東大門設計廣場', nameLocal: 'DDP', area: '東大門', stayHours: 2, summary: '建築與夜景。', tags: ['photo', 'shopping'], ticket: '免費', bestFor: ['couple', 'friends'] },
+      { id: 'sel-gyeongbok', name: '景福宮', nameLocal: '경복궁', area: '鐘路', stayHours: 2.5, summary: '景福宮是朝鮮王朝的正宮，石道與宮殿屋簷把首爾的舊日秩序攤在陽光下。穿韓服走進光化門軸線，儀式感會自己出現；若遇守衛換班儀式，整段歷史會突然變得很有聲音。', nearbyFood: '宮外參雞湯、拌飯與韓定食。', souvenirs: '宮廷主題文具、韓式甜點、傳統小物。', tags: ['must', 'photo', 'culture'], ticket: '約 ₩3000', bestFor: ['couple', 'family', 'friends', 'solo'] },
+      { id: 'sel-bukchon', name: '北村韓屋村', nameLocal: '북촌', area: '鐘路', stayHours: 2, summary: '北村韓屋村把坡道、瓦片與咖啡店疊成首爾最上相的巷弄之一。請小聲走路、尊重住戶；在晨光或黃昏拍到的屋脊線，會比正午擁擠時更有溫度。', nearbyFood: '韓屋咖啡、糕點、附近的豆腐鍋與鍋飯。', souvenirs: '韓屋明信片、手作飾品、傳統布藝小物。', tags: ['must', 'photo', 'popular'], ticket: '免費', bestFor: ['couple', 'friends', 'solo'] },
+      { id: 'sel-myeongdong', name: '明洞購物', nameLocal: '명동', area: '明洞', stayHours: 2.5, summary: '明洞是藥妝、街頭美食與品牌旗艦的漩渦，入夜後霓虹更密。不一定要買到行李爆炸，嘗一輪街頭炸雞與糖餅，也能摸到首爾最熱鬧的一層皮膚。', nearbyFood: '街頭糖餅、炸雞、紫菜包飯與韓式烤肉。', souvenirs: '藥妝、面膜、韓系零食禮盒。', tags: ['shopping', 'food', 'popular'], ticket: '免費', bestFor: ['friends', 'couple', 'family'] },
+      { id: 'sel-hongdae', name: '弘大', nameLocal: '홍대', area: '弘大', stayHours: 2.5, summary: '弘大聚集大學生、街頭表演與獨立店鋪，晚上比白天更有精神。適合想感受年輕首爾的人：聽一場街頭演唱，再鑽進小酒吧或義式簡餐。', nearbyFood: '年糕、炸雞、義式餐與啤酒酒吧。', souvenirs: '獨立品牌飾品、文具、韓流周邊。', tags: ['shopping', 'food', 'popular'], ticket: '免費', bestFor: ['friends', 'solo', 'couple'] },
+      { id: 'sel-dongdaemun', name: '東大門設計廣場', nameLocal: 'DDP', area: '東大門', stayHours: 2, summary: '東大門把設計廣場的曲線建築與深夜服飾批發能量放在一起，是「首爾不睡覺」的代表性區域。建築本身就值得拍，購物則看你的體力與行李額度。', nearbyFood: '深夜韓食、湯飯、街上小吃。', souvenirs: '服飾、襪子、設計小物。', tags: ['photo', 'shopping'], ticket: '免費', bestFor: ['couple', 'friends'] },
       { id: 'sel-namsan', name: '南山塔', nameLocal: 'N서울타워', area: '南山', stayHours: 2, summary: '夜景戀鎖經典。', tags: ['must', 'photo', 'popular'], ticket: '展望另計', bestFor: ['couple', 'friends'] },
       { id: 'sel-insadong', name: '仁寺洞', nameLocal: '인사동', area: '鐘路', stayHours: 2, summary: '傳統小物與茶館。', tags: ['culture', 'shopping'], ticket: '免費', bestFor: ['solo', 'couple', 'family'] },
       { id: 'sel-market', name: '廣藏市場', nameLocal: '광장시장', area: '鐘路', stayHours: 1.5, summary: '韭菜煎餅與肉粽小吃。', tags: ['food', 'must'], ticket: '餐費自理', bestFor: ['solo', 'friends', 'couple'] },
