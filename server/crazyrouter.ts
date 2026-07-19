@@ -248,12 +248,124 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
   }
 }
 
+async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(await readBody(req)) as {
+      destinationName?: string
+      pace?: string
+      companions?: string
+      specialNeeds?: string[]
+      days?: number
+    }
+
+    const destinationName = payload.destinationName?.trim()
+    if (!destinationName) {
+      sendJson(res, 400, { error: 'destinationName is required' })
+      return
+    }
+
+    const content = await chatCompletion([
+      {
+        role: 'system',
+        content: `你是專業旅遊規劃 AI，熟悉各地真實景點與動線。
+請為指定目的地推薦「真實存在、可造訪」的景點清單。
+只回傳 JSON：
+{
+  "intro": string,
+  "spots": [
+    {
+      "name": string,
+      "nameLocal": string,
+      "area": string,
+      "stayHours": number,
+      "summary": string,
+      "tags": ("must"|"photo"|"popular"|"culture"|"nature"|"food"|"shopping")[],
+      "ticket": string
+    }
+  ]
+}
+硬性規則：
+- 必須給 14–20 個景點
+- name 必須是真實景點／街區／體驗名稱（例如「立山黑部阿爾卑斯路線」「富山市玻璃美術館」）
+- 禁止空泛類別名，例如「經典地標」「老城／歷史區」「觀景／打卡點」「在地美食區」「近郊日遊」
+- 禁止把目的地名稱直接串成「XX經典地標」這種模板
+- tags 至少要有意義；必去用 must，打卡用 photo
+- stayHours 用 1–9 的數字（全日近郊可 7–9）
+- area 用實際區域／基地（如「立山」「富山市區」「高岡」「冰見」）
+- intro / summary / ticket 用繁體中文，簡潔可執行
+- 覆蓋：必去、自然、文化、美食、打卡、近郊；依目的地真實特色調整
+- 不要 Markdown`,
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          destinationName,
+          pace: payload.pace ?? 'balanced',
+          companions: payload.companions ?? 'friends',
+          specialNeeds: payload.specialNeeds ?? [],
+          plannedDays: payload.days ?? null,
+          ask: '請列出這個旅程真正該去的真實景點，不要給類別模板。',
+        }),
+      },
+    ], 0.4)
+
+    const parsed = extractJson(content) as {
+      intro?: string
+      spots?: {
+        name?: string
+        nameLocal?: string
+        area?: string
+        stayHours?: number
+        summary?: string
+        tags?: string[]
+        ticket?: string
+      }[]
+    }
+
+    const spots = Array.isArray(parsed.spots) ? parsed.spots : []
+    if (spots.length < 8) {
+      throw new Error('AI returned too few real spots.')
+    }
+
+    sendJson(res, 200, {
+      source: 'crazyrouter',
+      intro: parsed.intro || '',
+      spots: spots.map((spot) => ({
+        name: String(spot.name || '').trim(),
+        nameLocal: String(spot.nameLocal || spot.name || '').trim(),
+        area: String(spot.area || '市區').trim(),
+        stayHours: Number(spot.stayHours) || 2,
+        summary: String(spot.summary || '').trim(),
+        tags: Array.isArray(spot.tags) ? spot.tags : [],
+        ticket: String(spot.ticket || '視當地而定').trim(),
+      })),
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'AI suggest-spots failed',
+    })
+  }
+}
+
 function attachRoutes(middlewares: Connect.Server) {
   middlewares.use('/api/ai/recommend-days', (req, res, next) => {
     handleRecommendDays(req, res).catch(next)
   })
   middlewares.use('/api/ai/review-plan', (req, res, next) => {
     handleReviewPlan(req, res).catch(next)
+  })
+  middlewares.use('/api/ai/suggest-spots', (req, res, next) => {
+    handleSuggestSpots(req, res).catch(next)
   })
 }
 

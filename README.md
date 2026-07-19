@@ -20,6 +20,7 @@ Required env (see `.env.example`):
 Endpoints:
 
 - `POST /api/ai/recommend-days` — AI day advice when you enter preferences
+- `POST /api/ai/suggest-spots` — real named attractions for the destination (not category templates)
 - `POST /api/ai/review-plan` — AI review of selected spots vs chosen days
 
 Use `npm run dev` or `npm run preview` so the proxy is available.
@@ -39,7 +40,7 @@ Or type your own length (2–21 days). On the spots/result steps, AI checks whet
 1. Destination  
 2. Days + trip conditions (AI day review)  
 3. Hotel style  
-4. Spot picker (AI fit review)  
+4. Spot picker (AI real spots + fit review)  
 5. Generate / regenerate itinerary  
 
 ## Develop

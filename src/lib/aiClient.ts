@@ -18,6 +18,22 @@ export type AiPlanReview = {
   adjustments: string[]
 }
 
+export type AiSuggestedSpot = {
+  name: string
+  nameLocal: string
+  area: string
+  stayHours: number
+  summary: string
+  tags: string[]
+  ticket: string
+}
+
+export type AiSpotSuggestion = {
+  source: 'crazyrouter'
+  intro: string
+  spots: AiSuggestedSpot[]
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
     method: 'POST',
@@ -60,4 +76,14 @@ export function reviewPlanWithAi(input: {
   }
 }): Promise<AiPlanReview> {
   return postJson('/api/ai/review-plan', input)
+}
+
+export function suggestSpotsWithAi(input: {
+  destinationName: string
+  pace: string
+  companions: string
+  specialNeeds: string[]
+  days?: number
+}): Promise<AiSpotSuggestion> {
+  return postJson('/api/ai/suggest-spots', input)
 }

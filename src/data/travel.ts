@@ -255,6 +255,75 @@ export function inferCustomTripProfile(name: string): {
   }
 }
 
+const GENERIC_SPOT_NAME =
+  /經典地標|老城／歷史區|觀景／打卡點|在地美食區|博物館／藝文|公園／自然|購物街|近郊日遊|隱藏巷弄|咖啡／甜點|特色體驗|自由彈性點|第二地標|展望台|親子／室內備案|機場／車站周邊/
+
+/** True when spots still look like category templates, not real places. */
+export function destinationNeedsAiSpots(destination: Destination): boolean {
+  if (destination.spots.some((spot) => spot.id.startsWith('ai-spot-'))) return false
+  if (!destination.spots.length) return true
+  if (destination.id.startsWith('custom-')) return true
+  const genericCount = destination.spots.filter(
+    (spot) =>
+      spot.id.startsWith('custom-spot-') ||
+      GENERIC_SPOT_NAME.test(spot.name) ||
+      spot.name.startsWith(`${destination.nameZh}經典`) ||
+      spot.name.startsWith(`${destination.nameZh}老城`) ||
+      spot.name.startsWith(`${destination.nameZh}觀景`),
+  ).length
+  return genericCount >= Math.min(6, destination.spots.length)
+}
+
+const ALLOWED_SPOT_TAGS: SpotTag[] = [
+  'must',
+  'photo',
+  'popular',
+  'culture',
+  'nature',
+  'food',
+  'shopping',
+]
+
+/** Map Crazyrouter spot suggestions onto ScenicSpot records. */
+export function scenicSpotsFromAi(
+  place: string,
+  suggestions: {
+    name: string
+    nameLocal?: string
+    area?: string
+    stayHours?: number
+    summary?: string
+    tags?: string[]
+    ticket?: string
+  }[],
+): ScenicSpot[] {
+  const stamp = Date.now().toString(36)
+  const spots: ScenicSpot[] = []
+  suggestions.forEach((item, index) => {
+    const name = item.name?.trim()
+    if (!name || GENERIC_SPOT_NAME.test(name)) return
+    const tags = (item.tags || []).filter((tag): tag is SpotTag =>
+      ALLOWED_SPOT_TAGS.includes(tag as SpotTag),
+    )
+    const stayHours = Number(item.stayHours)
+    spots.push({
+      id: `ai-spot-${slugifyDestination(place)}-${stamp}-${index + 1}`,
+      name,
+      nameLocal: item.nameLocal?.trim() || name,
+      area: item.area?.trim() || '市區',
+      stayHours:
+        Number.isFinite(stayHours) && stayHours > 0
+          ? Math.min(10, Math.max(1, stayHours))
+          : 2,
+      summary: item.summary?.trim() || `${name}：值得安排的在地行程。`,
+      tags: tags.length ? tags : (['popular'] as SpotTag[]),
+      ticket: item.ticket?.trim() || '視當地而定',
+      bestFor: ['solo', 'couple', 'family', 'friends'] as Companion[],
+    })
+  })
+  return spots
+}
+
 /** Build a plannable destination from a user-typed place name. */
 export function createCustomDestination(rawName: string): Destination {
   const name = rawName.trim()

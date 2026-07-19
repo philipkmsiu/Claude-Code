@@ -11,12 +11,14 @@ import {
   createCustomSpot,
   daysBetween,
   defaultSelectedSpotIds,
+  destinationNeedsAiSpots,
   destinations as presetDestinations,
   findKnownDestination,
   hotelStyles,
   hotelsForStyle,
   nightsFromDays,
   parseDestinationNames,
+  scenicSpotsFromAi,
   seasonKey,
   specialNeedOptions,
   spotTagLabels,
@@ -31,6 +33,7 @@ import { FreeTextField } from './components/FreeTextField'
 import {
   recommendDaysWithAi,
   reviewPlanWithAi,
+  suggestSpotsWithAi,
   type AiDayRecommendation,
   type AiPlanReview,
 } from './lib/aiClient'
@@ -71,9 +74,14 @@ function App() {
   const [aiReview, setAiReview] = useState<AiPlanReview | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiReviewLoading, setAiReviewLoading] = useState(false)
+  const [aiSpotsLoading, setAiSpotsLoading] = useState(false)
+  const [aiSpotsError, setAiSpotsError] = useState('')
+  const [aiSpotsNote, setAiSpotsNote] = useState('')
+  const [aiSpotsLoadedKeys, setAiSpotsLoadedKeys] = useState<string[]>([])
   const [aiError, setAiError] = useState('')
   const destComposing = useRef(false)
   const reviewTimer = useRef<number | null>(null)
+  const aiSpotsInFlight = useRef(false)
 
   const catalog = useMemo(() => {
     const overrides = new Map(customDestinations.map((d) => [d.id, d]))
@@ -433,11 +441,102 @@ function App() {
     setStep('preferences')
   }
 
+  async function loadAiSpotsForDestinations(force = false) {
+    const targets = selectedDestinations.filter((dest) => {
+      const alreadyAi = dest.spots.some((spot) => spot.id.startsWith('ai-spot-'))
+      const eligible =
+        dest.id.startsWith('custom-') ||
+        destinationNeedsAiSpots(dest) ||
+        alreadyAi
+      if (!eligible) return false
+      if (force) return true
+      if (aiSpotsLoadedKeys.includes(dest.id)) return false
+      return destinationNeedsAiSpots(dest)
+    })
+    if (!targets.length || aiSpotsInFlight.current) return
+
+    aiSpotsInFlight.current = true
+    setAiSpotsLoading(true)
+    setAiSpotsError('')
+    try {
+      const updates: { id: DestinationId; spots: Destination['spots']; intro?: string }[] =
+        []
+      const notes: string[] = []
+
+      for (const dest of targets) {
+        const result = await suggestSpotsWithAi({
+          destinationName: dest.nameZh,
+          pace,
+          companions: companion,
+          specialNeeds,
+          days: planDays,
+        })
+        const aiSpots = scenicSpotsFromAi(dest.nameZh, result.spots)
+        if (aiSpots.length < 8) {
+          throw new Error(`AI 給 ${dest.nameZh} 的真實景點太少，請再試一次`)
+        }
+        const userSpots = dest.spots.filter((spot) => spot.id.startsWith('user-spot-'))
+        updates.push({
+          id: dest.id,
+          spots: [...userSpots, ...aiSpots],
+          intro: result.intro,
+        })
+        if (result.intro) notes.push(result.intro)
+      }
+
+      setCustomDestinations((prev) => {
+        const byId = new Map(prev.map((d) => [d.id, d]))
+        for (const update of updates) {
+          const existing = byId.get(update.id)
+          const base =
+            existing ??
+            selectedDestinations.find((d) => d.id === update.id) ??
+            null
+          if (!base) continue
+          byId.set(update.id, {
+            ...base,
+            spots: update.spots,
+            intro: update.intro?.trim() || base.intro,
+            tagline: update.intro?.trim()
+              ? 'AI 已推薦真實景點'
+              : base.tagline,
+          })
+        }
+        const orderedIds = [
+          ...updates.map((u) => u.id),
+          ...prev.map((d) => d.id),
+        ]
+        const uniqueIds = [...new Set(orderedIds)]
+        return uniqueIds
+          .map((id) => byId.get(id))
+          .filter((d): d is Destination => Boolean(d))
+      })
+
+      setAiSpotsLoadedKeys((prev) => [
+        ...new Set([...prev, ...updates.map((u) => u.id)]),
+      ])
+      setAiSpotsNote(notes.filter(Boolean).join(' '))
+
+      const nextSpots = selectedDestinations.map((dest) => {
+        const update = updates.find((u) => u.id === dest.id)
+        return update ? { ...dest, spots: update.spots } : dest
+      })
+      const flat = nextSpots.flatMap((d) => d.spots)
+      setSelectedSpotIds(defaultSelectedSpotIds(flat, nextSpots[0]))
+    } catch (error) {
+      setAiSpotsError(error instanceof Error ? error.message : 'AI 景點建議失敗')
+    } finally {
+      aiSpotsInFlight.current = false
+      setAiSpotsLoading(false)
+    }
+  }
+
   function initSpotsAndContinue() {
     const dests = selectedDestinations
     const spots = dests.flatMap((d) => d.spots)
     setSelectedSpotIds(defaultSelectedSpotIds(spots, dests[0]))
     setStep('spots')
+    void loadAiSpotsForDestinations(false)
   }
 
   function toggleSpot(id: string) {
@@ -468,7 +567,23 @@ function App() {
     setCustomSpotName('')
     setInputError('')
     setPlanVersion(0)
+    setAiSpotsLoadedKeys([])
+    setAiSpotsNote('')
+    setAiSpotsError('')
+    setAiDayRec(null)
+    setAiReview(null)
   }
+
+  useEffect(() => {
+    if (step !== 'spots' && step !== 'hotel' && step !== 'preferences') return
+    const pending = selectedDestinations.some(
+      (dest) =>
+        destinationNeedsAiSpots(dest) && !aiSpotsLoadedKeys.includes(dest.id),
+    )
+    if (!pending || aiSpotsLoading) return
+    void loadAiSpotsForDestinations(false)
+    // Intentionally keyed by destination selection + step; loader manages in-flight state.
+  }, [step, selectedDestKey])
 
   const stepItems: { id: Step; label: string }[] = [
     { id: 'destination', label: '目的地' },
@@ -1019,9 +1134,37 @@ function App() {
             <div className="section-head">
               <h2>挑選景點</h2>
               <p>
-                這裡列出約 {allSpots.length} 個景點。紅色標籤是必去／打卡紅點／熱門；不想去就取消，確認後再依你的天數產生行程。
+                AI 會依目的地推薦真實景點（不是「經典地標」這類空泛分類）。紅色標籤是必去／打卡紅點／熱門；不想去就取消，確認後再依你的天數產生行程。
               </p>
             </div>
+
+            <aside
+              className={`ai-panel ${aiSpotsLoading ? 'loading' : aiSpotsLoadedKeys.length || aiSpotsNote ? 'ready' : ''}`}
+            >
+              <strong>
+                {aiSpotsLoading
+                  ? 'AI 正在搜尋此地真實景點…'
+                  : aiSpotsError
+                    ? 'AI 景點建議暫時失敗'
+                    : allSpots.some((s) => s.id.startsWith('ai-spot-'))
+                      ? 'AI 已推薦真實景點'
+                      : '準備載入 AI 景點'}
+              </strong>
+              {aiSpotsError ? <p className="input-error">{aiSpotsError}</p> : null}
+              {aiSpotsNote && !aiSpotsLoading ? <p>{aiSpotsNote}</p> : null}
+              {!aiSpotsLoading ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    setAiSpotsLoadedKeys([])
+                    void loadAiSpotsForDestinations(true)
+                  }}
+                >
+                  重新請 AI 推薦景點
+                </button>
+              ) : null}
+            </aside>
 
             <div className="spot-toolbar">
               <span>
