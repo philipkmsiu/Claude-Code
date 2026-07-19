@@ -554,6 +554,25 @@ main {
   color: #f4f0e4;
 }
 
+.party-size-panel {
+  margin-top: 0.35rem;
+}
+
+.party-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.party-logistics p {
+  margin-bottom: 0.45rem;
+}
+
+.party-logistics p:last-child {
+  margin-bottom: 0;
+}
+
 .day-input-panel {
   margin-bottom: 1.2rem;
   display: grid;

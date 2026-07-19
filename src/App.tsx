@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  MAX_PARTY_SIZE,
   MAX_TRIP_DAYS,
+  MIN_PARTY_SIZE,
   MIN_TRIP_DAYS,
   aggregateDayAdvice,
   assessDurationFit,
   buildItinerary,
   clampDays,
+  clampPartySize,
   companions,
   createCustomDestination,
   createCustomSpot,
   daysBetween,
+  defaultPartySize,
   defaultSelectedSpotIds,
   destinationNeedsAiSpots,
   destinations as presetDestinations,
   findKnownDestination,
+  hotelBookingAdvice,
   hotelStyles,
   hotelsForStyle,
   nightsFromDays,
@@ -22,6 +27,7 @@ import {
   seasonKey,
   specialNeedOptions,
   spotTagLabels,
+  trafficArrangementAdvice,
   tripPaces,
   type Companion,
   type Destination,
@@ -59,6 +65,8 @@ function App() {
   const [daysInput, setDaysInput] = useState('7')
   const [pace, setPace] = useState<TripPace>('balanced')
   const [companion, setCompanion] = useState<Companion>('couple')
+  const [partySize, setPartySize] = useState(2)
+  const [partySizeInput, setPartySizeInput] = useState('2')
   const [specialNeeds, setSpecialNeeds] = useState<string[]>([
     '喜歡歷史文化',
     '想拍打卡美照',
@@ -178,6 +186,30 @@ function App() {
   const styleLabel = hotelStyles.find((s) => s.id === hotelStyle)?.label ?? ''
   const paceLabel = tripPaces.find((p) => p.id === pace)?.label ?? ''
   const companionLabel = companions.find((c) => c.id === companion)?.label ?? ''
+  const travelers = clampPartySize(partySize)
+  const hotelAdvice = useMemo(() => hotelBookingAdvice(travelers), [travelers])
+  const trafficAdvice = useMemo(
+    () =>
+      trafficArrangementAdvice(travelers, {
+        privateDriver: specialNeeds.includes('包司機舒服版'),
+      }),
+    [travelers, specialNeeds],
+  )
+
+  function setTravelers(next: number) {
+    const clamped = clampPartySize(next)
+    setPartySize(clamped)
+    setPartySizeInput(String(clamped))
+    setSpecialNeeds((prev) => {
+      const withoutGroupTag = prev.filter((need) => need !== '6人小團')
+      return clamped === 6 ? [...withoutGroupTag, '6人小團'] : withoutGroupTag
+    })
+  }
+
+  function chooseCompanion(next: Companion) {
+    setCompanion(next)
+    setTravelers(defaultPartySize(next))
+  }
 
   const selectedDestKey = selectedDestIds.join('|')
   const selectedSpotKey = selectedSpotIds.join('|')
@@ -195,6 +227,7 @@ function App() {
         destinationName: destName,
         pace,
         companions: companion,
+        partySize: travelers,
         specialNeeds,
         heuristic: {
           minDays: dayAdvice.min,
@@ -225,6 +258,7 @@ function App() {
       destinationName: selectedDestNames,
       pace,
       companions: companion,
+      partySize: travelers,
       specialNeeds,
       heuristic: {
         minDays: dayAdvice.min,
@@ -275,6 +309,7 @@ function App() {
         chosenDays: planDays,
         pace,
         companions: companion,
+        partySize: travelers,
         specialNeeds,
         spots: spotsPayload,
         heuristic,
@@ -468,6 +503,7 @@ function App() {
           destinationName: dest.nameZh,
           pace,
           companions: companion,
+          partySize: travelers,
           specialNeeds,
           days: planDays,
         })
@@ -572,6 +608,9 @@ function App() {
     setAiSpotsError('')
     setAiDayRec(null)
     setAiReview(null)
+    setCompanion('couple')
+    setPartySize(2)
+    setPartySizeInput('2')
   }
 
   useEffect(() => {
@@ -1022,12 +1061,91 @@ function App() {
                   key={item.id}
                   type="button"
                   className={`chip ${companion === item.id ? 'selected' : ''}`}
-                  onClick={() => setCompanion(item.id)}
+                  onClick={() => chooseCompanion(item.id)}
                 >
                   {item.label}
                 </button>
               ))}
             </div>
+
+            <div className="day-input-panel party-size-panel">
+              <div className="field-block grow">
+                <label htmlFor="party-size">出行人數（會影響交通與訂房）</label>
+                <div className="day-input-row">
+                  <button
+                    type="button"
+                    className="btn ghost icon-btn"
+                    onClick={() => setTravelers(travelers - 1)}
+                    aria-label="減少一人"
+                  >
+                    −
+                  </button>
+                  <input
+                    id="party-size"
+                    type="number"
+                    min={MIN_PARTY_SIZE}
+                    max={MAX_PARTY_SIZE}
+                    value={partySizeInput}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      setPartySizeInput(raw)
+                      if (raw === '') return
+                      const parsed = Number(raw)
+                      if (!Number.isFinite(parsed)) return
+                      if (parsed >= MIN_PARTY_SIZE && parsed <= MAX_PARTY_SIZE) {
+                        setTravelers(parsed)
+                      }
+                    }}
+                    onBlur={() => {
+                      const parsed = Number(partySizeInput)
+                      setTravelers(
+                        Number.isFinite(parsed)
+                          ? parsed
+                          : defaultPartySize(companion),
+                      )
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn ghost icon-btn"
+                    onClick={() => setTravelers(travelers + 1)}
+                    aria-label="增加一人"
+                  >
+                    +
+                  </button>
+                  <span className="day-unit">人同行</span>
+                </div>
+                <p className="range-value">
+                  可輸入 {MIN_PARTY_SIZE}–{MAX_PARTY_SIZE} 人。目前建議約{' '}
+                  {hotelAdvice.rooms} 間房 · 交通：{trafficAdvice.vehicle}
+                </p>
+              </div>
+              <div className="party-quick-chips">
+                {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`chip ${travelers === n ? 'selected' : ''}`}
+                    onClick={() => setTravelers(n)}
+                  >
+                    {n} 人
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <aside className="ai-panel ready party-logistics">
+              <strong>依 {travelers} 人預估的交通／訂房</strong>
+              <p>
+                <strong>訂房：</strong>
+                {hotelAdvice.note}
+              </p>
+              <p>
+                <strong>交通：</strong>
+                {trafficAdvice.mode}（{trafficAdvice.vehicle}）。{trafficAdvice.note}
+              </p>
+            </aside>
 
             <h3 className="subhead">特殊需求（可多選）</h3>
             <div className="need-grid">
@@ -1038,11 +1156,21 @@ function App() {
                     key={need}
                     type="button"
                     className={`chip ${active ? 'selected' : ''}`}
-                    onClick={() =>
+                    onClick={() => {
+                      if (need === '6人小團') {
+                        if (active) {
+                          setSpecialNeeds((prev) =>
+                            prev.filter((x) => x !== '6人小團'),
+                          )
+                        } else {
+                          setTravelers(6)
+                        }
+                        return
+                      }
                       setSpecialNeeds((prev) =>
                         active ? prev.filter((x) => x !== need) : [...prev, need],
                       )
-                    }
+                    }}
                   >
                     {need}
                   </button>
@@ -1074,9 +1202,23 @@ function App() {
             <div className="section-head">
               <h2>住宿偏好</h2>
               <p>
-                你目前規劃 {planDays} 天 {nightsFromDays(planDays)} 夜；可再微調實際入住晚數。
+                你目前規劃 {planDays} 天 {nightsFromDays(planDays)} 夜 · {travelers}{' '}
+                人同行；可再微調實際入住晚數。依人數建議先訂約 {hotelAdvice.rooms} 間房（
+                {hotelAdvice.bedding}）。
               </p>
             </div>
+
+            <aside className="ai-panel ready party-logistics">
+              <strong>人數對應的訂房／交通</strong>
+              <p>
+                <strong>訂房：</strong>
+                {hotelAdvice.note}
+              </p>
+              <p>
+                <strong>交通：</strong>
+                {trafficAdvice.mode} · {trafficAdvice.vehicle}。{trafficAdvice.note}
+              </p>
+            </aside>
 
             <div className="field-block">
               <label htmlFor="nights">酒店住宿晚數</label>
@@ -1332,12 +1474,13 @@ function App() {
             <div className="result-hero">
               <p className="eyebrow">
                 {selectedDestinations.map((d) => d.nameLocal).join(' + ')} · {planDays}{' '}
-                天 {Math.min(hotelNights, planDays)} 夜 · {paceLabel} · {companionLabel}
+                天 {Math.min(hotelNights, planDays)} 夜 · {travelers} 人 · {paceLabel} ·{' '}
+                {companionLabel}
               </p>
               <h2>{selectedDestinations.map((d) => d.nameZh).join('、')}</h2>
               <p className="result-tagline">
                 {startDate} → {endDate} · 已排入 {selectedSpotIds.length} 個景點 ·{' '}
-                {styleLabel}
+                {styleLabel} · 約 {hotelAdvice.rooms} 間房
               </p>
             </div>
 
@@ -1382,13 +1525,26 @@ function App() {
               </article>
 
               <article className="info-block wide">
+                <h3>交通與訂房（依 {travelers} 人）</h3>
+                <p>
+                  <strong>交通安排：</strong>
+                  {trafficAdvice.mode}（{trafficAdvice.vehicle}）。{trafficAdvice.note}
+                </p>
+                <p>
+                  <strong>酒店房間：</strong>
+                  {hotelAdvice.note}
+                </p>
+                <p className="muted">床型建議：{hotelAdvice.bedding}</p>
+              </article>
+
+              <article className="info-block wide">
                 <h3>
                   {primary.curatedPlans ? '沿線酒店推薦' : `住宿建議 · ${styleLabel}`}
                 </h3>
                 <p className="muted">
                   {primary.curatedPlans
-                    ? '依基地少換宿：西寧 → 嘉峪關 → 敦煌 → 花土溝 → 德令哈 → 青海湖。'
-                    : `建議住 ${Math.min(hotelNights, planDays)} 晚，區域以 ${hotelAreaHint} 為主。`}
+                    ? `依基地少換宿：西寧 → 嘉峪關 → 敦煌 → 花土溝 → 德令哈 → 青海湖。${travelers} 人請各基地一次訂約 ${hotelAdvice.rooms} 間。`
+                    : `建議住 ${Math.min(hotelNights, planDays)} 晚，區域以 ${hotelAreaHint} 為主；${travelers} 人先估 ${hotelAdvice.rooms} 間房。`}
                 </p>
                 <div className="hotel-list">
                   {hotels.map((hotel) => (

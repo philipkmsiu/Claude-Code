@@ -81,6 +81,7 @@ async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
       destinationName?: string
       pace?: string
       companions?: string
+      partySize?: number
       specialNeeds?: string[]
       heuristic?: {
         minDays?: number
@@ -121,9 +122,10 @@ async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
           destinationName,
           pace: payload.pace ?? 'balanced',
           companions: payload.companions ?? 'friends',
+          partySize: Number(payload.partySize) || 2,
           specialNeeds: payload.specialNeeds ?? [],
           localHeuristicHint: payload.heuristic ?? null,
-          ask: '請審核並給出你認為正確的最少／最舒服／建議最長天數。',
+          ask: '請審核並給出你認為正確的最少／最舒服／建議最長天數；可順便提醒人數對交通／訂房的影響。',
         }),
       },
     ])
@@ -169,6 +171,7 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
       chosenDays?: number
       pace?: string
       companions?: string
+      partySize?: number
       specialNeeds?: string[]
       spots?: { name: string; stayHours: number; area: string }[]
       heuristic?: {
@@ -213,10 +216,11 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
           chosenDays,
           pace: payload.pace ?? 'balanced',
           companions: payload.companions ?? 'friends',
+          partySize: Number(payload.partySize) || 2,
           specialNeeds: payload.specialNeeds ?? [],
           spots: payload.spots ?? [],
           localHeuristicHint: payload.heuristic ?? null,
-          ask: '請用 AI 判斷天數是否夠用，並給出正常完成天數。',
+          ask: '請用 AI 判斷天數是否夠用，並給出正常完成天數；人數會影響包車與訂房，請一併考量。',
         }),
       },
     ])
@@ -264,6 +268,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       destinationName?: string
       pace?: string
       companions?: string
+      partySize?: number
       specialNeeds?: string[]
       days?: number
     }
@@ -312,9 +317,10 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           destinationName,
           pace: payload.pace ?? 'balanced',
           companions: payload.companions ?? 'friends',
+          partySize: Number(payload.partySize) || 2,
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: payload.days ?? null,
-          ask: '請列出這個旅程真正該去的真實景點，不要給類別模板。',
+          ask: '請列出這個旅程真正該去的真實景點，不要給類別模板；可依人數微調親子／小團友善程度。',
         }),
       },
     ], 0.4)

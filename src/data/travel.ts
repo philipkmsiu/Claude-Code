@@ -445,6 +445,117 @@ export const companions: { id: Companion; label: string }[] = [
   { id: 'friends', label: '朋友' },
 ]
 
+/** Hard bounds for traveler count input (affects rooms + transport). */
+export const MIN_PARTY_SIZE = 1
+export const MAX_PARTY_SIZE = 20
+
+export function clampPartySize(value: number): number {
+  if (!Number.isFinite(value)) return 2
+  return Math.min(MAX_PARTY_SIZE, Math.max(MIN_PARTY_SIZE, Math.round(value)))
+}
+
+export function defaultPartySize(companion: Companion): number {
+  switch (companion) {
+    case 'solo':
+      return 1
+    case 'couple':
+      return 2
+    case 'family':
+      return 4
+    case 'friends':
+      return 4
+    default:
+      return 2
+  }
+}
+
+/** Hotel room / bedding guidance from traveler count. */
+export function hotelBookingAdvice(partySize: number): {
+  rooms: number
+  bedding: string
+  note: string
+} {
+  const size = clampPartySize(partySize)
+  if (size === 1) {
+    return {
+      rooms: 1,
+      bedding: '單人房或一張雙人床',
+      note: '訂 1 間房即可；可選單人房或一張雙人床。',
+    }
+  }
+  if (size === 2) {
+    return {
+      rooms: 1,
+      bedding: '一張雙人床或兩張單人床',
+      note: '訂 1 間雙人房；下訂時註明床型偏好。',
+    }
+  }
+  if (size === 3) {
+    return {
+      rooms: 2,
+      bedding: '建議 2 間（或 1 間三人房／加床）',
+      note: '三人較難保證一間三人房，建議先問清楚可否加床，否則訂 2 間較穩。',
+    }
+  }
+  const rooms = Math.ceil(size / 2)
+  return {
+    rooms,
+    bedding: `約 ${rooms} 間雙人房（可依家庭改親子房）`,
+    note: `${size} 人建議先估 ${rooms} 間房；有小孩可改親子房或要求連通房。`,
+  }
+}
+
+/** Traffic / vehicle arrangement from traveler count. */
+export function trafficArrangementAdvice(
+  partySize: number,
+  options?: { privateDriver?: boolean },
+): {
+  mode: string
+  vehicle: string
+  note: string
+} {
+  const size = clampPartySize(partySize)
+  const privateDriver = Boolean(options?.privateDriver)
+
+  if (size <= 2) {
+    return {
+      mode: privateDriver ? '包車／專車' : '電車＋計程車為主',
+      vehicle: privateDriver ? '五人座轎車' : '大眾運輸／計程車',
+      note: privateDriver
+        ? '1–2 人包車最靈活，景區間可省轉乘時間。'
+        : '人數少時大眾運輸通常最省事；景區接駁可搭配計程車。',
+    }
+  }
+  if (size <= 4) {
+    return {
+      mode: privateDriver ? '包車舒服版' : '電車＋計程車／租車',
+      vehicle: '五～七人座（含行李）',
+      note: privateDriver
+        ? '3–4 人很適合一輛包車，行李與行程節奏都較穩。'
+        : '4 人以內仍可用電車；若景點分散或有長輩，建議改包車／租車。',
+    }
+  }
+  if (size <= 6) {
+    return {
+      mode: '小團包車／MPV',
+      vehicle: '七～八人座 MPV（含司機）',
+      note: '5–6 人建議固定一輛 MPV 或小巴，比分兩台計程車好管，酒店也可集中訂 3 間房。',
+    }
+  }
+  if (size <= 9) {
+    return {
+      mode: '九人座包車或兩車並行',
+      vehicle: '九人座商務車／兩輛七人座',
+      note: '7–9 人交通以九人座或兩車為主，訂房請一次訂齊並要求同樓層。',
+    }
+  }
+  return {
+    mode: '中巴／小型旅遊車',
+    vehicle: '15–20 人座中巴（視行李）',
+    note: `${size} 人建議中巴統一接送，酒店可談團體價與相鄰房型。`,
+  }
+}
+
 export const specialNeedOptions = [
   '喜歡歷史文化',
   '想拍打卡美照',

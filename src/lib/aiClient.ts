@@ -51,6 +51,7 @@ export function recommendDaysWithAi(input: {
   destinationName: string
   pace: string
   companions: string
+  partySize: number
   specialNeeds: string[]
   heuristic?: {
     minDays: number
@@ -66,6 +67,7 @@ export function reviewPlanWithAi(input: {
   chosenDays: number
   pace: string
   companions: string
+  partySize: number
   specialNeeds: string[]
   spots: { name: string; stayHours: number; area: string }[]
   heuristic?: {
@@ -82,6 +84,7 @@ export function suggestSpotsWithAi(input: {
   destinationName: string
   pace: string
   companions: string
+  partySize: number
   specialNeeds: string[]
   days?: number
 }): Promise<AiSpotSuggestion> {
