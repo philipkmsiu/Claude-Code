@@ -35,6 +35,7 @@ import type {
   SpotTag,
   TransportMode,
   TripPace,
+  VisualPosterContent,
 } from './types'
 import { qingganDestination } from './qinggan'
 import { xinjiangDestination } from './xinjiang'
@@ -565,6 +566,137 @@ export const transportModes: {
 
 export function transportModeLabel(mode: TransportMode): string {
   return transportModes.find((item) => item.id === mode)?.label ?? mode
+}
+
+/** Placeholder examples for the custom-spot input — always match the current destination. */
+export function spotInputExamples(destinationName: string): string {
+  const name = destinationName.trim()
+  if (!name) return '例如：兵馬俑、回民街（可直接貼上）'
+  if (/青甘|敦煌|翡翠湖|青海湖|嘉峪關/.test(name)) {
+    return '例如：莫高窟、翡翠湖、艾肯泉（可直接貼上）'
+  }
+  if (/新疆|南北疆|喀納斯|禾木|喀什|賽里木/.test(name)) {
+    return '例如：喀納斯三灣、禾木村、賽里木湖（可直接貼上）'
+  }
+  if (/西安|西京|兵馬俑/.test(name)) {
+    return '例如：兵馬俑、回民街、大唐不夜城（可直接貼上）'
+  }
+  if (/北京|故宮|長城/.test(name)) {
+    return '例如：故宮、長城、頤和園（可直接貼上）'
+  }
+  if (/上海|外灘/.test(name)) {
+    return '例如：外灘、豫園、迪士尼（可直接貼上）'
+  }
+  if (/成都|重慶|寬窄|洪崖洞/.test(name)) {
+    return '例如：寬窄巷子、大熊貓基地、洪崖洞（可直接貼上）'
+  }
+  if (/關西|大阪|京都|奈良/.test(name)) {
+    return '例如：伏見稻荷、道頓堀、清水寺（可直接貼上）'
+  }
+  if (/北海道|札幌|小樽/.test(name)) {
+    return '例如：小樽運河、白色戀人公園、富良野（可直接貼上）'
+  }
+  if (/巴黎|法國|France|Paris/i.test(name)) {
+    return '例如：艾菲爾鐵塔、羅浮宮、蒙馬特（可直接貼上）'
+  }
+  if (/東京|Japan|日本/.test(name) && !/關西|大阪|京都/.test(name)) {
+    return '例如：淺草寺、渋谷、團隊Lab（可直接貼上）'
+  }
+  // Generic: use the destination name so China trips never show France examples.
+  return `例如：${name}經典地標、${name}老城／夜市（可直接貼上）`
+}
+
+/** Destination-aware Stage-4 poster side content when handbook has none. */
+export function inferVisualPoster(options: {
+  destinationName: string
+  days: number
+  nights: number
+  transportMode: TransportMode
+}): VisualPosterContent {
+  const { destinationName, days, nights, transportMode } = options
+  const name = destinationName.trim()
+  const themeLine = `${days} 天 ${nights} 夜｜${transportModeLabel(transportMode)}｜舒適慢遊視覺摘要`
+
+  if (/西安|西京|兵馬俑/.test(name)) {
+    return {
+      themeLine,
+      mustEat: [
+        { name: '肉夾饃', daysLabel: '市區日', motif: '🥪' },
+        { name: '涼皮／Biángbiáng 麵', daysLabel: 'DAY 1–3', motif: '🍜' },
+        { name: '羊肉泡饃', daysLabel: '重點日', motif: '🍲' },
+        { name: '胡辣湯＋灌湯包', daysLabel: '出發日早餐', motif: '🥟' },
+        { name: '回民街小吃', daysLabel: '夜遊', motif: '🍢' },
+      ],
+      mustDrink: [
+        { name: '冰峰汽水', motif: '🥤' },
+        { name: '酸梅湯', motif: '🧃' },
+        { name: '蓋碗茶', motif: '🍵' },
+      ],
+      travelTips: [
+        transportMode === 'private_driver'
+          ? '準時與司機會合，景區可先下車再會合'
+          : '城牆段可步行／租車，跨區預留計程車時間',
+        '兵馬俑建議一早到達，避開旅行團高峰',
+        '回民街人多，貴重物品貼身',
+        '春季溫差大，薄外套＋防曬並用',
+        '博物館／遺址票務請提前網上預約',
+        '行程留半日彈性，適量就好',
+      ],
+      footerNote: '路線示意；西安景點可能因預約或活動調整開放時間。',
+    }
+  }
+
+  if (/中國|大陸|北京|上海|成都|重慶|杭州|桂林|雲南|西藏|西北/.test(name)) {
+    return {
+      themeLine,
+      mustEat: [
+        { name: '在地代表性早餐', daysLabel: '出發日', motif: '🍳' },
+        { name: '街頭小吃拼盤', daysLabel: '市區日', motif: '🍢' },
+        { name: '當地名菜晚餐', daysLabel: '重點日', motif: '🍜' },
+      ],
+      mustDrink: [
+        { name: '熱茶／蓋碗茶', motif: '🍵' },
+        { name: '新鮮果汁', motif: '🧃' },
+        { name: '當地特色飲品', motif: '🥤' },
+      ],
+      travelTips: [
+        '證件隨身，方便安檢與購票',
+        '熱門景點提前預約門票',
+        '早晚溫差大時帶薄外套',
+        '尊重當地習俗與拍攝規定',
+        '長移動日預留緩衝時間',
+        '行程保留彈性，遇天氣可調整',
+      ],
+      footerNote: '路線示意，實際以天氣、交通與最終確認行程為準。',
+    }
+  }
+
+  return {
+    themeLine,
+    mustEat: [
+      { name: '在地特色早餐', daysLabel: '出發日', motif: '🍳' },
+      { name: '街頭小吃', daysLabel: '市區日', motif: '🥟' },
+      { name: '代表菜晚餐', daysLabel: '重點日', motif: '🍜' },
+    ],
+    mustDrink: [
+      { name: '當地茶飲', motif: '🍵' },
+      { name: '新鮮果汁', motif: '🧃' },
+      { name: '溫熱湯品', motif: '🥣' },
+    ],
+    travelTips: [
+      transportMode === 'private_driver'
+        ? '準時與司機會合，行李放後車廂最省事'
+        : transportMode === 'self_drive'
+          ? '出發前查路況與停車'
+          : '先備交通卡，跨區預留轉乘時間',
+      '早晚溫差大，薄外套要隨身',
+      '日照強時做好防曬',
+      '長車程帶行動電源與零食',
+      '尊重當地文化與拍攝規定',
+      '行程保留彈性，遇天氣可調整',
+    ],
+    footerNote: '路線示意，實際以天氣、交通與最終確認行程為準。',
+  }
 }
 
 /** Traffic / vehicle arrangement from traveler count + chosen transport mode. */

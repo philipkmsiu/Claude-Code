@@ -42,6 +42,7 @@ import {
   transportModeLabel,
   transportModes,
   tripPaces,
+  spotInputExamples,
   type Companion,
   type Destination,
   type DestinationId,
@@ -1755,7 +1756,11 @@ function App() {
                 id="spot-input"
                 multiline
                 rows={2}
-                placeholder="例如：艾菲爾鐵塔、白色戀人公園（可直接貼上）"
+                placeholder={spotInputExamples(
+                  primary?.nameZh ||
+                    selectedDestinations.map((d) => d.nameZh).join('、') ||
+                    '',
+                )}
                 value={customSpotName}
                 onValueChange={setCustomSpotName}
               />
@@ -2237,8 +2242,8 @@ function App() {
               destinationName={selectedDestinations.map((d) => d.nameZh).join('、')}
               startLabel={formatDateZh(startDate)}
               endLabel={formatDateZh(computedEndDate)}
-              days={planDays}
-              nights={nightsFromDays(planDays)}
+              days={itinerary.length || planDays}
+              nights={nightsFromDays(itinerary.length || planDays)}
               transportMode={transportMode}
               itinerary={datedItinerary}
               visualPoster={tripHandbook?.visualPoster}
