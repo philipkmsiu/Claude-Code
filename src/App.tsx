@@ -177,9 +177,15 @@ function App() {
       <div className="atmosphere" aria-hidden="true" />
       <header className="topbar">
         <button type="button" className="brand" onClick={reset}>
-          <span className="brand-mark" />
+          <img
+            className="brand-logo"
+            src="/km-logo.svg"
+            alt="KM Travel Planner"
+            width={40}
+            height={40}
+          />
           <span className="brand-text">
-            Wege
+            KM Travel Planner
             <small>Gemini 旅遊規劃</small>
           </span>
         </button>
@@ -196,8 +202,17 @@ function App() {
         {step === 'home' && (
           <section className="hero">
             <div className="hero-copy">
+              <img
+                className="hero-logo"
+                src="/km-logo.svg"
+                alt=""
+                width={88}
+                height={88}
+              />
+              <h1 className="hero-brand">
+                KM Travel Planner
+              </h1>
               <p className="eyebrow">依 Gemini 旅遊規劃 PDF 做成的可互動行程工具</p>
-              <h1 className="hero-brand">Wege</h1>
               <p className="hero-lead">
                 先選一個地方，看最短／最舒服要幾天；你也可以自己輸入天數（到 {MAX_TRIP_DAYS}{' '}
                 天）。再勾景點、產生行程，不滿意就改完重跑。
@@ -780,7 +795,10 @@ function App() {
       </main>
 
       <footer className="footer">
-        <span>Wege</span>
+        <span className="footer-brand">
+          <img src="/km-logo.svg" alt="" width={22} height={22} />
+          KM Travel Planner
+        </span>
         <span>地方建議天數 → 自己輸入 → 勾景點 → 重跑行程</span>
       </footer>
     </div>

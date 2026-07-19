@@ -1,28 +1,31 @@
-# Wege — Gemini 旅遊規劃
+# KM Travel Planner
 
-把 Gemini 旅遊規劃 PDF 的流程做成可互動的網頁：先選地方、看建議天數，再自己輸入天數、勾景點、產生行程。
+Interactive travel planner based on the Gemini 旅遊規劃 PDF.
 
-## 核心：天數怎麼選
+## Branding
 
-選好目的地後，系統會先給三種建議：
+App name: **KM Travel Planner**  
+Logo: `public/km-logo.svg` (placeholder mark — replace with your exported `CompanyLogo_Only` PNG/SVG when available; `.ai` files are not web-ready)
 
-- **最少天數** — 能碰到精華
-- **最舒服天數** — 推薦首選
-- **建議最長** — 通常約 8–12 天（依地點）
+## Day choice
 
-你也可以**自己輸入**天數（2–21 天）。超過建議最長沒問題，多出來的日子會排成彈性／購物／再訪日。
+After picking a place:
 
-## 完整流程
+- **最少天數**
+- **最舒服天數**
+- **建議最長**
 
-1. 目的地（可選 1–2 個）
-2. 天數條件 + 日期、旅遊類型、同行者、特殊需求
-3. 住宿偏好
-4. 景點勾選（必去／打卡紅點／熱門可篩）
-5. 產生行程；可改天數或景點後重跑
+Or type your own length (2–21 days).
 
-範例目的地含 PDF 的關西（大阪＋京都），以及大阪、京都、東京、台北、首爾。
+## Flow
 
-## 開發
+1. Destination  
+2. Days + trip conditions  
+3. Hotel style  
+4. Spot picker  
+5. Generate / regenerate itinerary  
+
+## Develop
 
 ```bash
 npm install
