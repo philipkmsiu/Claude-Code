@@ -950,6 +950,7 @@ function App() {
     setCustomDestinations([])
     setDestinationInput('')
     setCustomSpotName('')
+    setCustomSpotHours(2)
     setInputError('')
     setPlanVersion(0)
     setAiSpotsLoadedKeys([])
@@ -957,6 +958,9 @@ function App() {
     setAiSpotsError('')
     setAiDayRec(null)
     setAiReview(null)
+    setAiError('')
+    setAiLoading(false)
+    setAiReviewLoading(false)
     aiReviewCache.current = null
     setCompanion('couple')
     setPartySize(2)
@@ -964,7 +968,21 @@ function App() {
     setTransportMode('public_transit')
     setPreferConsecutiveStays(true)
     setPreferredHotelName('')
+    setHotelStyle('value')
+    setPace('balanced')
+    setSpecialNeeds(['喜歡歷史文化', '想拍打卡美照'])
+    setDays(7)
+    setDaysInput('7')
+    setStartDate(earliestStartDate())
+    setEndDate(endDateFromStart(earliestStartDate(), 7))
+    setHotelNights(6)
     setDayWeather([])
+    setWeatherLoading(false)
+  }
+
+  /** Hard reload — use when the UI is stuck or blank. */
+  function restartApp() {
+    window.location.assign(`${window.location.pathname}${window.location.search}`)
   }
 
   useEffect(() => {
@@ -996,7 +1014,13 @@ function App() {
       <div className="atmosphere" aria-hidden="true" />
       <FloatingEmojiField />
       <header className="topbar">
-        <button type="button" className="brand" onClick={reset}>
+        <button
+          type="button"
+          className="brand"
+          title="重新開始（卡住時連點兩下可強制重新載入）"
+          onClick={reset}
+          onDoubleClick={restartApp}
+        >
           <span className="brand-logo-wrap">
             <KmLogo className="brand-logo" size={48} />
           </span>
@@ -1050,6 +1074,14 @@ function App() {
                   <IconCompass size={18} />
                   開始規劃
                   <IconArrowRight size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={restartApp}
+                  title="強制重新載入頁面"
+                >
+                  重新載入 App
                 </button>
                 <button
                   type="button"
@@ -2635,6 +2667,14 @@ function App() {
               </button>
               <button type="button" className="btn ghost" onClick={reset}>
                 從頭開始
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={restartApp}
+                title="強制重新載入頁面"
+              >
+                重新載入 App
               </button>
             </div>
           </section>

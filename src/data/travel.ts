@@ -2665,9 +2665,8 @@ export function spreadContentAcrossDays<T>(
   contentBuckets: T[],
   targetDays: number,
 ): (T | null)[] {
-  const target = Math.max(contentBuckets.length, targetDays)
   if (!contentBuckets.length) {
-    return Array.from({ length: targetDays }, () => null)
+    return Array.from({ length: Math.max(0, targetDays) }, () => null)
   }
   if (contentBuckets.length >= targetDays) {
     return contentBuckets.slice(0, targetDays).map((b) => b)
