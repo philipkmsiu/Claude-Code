@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   MAX_TRIP_DAYS,
   MIN_TRIP_DAYS,
@@ -27,6 +27,8 @@ import {
   type HotelStyle,
   type TripPace,
 } from './data/travel'
+import { FreeTextField } from './components/FreeTextField'
+import { readClipboardText } from './lib/clipboard'
 import './App.css'
 
 type Step =
@@ -59,6 +61,7 @@ function App() {
   const [customSpotName, setCustomSpotName] = useState('')
   const [customSpotHours, setCustomSpotHours] = useState(2)
   const [inputError, setInputError] = useState('')
+  const destComposing = useRef(false)
 
   const catalog = useMemo(() => {
     const overrides = new Map(customDestinations.map((d) => [d.id, d]))
@@ -399,27 +402,53 @@ function App() {
               className="destination-input-panel"
               onSubmit={(e) => {
                 e.preventDefault()
+                if (destComposing.current) return
                 addDestinationsFromInput()
               }}
             >
-              <label htmlFor="dest-input">目的地</label>
-              <div className="destination-input-row">
-                <input
-                  id="dest-input"
-                  type="text"
-                  placeholder="例如：巴黎、北海道、青甘大環線、大阪 京都"
-                  value={destinationInput}
-                  onChange={(e) => {
-                    setDestinationInput(e.target.value)
-                    if (inputError) setInputError('')
+              <label htmlFor="dest-input">目的地（可中文／語音／貼上）</label>
+              <FreeTextField
+                id="dest-input"
+                multiline
+                rows={3}
+                placeholder={'可打中文，或用鍵盤語音輸入，也可從別的 App 複製貼上\n例如：巴黎\n北海道\n青甘大環線'}
+                value={destinationInput}
+                onValueChange={(value) => {
+                  setDestinationInput(value)
+                  if (inputError) setInputError('')
+                }}
+                onCompositionStart={() => {
+                  destComposing.current = true
+                }}
+                onCompositionEnd={() => {
+                  destComposing.current = false
+                }}
+                autoFocus
+              />
+              <div className="destination-input-row" style={{ marginTop: '0.65rem' }}>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={async () => {
+                    const text = await readClipboardText()
+                    if (text.trim()) {
+                      setDestinationInput((prev) =>
+                        prev.trim() ? `${prev.trim()}\n${text.trim()}` : text.trim(),
+                      )
+                      setInputError('')
+                      return
+                    }
+                    setInputError('無法讀取剪貼簿，請長按輸入框選擇「貼上」')
                   }}
-                />
+                >
+                  從剪貼簿貼上
+                </button>
                 <button type="submit" className="btn primary">
                   加入目的地
                 </button>
               </div>
               <p className="range-value">
-                支援一次輸入多個：用逗號、頓號或空白分隔。目前已選 {selectedDestIds.length} 個（最多 3 個）。
+                支援中文輸入法、手機語音鍵盤，以及從 Notes／WhatsApp／瀏覽器複製貼上。多個目的地可用逗號、頓號或換行分隔。目前已選 {selectedDestIds.length} 個（最多 3 個）。
               </p>
               {inputError && step === 'destination' ? (
                 <p className="input-error">{inputError}</p>
@@ -806,15 +835,16 @@ function App() {
                 addCustomSpotToPrimary()
               }}
             >
-              <label htmlFor="spot-input">自己加入景點</label>
-              <div className="destination-input-row">
-                <input
-                  id="spot-input"
-                  type="text"
-                  placeholder="例如：艾菲爾鐵塔、北海道白色戀人公園"
-                  value={customSpotName}
-                  onChange={(e) => setCustomSpotName(e.target.value)}
-                />
+              <label htmlFor="spot-input">自己加入景點（可中文／語音／貼上）</label>
+              <FreeTextField
+                id="spot-input"
+                multiline
+                rows={2}
+                placeholder="例如：艾菲爾鐵塔、白色戀人公園（可直接貼上）"
+                value={customSpotName}
+                onValueChange={setCustomSpotName}
+              />
+              <div className="destination-input-row" style={{ marginTop: '0.65rem' }}>
                 <input
                   aria-label="停留小時"
                   type="number"
@@ -825,11 +855,26 @@ function App() {
                   onChange={(e) => setCustomSpotHours(Number(e.target.value) || 2)}
                   className="hours-input"
                 />
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={async () => {
+                    const text = await readClipboardText()
+                    if (text.trim()) {
+                      setCustomSpotName(text.trim())
+                      setInputError('')
+                      return
+                    }
+                    setInputError('無法讀取剪貼簿，請長按輸入框選擇「貼上」')
+                  }}
+                >
+                  從剪貼簿貼上
+                </button>
                 <button type="submit" className="btn primary">
                   加入景點
                 </button>
               </div>
-              <p className="range-value">右側數字是建議停留小時；加入後會自動勾選並重估天數。</p>
+              <p className="range-value">左側數字是建議停留小時；加入後會自動勾選並重估天數。</p>
               {inputError && step === 'spots' ? (
                 <p className="input-error">{inputError}</p>
               ) : null}

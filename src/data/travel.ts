@@ -30,18 +30,22 @@ export const MAX_TRIP_DAYS = 21
 export const MIN_TRIP_DAYS = 2
 
 function slugifyDestination(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\u4e00-\u9fff-]+/g, '')
-    .slice(0, 40) || 'place'
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      // Keep CJK (incl. extensions) + latin + digits for custom ids.
+      .replace(/[^\w\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff-]+/gi, '')
+      .slice(0, 40) || 'place'
+  )
 }
 
-/** Split free text into one or more destination names. */
+/** Split free text into one or more destination names (typing / voice / paste). */
 export function parseDestinationNames(raw: string): string[] {
   return raw
-    .split(/[,，、/;；\n]+/)
+    .replace(/\r/g, '\n')
+    .split(/[,，、/;；|｜\t\n]+/)
     .map((part) => part.trim())
     .filter(Boolean)
 }
