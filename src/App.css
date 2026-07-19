@@ -91,12 +91,15 @@
 
 .km-logo-live .km-logo-base {
   position: relative;
+  animation: km-body-color 4.8s ease-in-out infinite;
 }
 
 .km-logo-live .km-logo-foot {
   /* hip of the K foot in the square mark */
   transform-origin: 24.5% 56%;
-  animation: km-foot-kick 1.45s cubic-bezier(0.34, 1.45, 0.64, 1) infinite;
+  animation:
+    km-foot-kick 1.45s cubic-bezier(0.34, 1.45, 0.64, 1) infinite,
+    km-foot-color 2.4s ease-in-out infinite;
 }
 
 .hero-logo.km-logo-live {
@@ -2269,6 +2272,40 @@ main {
   }
 }
 
+/* Brand red ↔ coral ↔ amber for the KM body */
+@keyframes km-body-color {
+  0%,
+  100% {
+    filter: hue-rotate(0deg) saturate(1) brightness(1);
+  }
+  25% {
+    filter: hue-rotate(-12deg) saturate(1.15) brightness(1.05);
+  }
+  50% {
+    filter: hue-rotate(18deg) saturate(1.25) brightness(1.08);
+  }
+  75% {
+    filter: hue-rotate(-6deg) saturate(1.1) brightness(1.02);
+  }
+}
+
+/* Foot shifts on a snappier loop — grey ↔ teal ↔ gold ↔ rose */
+@keyframes km-foot-color {
+  0%,
+  100% {
+    filter: hue-rotate(0deg) saturate(1) brightness(1);
+  }
+  20% {
+    filter: hue-rotate(140deg) saturate(1.35) brightness(1.08);
+  }
+  45% {
+    filter: hue-rotate(40deg) saturate(1.4) brightness(1.12);
+  }
+  70% {
+    filter: hue-rotate(-30deg) saturate(1.25) brightness(1.05);
+  }
+}
+
 @keyframes orbit-bob {
   0%,
   100% {
@@ -3469,6 +3506,7 @@ a.btn {
   .brand-logo,
   .hero-logo,
   .footer-brand img,
+  .km-logo-live .km-logo-base,
   .km-logo-live .km-logo-foot {
     animation: none !important;
   }
