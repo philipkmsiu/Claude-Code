@@ -1,26 +1,15 @@
 /**
- * Relaxed in-app soundscape: soft sine-pad ambient + clean UI cues.
- * Fully synthesized with Web Audio (no noise beds — those sounded like “ng ng”).
+ * Relaxed soundscape: real melodic ambient MP3 loop + tiny sine UI cues.
+ * Continuous oscillator drones were removed — they sounded like “ng ng” hum.
  */
 
 const STORAGE_KEY = 'km-sound-muted'
+const AMBIENT_SRC = '/audio/relax-ambient.mp3'
 
 type ToneName = 'tick' | 'whoosh' | 'chime' | 'softPop' | 'ready'
 
-/** Soft C major / A minor travel pad voicings (Hz). */
-const PAD_CHORDS: number[][] = [
-  [261.63, 329.63, 392.0, 493.88], // Cmaj7-ish
-  [220.0, 261.63, 329.63, 440.0], // Am7-ish
-  [174.61, 220.0, 261.63, 349.23], // Fmaj
-  [196.0, 246.94, 293.66, 392.0], // G
-]
-
-const MELODY: number[] = [
-  523.25, 587.33, 659.25, 587.33, 523.25, 493.88, 440.0, 493.88,
-]
-
 function canUseAudio(): boolean {
-  return typeof window !== 'undefined' && typeof AudioContext !== 'undefined'
+  return typeof window !== 'undefined'
 }
 
 function loadMuted(): boolean {
@@ -40,19 +29,12 @@ function saveMuted(muted: boolean) {
 }
 
 class Soundscape {
+  private music: HTMLAudioElement | null = null
   private ctx: AudioContext | null = null
-  private master: GainNode | null = null
-  private ambientGain: GainNode | null = null
   private sfxGain: GainNode | null = null
-  private padOscillators: OscillatorNode[] = []
-  private ambientNodes: AudioNode[] = []
-  private chordTimer: number | null = null
-  private melodyTimer: number | null = null
-  private chordIndex = 0
-  private melodyIndex = 0
   private unlocked = false
   private muted = loadMuted()
-  private ambientOn = false
+  private starting = false
   private listeners = new Set<(state: { muted: boolean; unlocked: boolean }) => void>()
 
   get isMuted() {
@@ -76,33 +58,68 @@ class Soundscape {
     for (const listener of this.listeners) listener(state)
   }
 
+  private ensureMusic() {
+    if (this.music || !canUseAudio()) return
+    const audio = new Audio(AMBIENT_SRC)
+    audio.loop = true
+    audio.preload = 'auto'
+    audio.volume = 0.38
+    audio.setAttribute('playsinline', 'true')
+    this.music = audio
+  }
+
+  private ensureSfx() {
+    if (this.ctx || typeof AudioContext === 'undefined') return
+    const ctx = new AudioContext()
+    const sfxGain = ctx.createGain()
+    sfxGain.gain.value = 0.55
+    sfxGain.connect(ctx.destination)
+    this.ctx = ctx
+    this.sfxGain = sfxGain
+  }
+
   /** Call from a user gesture so browsers allow audio. */
   async unlock() {
     if (!canUseAudio()) return
-    if (!this.ctx) this.createGraph()
-    if (!this.ctx) return
-    if (this.ctx.state === 'suspended') {
+    this.ensureMusic()
+    this.ensureSfx()
+    if (this.ctx?.state === 'suspended') {
       try {
         await this.ctx.resume()
       } catch {
-        return
+        /* ignore */
       }
     }
     this.unlocked = true
     this.emit()
-    if (!this.muted) this.startAmbient()
+    if (!this.muted) await this.startMusic()
+  }
+
+  private async startMusic() {
+    if (!this.music || this.muted || this.starting) return
+    this.starting = true
+    try {
+      this.music.currentTime = this.music.currentTime || 0
+      await this.music.play()
+    } catch {
+      // Autoplay blocked until next gesture; mute toggle / next click retries.
+    } finally {
+      this.starting = false
+    }
+  }
+
+  private stopMusic() {
+    if (!this.music) return
+    this.music.pause()
   }
 
   setMuted(muted: boolean) {
     this.muted = muted
     saveMuted(muted)
-    if (this.master) {
-      this.master.gain.setTargetAtTime(muted ? 0 : 1, this.now(), 0.08)
-    }
-    if (!muted) {
-      void this.unlock().then(() => this.startAmbient())
+    if (muted) {
+      this.stopMusic()
     } else {
-      this.stopAmbient(false)
+      void this.unlock().then(() => this.startMusic())
     }
     this.emit()
   }
@@ -114,27 +131,28 @@ class Soundscape {
   play(name: ToneName) {
     if (this.muted || !canUseAudio()) return
     void this.unlock().then(() => {
-      if (!this.ctx || !this.sfxGain || this.muted) return
+      if (this.muted || !this.ctx || !this.sfxGain) return
       switch (name) {
         case 'tick':
-          this.playTone(880, 0.06, 0.028, 'sine')
+          this.blip(880, 0.05, 0.03)
           break
         case 'softPop':
-          this.playTone(659.25, 0.1, 0.03, 'sine')
-          this.playTone(830.61, 0.12, 0.02, 'sine', 0.03)
+          this.blip(698.46, 0.08, 0.028)
+          this.blip(880, 0.1, 0.018, 0.03)
           break
         case 'whoosh':
-          this.playSoftSweep()
+          // Soft rising tone — no noise bursts.
+          this.blip(330, 0.22, 0.025, 0, 520)
           break
         case 'chime':
-          this.playTone(659.25, 0.35, 0.04, 'sine')
-          this.playTone(830.61, 0.4, 0.03, 'sine', 0.07)
-          this.playTone(1046.5, 0.45, 0.022, 'sine', 0.14)
+          this.blip(659.25, 0.28, 0.032)
+          this.blip(830.61, 0.32, 0.024, 0.06)
+          this.blip(1046.5, 0.36, 0.018, 0.12)
           break
         case 'ready':
-          this.playTone(523.25, 0.28, 0.038, 'sine')
-          this.playTone(659.25, 0.34, 0.032, 'sine', 0.1)
-          this.playTone(783.99, 0.42, 0.026, 'sine', 0.2)
+          this.blip(523.25, 0.26, 0.03)
+          this.blip(659.25, 0.3, 0.024, 0.08)
+          this.blip(783.99, 0.36, 0.02, 0.16)
           break
         default:
           break
@@ -142,217 +160,29 @@ class Soundscape {
     })
   }
 
-  private now() {
-    return this.ctx?.currentTime ?? 0
-  }
-
-  private createGraph() {
-    if (!canUseAudio() || this.ctx) return
-    const ctx = new AudioContext()
-    const master = ctx.createGain()
-    master.gain.value = this.muted ? 0 : 1
-    master.connect(ctx.destination)
-
-    const ambientGain = ctx.createGain()
-    ambientGain.gain.value = 0
-    ambientGain.connect(master)
-
-    const sfxGain = ctx.createGain()
-    sfxGain.gain.value = 0.75
-    sfxGain.connect(master)
-
-    this.ctx = ctx
-    this.master = master
-    this.ambientGain = ambientGain
-    this.sfxGain = sfxGain
-  }
-
-  private startAmbient() {
-    if (!this.ctx || !this.ambientGain || this.muted || this.ambientOn) return
-    this.ambientOn = true
-    this.chordIndex = 0
-    this.melodyIndex = 0
-
-    const ctx = this.ctx
-    const bus = this.ambientGain
-    bus.gain.cancelScheduledValues(ctx.currentTime)
-    bus.gain.setValueAtTime(Math.max(bus.gain.value, 0.0001), ctx.currentTime)
-    bus.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 1.8)
-
-    // Shared warm low-pass so the pad stays soft and musical.
-    const padFilter = ctx.createBiquadFilter()
-    padFilter.type = 'lowpass'
-    padFilter.frequency.value = 1800
-    padFilter.Q.value = 0.4
-    padFilter.connect(bus)
-    this.ambientNodes.push(padFilter)
-
-    // Four sine voices with very light chorus detune — no noise, no triangle buzz.
-    this.padOscillators = []
-    const firstChord = PAD_CHORDS[0]
-    for (let i = 0; i < 4; i += 1) {
-      const oscA = ctx.createOscillator()
-      const oscB = ctx.createOscillator()
-      oscA.type = 'sine'
-      oscB.type = 'sine'
-      const freq = firstChord[i]
-      oscA.frequency.value = freq
-      oscB.frequency.value = freq * 1.002
-      const voice = ctx.createGain()
-      voice.gain.value = i === 0 ? 0.09 : 0.07
-      oscA.connect(voice)
-      oscB.connect(voice)
-      voice.connect(padFilter)
-      oscA.start()
-      oscB.start()
-      this.padOscillators.push(oscA, oscB)
-      this.ambientNodes.push(oscA, oscB, voice)
-    }
-
-    // Slow brightness breathe (subtle, not a wah).
-    const lfo = ctx.createOscillator()
-    lfo.type = 'sine'
-    lfo.frequency.value = 0.05
-    const lfoGain = ctx.createGain()
-    lfoGain.gain.value = 220
-    lfo.connect(lfoGain)
-    lfoGain.connect(padFilter.frequency)
-    lfo.start()
-    this.ambientNodes.push(lfo, lfoGain)
-
-    this.applyChord(0, 0.01)
-    this.scheduleChordWalk()
-    this.scheduleMelody()
-  }
-
-  private scheduleChordWalk() {
-    if (!this.ambientOn || this.muted) return
-    this.chordTimer = window.setTimeout(() => {
-      if (!this.ambientOn || this.muted) return
-      this.chordIndex = (this.chordIndex + 1) % PAD_CHORDS.length
-      this.applyChord(this.chordIndex, 2.4)
-      this.scheduleChordWalk()
-    }, 7200)
-  }
-
-  private applyChord(index: number, glideSec: number) {
-    if (!this.ctx) return
-    const chord = PAD_CHORDS[index]
-    const t = this.ctx.currentTime
-    this.padOscillators.forEach((osc, voice) => {
-      const tone = chord[Math.floor(voice / 2)]
-      if (!tone) return
-      const target = voice % 2 === 0 ? tone : tone * 1.002
-      osc.frequency.cancelScheduledValues(t)
-      osc.frequency.setValueAtTime(osc.frequency.value, t)
-      osc.frequency.linearRampToValueAtTime(target, t + Math.max(0.05, glideSec))
-    })
-  }
-
-  private scheduleMelody() {
-    if (!this.ambientOn || this.muted) return
-    this.melodyTimer = window.setTimeout(() => {
-      if (!this.ambientOn || this.muted || !this.ctx) return
-      const freq = MELODY[this.melodyIndex % MELODY.length]
-      this.melodyIndex += 1
-      // Very soft high sine “bell” phrase — musical, not noise.
-      this.playTone(freq, 1.4, 0.02, 'sine', 0, true)
-      this.playTone(freq * 1.5, 1.1, 0.008, 'sine', 0.02, true)
-      this.scheduleMelody()
-    }, this.melodyIndex === 0 ? 2800 : 2600)
-  }
-
-  private stopAmbient(fade = true) {
-    if (!this.ctx || !this.ambientGain) {
-      this.ambientOn = false
-      return
-    }
-    if (this.chordTimer != null) {
-      window.clearTimeout(this.chordTimer)
-      this.chordTimer = null
-    }
-    if (this.melodyTimer != null) {
-      window.clearTimeout(this.melodyTimer)
-      this.melodyTimer = null
-    }
-    const ctx = this.ctx
-    const bus = this.ambientGain
-    const end = () => {
-      for (const node of this.ambientNodes) {
-        try {
-          if ('stop' in node && typeof node.stop === 'function') {
-            node.stop()
-          }
-          node.disconnect()
-        } catch {
-          /* ignore */
-        }
-      }
-      this.ambientNodes = []
-      this.padOscillators = []
-      this.ambientOn = false
-    }
-    if (fade) {
-      bus.gain.cancelScheduledValues(ctx.currentTime)
-      bus.gain.setValueAtTime(Math.max(bus.gain.value, 0.0001), ctx.currentTime)
-      bus.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.6)
-      window.setTimeout(end, 680)
-    } else {
-      bus.gain.setValueAtTime(0, ctx.currentTime)
-      end()
-    }
-  }
-
-  private playTone(
+  private blip(
     frequency: number,
     duration: number,
     peak: number,
-    type: OscillatorType,
     delay = 0,
-    throughAmbient = false,
+    endFrequency?: number,
   ) {
-    if (!this.ctx) return
-    const dest = throughAmbient ? this.ambientGain : this.sfxGain
-    if (!dest) return
+    if (!this.ctx || !this.sfxGain) return
     const t0 = this.ctx.currentTime + delay
     const osc = this.ctx.createOscillator()
     const gain = this.ctx.createGain()
-    const filter = this.ctx.createBiquadFilter()
-    filter.type = 'lowpass'
-    filter.frequency.value = Math.min(2400, frequency * 3)
-    osc.type = type
-    osc.frequency.value = frequency
-    gain.gain.setValueAtTime(0.0001, t0)
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + 0.06)
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration)
-    osc.connect(filter)
-    filter.connect(gain)
-    gain.connect(dest)
-    osc.start(t0)
-    osc.stop(t0 + duration + 0.03)
-  }
-
-  /** Soft rising sine sweep instead of noisy whoosh. */
-  private playSoftSweep() {
-    if (!this.ctx || !this.sfxGain) return
-    const ctx = this.ctx
-    const t0 = ctx.currentTime
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    const filter = ctx.createBiquadFilter()
     osc.type = 'sine'
-    filter.type = 'lowpass'
-    filter.frequency.value = 2200
-    osc.frequency.setValueAtTime(220, t0)
-    osc.frequency.exponentialRampToValueAtTime(660, t0 + 0.32)
+    osc.frequency.setValueAtTime(frequency, t0)
+    if (endFrequency) {
+      osc.frequency.exponentialRampToValueAtTime(endFrequency, t0 + duration)
+    }
     gain.gain.setValueAtTime(0.0001, t0)
-    gain.gain.exponentialRampToValueAtTime(0.045, t0 + 0.08)
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4)
-    osc.connect(filter)
-    filter.connect(gain)
+    gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + 0.025)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration)
+    osc.connect(gain)
     gain.connect(this.sfxGain)
     osc.start(t0)
-    osc.stop(t0 + 0.45)
+    osc.stop(t0 + duration + 0.02)
   }
 }
 

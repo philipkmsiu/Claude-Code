@@ -2990,7 +2990,11 @@ function App() {
           <IconPoster size={14} /> 海報
         </span>
         <span className="footer-sound-note">
-          {soundMuted ? '背景音樂已關閉' : '放鬆背景音與動效音為應用內合成'}
+          {soundMuted
+            ? '背景音樂已關閉'
+            : soundUnlocked
+              ? '正在播放放鬆背景音樂（可於右上角關閉）'
+              : '輕點一下即可開啟放鬆背景音樂'}
         </span>
       </footer>
     </div>
