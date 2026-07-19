@@ -1,75 +1,33 @@
-export type HotelStyle = 'value' | 'luxury' | 'luxuryValue' | 'standard' | 'clean'
-export type TripPace = 'relaxed' | 'balanced' | 'packed'
-export type Companion = 'solo' | 'couple' | 'family' | 'friends'
-export type SpotTag = 'must' | 'photo' | 'popular' | 'culture' | 'nature' | 'food' | 'shopping'
+export type {
+  BudgetSummary,
+  Companion,
+  DayPlan,
+  Destination,
+  DestinationId,
+  HotelOption,
+  HotelStyle,
+  ScheduleItem,
+  ScenicSpot,
+  SpotTag,
+  TripPace,
+} from './types'
 
-export type DestinationId = 'kansai' | 'osaka' | 'kyoto' | 'tokyo' | 'taipei' | 'seoul'
+import type {
+  Companion,
+  DayPlan,
+  Destination,
+  HotelOption,
+  HotelStyle,
+  ScheduleItem,
+  ScenicSpot,
+  SpotTag,
+  TripPace,
+} from './types'
+import { qingganDestination } from './qinggan'
 
 /** Hard ceiling for manual day input — long trips are allowed. */
 export const MAX_TRIP_DAYS = 21
 export const MIN_TRIP_DAYS = 2
-
-export interface ScenicSpot {
-  id: string
-  name: string
-  nameLocal: string
-  area: string
-  stayHours: number
-  summary: string
-  tags: SpotTag[]
-  ticket?: string
-  bestFor: Companion[]
-}
-
-export interface HotelOption {
-  name: string
-  area: string
-  nightsHint: string
-  pricePerNight: string
-  highlight: string
-  styles: HotelStyle[]
-}
-
-export interface ScheduleItem {
-  time: string
-  title: string
-  detail: string
-  spotId?: string
-}
-
-export interface DayPlan {
-  theme: string
-  stayArea: string
-  schedule: ScheduleItem[]
-  budget: string
-  tip: string
-  spotIds: string[]
-}
-
-export interface Destination {
-  id: DestinationId
-  nameZh: string
-  nameLocal: string
-  tagline: string
-  intro: string
-  bestSeason: string
-  /** Days advice shown before the user types their own length. */
-  recommendedDays: {
-    min: number
-    comfortable: number
-    suggestedLongest: number
-    note: string
-  }
-  weather: {
-    spring: string
-    summer: string
-    autumn: string
-    winter: string
-  }
-  hotels: HotelOption[]
-  spots: ScenicSpot[]
-  flexDayIdeas: string[]
-}
 
 export const hotelStyles: {
   id: HotelStyle
@@ -131,6 +89,9 @@ export const specialNeedOptions = [
   '想安排購物',
   '偏好戶外自然',
   '每天十點後出門',
+  '包司機舒服版',
+  '高原慢適應',
+  '6人小團',
 ]
 
 export const spotTagLabels: Record<SpotTag, string> = {
@@ -169,6 +130,7 @@ const kansaiSpots: ScenicSpot[] = [
 ]
 
 export const destinations: Destination[] = [
+  qingganDestination,
   {
     id: 'kansai',
     nameZh: '關西（大阪＋京都）',
@@ -567,7 +529,13 @@ export function aggregateDayAdvice(dests: Destination[]) {
   }
 }
 
-export function defaultSelectedSpotIds(spots: ScenicSpot[]): string[] {
+export function defaultSelectedSpotIds(
+  spots: ScenicSpot[],
+  dest?: Destination,
+): string[] {
+  // Curated routes (like 青甘 14 日) should start with the full intended set.
+  if (dest?.curatedPlans) return spots.map((s) => s.id)
+
   const must = spots.filter((s) => s.tags.includes('must')).map((s) => s.id)
   const photo = spots.filter((s) => s.tags.includes('photo') && !must.includes(s.id)).map((s) => s.id)
   const popular = spots
@@ -618,6 +586,40 @@ function timeLabel(hour: number, minute = 0): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
+function applySpotFilterToCurated(
+  plan: DayPlan[],
+  selectedSpotIds: string[],
+): DayPlan[] {
+  const selected = new Set(selectedSpotIds)
+  return plan.map((day) => {
+    const keptSpots = day.spotIds.filter((id) => selected.has(id))
+    // Transit / rest days may have no selectable highlights — keep them.
+    if (!day.spotIds.length || keptSpots.length > 0) {
+      return {
+        ...day,
+        schedule: day.schedule.filter(
+          (item) => !item.spotId || selected.has(item.spotId),
+        ),
+        spotIds: keptSpots,
+      }
+    }
+    return {
+      ...day,
+      theme: `${day.theme}（已依你的景點選擇精簡）`,
+      schedule: [
+        {
+          time: '10:00',
+          title: '彈性調整日',
+          detail: '這天原定景點已被取消勾選，可改休息、補拍或請司機調整順路點。',
+        },
+        ...day.schedule.filter((item) => !item.spotId),
+      ],
+      tip: '回到景點步驟重新勾選，或維持彈性日也沒問題。',
+      spotIds: [],
+    }
+  })
+}
+
 export function buildItinerary(options: {
   destinations: Destination[]
   selectedSpotIds: string[]
@@ -630,6 +632,15 @@ export function buildItinerary(options: {
   const days = clampDays(options.days)
   const { destinations: dests, selectedSpotIds, pace, companion, specialNeeds, hotelAreaHint } =
     options
+
+  // Prefer a handcrafted plan (e.g. 青甘大環線 14 日) when available.
+  if (dests.length === 1) {
+    const curated = dests[0].curatedPlans?.[days]
+    if (curated?.length) {
+      return applySpotFilterToCurated(curated, selectedSpotIds)
+    }
+  }
+
   const spotsPerDay = tripPaces.find((p) => p.id === pace)?.spotsPerDay ?? 3
   const lateStart = specialNeeds.some((n) => n.includes('十點'))
   const startHour = lateStart || specialNeeds.some((n) => n.includes('少走路')) ? 10 : 9

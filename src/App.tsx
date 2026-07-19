@@ -69,8 +69,14 @@ function App() {
   const planDays = clampDays(days)
   const weatherMonth = startDate ? new Date(startDate).getMonth() + 1 : 2
   const weather = primary ? primary.weather[seasonKey(weatherMonth)] : ''
-  const hotels = primary ? hotelsForStyle(primary, hotelStyle) : []
+  const hotels = primary
+    ? primary.curatedPlans
+      ? primary.hotels
+      : hotelsForStyle(primary, hotelStyle)
+    : []
   const hotelAreaHint = hotels[0]?.area || primary?.nameZh || '市區'
+  const budgetSummary = primary?.budgetSummary
+  const travelTips = primary?.tips ?? []
   const styleLabel = hotelStyles.find((s) => s.id === hotelStyle)?.label ?? ''
   const paceLabel = tripPaces.find((p) => p.id === pace)?.label ?? ''
   const companionLabel = companions.find((c) => c.id === companion)?.label ?? ''
@@ -131,10 +137,9 @@ function App() {
   }
 
   function initSpotsAndContinue() {
-    const spots = destinations
-      .filter((d) => selectedDestIds.includes(d.id))
-      .flatMap((d) => d.spots)
-    setSelectedSpotIds(defaultSelectedSpotIds(spots))
+    const dests = destinations.filter((d) => selectedDestIds.includes(d.id))
+    const spots = dests.flatMap((d) => d.spots)
+    setSelectedSpotIds(defaultSelectedSpotIds(spots, dests[0]))
     setStep('spots')
   }
 
@@ -229,24 +234,27 @@ function App() {
                   type="button"
                   className="btn ghost"
                   onClick={() => {
-                    setSelectedDestIds(['kansai'])
-                    setTripDays(7)
-                    setStartDate('2026-02-17')
-                    setEndDate('2026-02-23')
-                    setPace('balanced')
-                    setCompanion('couple')
-                    setSpecialNeeds(['喜歡歷史文化', '想拍打卡美照', '想多吃在地美食'])
+                    const dest = destinations.find((d) => d.id === 'qinggan')!
+                    setSelectedDestIds(['qinggan'])
+                    setTripDays(14)
+                    setStartDate('2026-06-15')
+                    setEndDate('2026-06-28')
+                    setPace('relaxed')
+                    setCompanion('friends')
+                    setSpecialNeeds([
+                      '想拍打卡美照',
+                      '偏好戶外自然',
+                      '包司機舒服版',
+                      '高原慢適應',
+                      '6人小團',
+                    ])
                     setHotelStyle('luxuryValue')
-                    setSelectedSpotIds(
-                      defaultSelectedSpotIds(
-                        destinations.find((d) => d.id === 'kansai')!.spots,
-                      ),
-                    )
+                    setSelectedSpotIds(defaultSelectedSpotIds(dest.spots, dest))
                     setStep('result')
                     setPlanVersion((v) => v + 1)
                   }}
                 >
-                  看關西 7 天範例
+                  看青甘 14 日範例
                 </button>
               </div>
             </div>
@@ -710,10 +718,13 @@ function App() {
               </article>
 
               <article className="info-block wide">
-                <h3>住宿建議 · {styleLabel}</h3>
+                <h3>
+                  {primary.curatedPlans ? '沿線酒店推薦' : `住宿建議 · ${styleLabel}`}
+                </h3>
                 <p className="muted">
-                  建議住 {Math.min(hotelNights, planDays)} 晚，區域以 {hotelAreaHint}{' '}
-                  為主。
+                  {primary.curatedPlans
+                    ? '依基地少換宿：西寧 → 嘉峪關 → 敦煌 → 花土溝 → 德令哈 → 青海湖。'
+                    : `建議住 ${Math.min(hotelNights, planDays)} 晚，區域以 ${hotelAreaHint} 為主。`}
                 </p>
                 <div className="hotel-list">
                   {hotels.map((hotel) => (
@@ -730,14 +741,45 @@ function App() {
                   ))}
                 </div>
               </article>
+
+              {budgetSummary && (
+                <article className="info-block wide">
+                  <h3>{budgetSummary.title}</h3>
+                  <p className="season-note">{budgetSummary.totalRange}</p>
+                  <p>
+                    <strong>{budgetSummary.perPerson}</strong>
+                  </p>
+                  <div className="budget-list">
+                    {budgetSummary.lines.map((line) => (
+                      <div key={line.item} className="budget-item">
+                        <strong>{line.item}</strong>
+                        <span>{line.detail}</span>
+                        <em>{line.amount}</em>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              )}
+
+              {travelTips.length > 0 && (
+                <article className="info-block wide">
+                  <h3>注意事項</h3>
+                  <ul className="tips-list">
+                    {travelTips.map((tip) => (
+                      <li key={tip}>{tip}</li>
+                    ))}
+                  </ul>
+                </article>
+              )}
             </div>
 
             <div className="itinerary">
               <div className="section-head">
                 <h3>每日行程</h3>
                 <p>
-                  依你勾選的景點與 {planDays}{' '}
-                  天重排。若要改天數或景點，回上一步後再重新產生。
+                  {primary.curatedPlans?.[planDays]
+                    ? `這是 ${primary.nameZh} 的 ${planDays} 日完整舒服版行程；取消勾選景點後可精簡對應日。`
+                    : `依你勾選的景點與 ${planDays} 天重排。若要改天數或景點，回上一步後再重新產生。`}
                 </p>
               </div>
               <div className="day-list">
