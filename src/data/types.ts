@@ -27,6 +27,28 @@ export interface HotelOption {
   styles: HotelStyle[]
 }
 
+/** One consecutive booking block at the same hotel. */
+export interface HotelStayBlock {
+  hotelName: string
+  area: string
+  base: string
+  /** 1-based night index in the trip (night after Day N). */
+  fromNight: number
+  toNight: number
+  nights: number
+  /** Day numbers (1-based) that sleep at this hotel. */
+  dayNumbers: number[]
+  reason: string
+}
+
+export interface HotelStayPlan {
+  preferConsecutive: boolean
+  totalNights: number
+  changes: number
+  blocks: HotelStayBlock[]
+  summary: string
+}
+
 export interface ScheduleItem {
   time: string
   title: string

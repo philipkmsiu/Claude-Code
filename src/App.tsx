@@ -20,6 +20,8 @@ import {
   destinations as presetDestinations,
   findKnownDestination,
   fitStatusTitle,
+  applyHotelStayPlan,
+  buildHotelStayPlan,
   hotelBookingAdvice,
   hotelStyles,
   hotelsForStyle,
@@ -75,6 +77,8 @@ function App() {
   ])
   const [hotelStyle, setHotelStyle] = useState<HotelStyle>('value')
   const [hotelNights, setHotelNights] = useState(6)
+  const [preferConsecutiveStays, setPreferConsecutiveStays] = useState(true)
+  const [preferredHotelName, setPreferredHotelName] = useState('')
   const [selectedSpotIds, setSelectedSpotIds] = useState<string[]>([])
   const [planVersion, setPlanVersion] = useState(0)
   const [customSpotName, setCustomSpotName] = useState('')
@@ -373,7 +377,7 @@ function App() {
     }
   }, [step, reviewContentKey, planDays, primary?.id])
 
-  const itinerary = useMemo(() => {
+  const rawItinerary = useMemo(() => {
     void planVersion
     if (!selectedDestinations.length) return []
     return buildItinerary({
@@ -395,6 +399,31 @@ function App() {
     hotelAreaHint,
     planVersion,
   ])
+
+  const stayNights = Math.min(hotelNights, nightsFromDays(planDays))
+
+  const hotelStayPlan = useMemo(
+    () =>
+      buildHotelStayPlan({
+        itinerary: rawItinerary,
+        hotels,
+        totalNights: stayNights,
+        preferConsecutive: preferConsecutiveStays,
+        preferredHotelName: preferredHotelName || undefined,
+      }),
+    [
+      rawItinerary,
+      hotels,
+      stayNights,
+      preferConsecutiveStays,
+      preferredHotelName,
+    ],
+  )
+
+  const itinerary = useMemo(
+    () => applyHotelStayPlan(rawItinerary, hotelStayPlan),
+    [rawItinerary, hotelStayPlan],
+  )
 
   function setTripDays(next: number) {
     const clamped = clampDays(next)
@@ -1243,8 +1272,7 @@ function App() {
               <h2>住宿偏好</h2>
               <p>
                 你目前規劃 {planDays} 天 {nightsFromDays(planDays)} 夜 · {travelers}{' '}
-                人同行；可再微調實際入住晚數。依人數建議先訂約 {hotelAdvice.rooms} 間房（
-                {hotelAdvice.bedding}）。
+                人同行。可選風格與主酒店；系統會在可行時安排連住，避免頻繁換宿。
               </p>
             </div>
 
@@ -1266,31 +1294,107 @@ function App() {
                 id="nights"
                 type="range"
                 min={1}
-                max={planDays}
-                value={Math.min(hotelNights, planDays)}
+                max={Math.max(1, nightsFromDays(planDays))}
+                value={stayNights}
                 onChange={(e) => setHotelNights(Number(e.target.value))}
               />
               <p className="range-value">
-                {Math.min(hotelNights, planDays)} 晚
+                {stayNights} 晚
                 <span>
                   （{planDays} 天通常住 {nightsFromDays(planDays)} 晚）
                 </span>
               </p>
             </div>
 
+            <h3 className="subhead">換宿策略</h3>
+            <div className="day-options">
+              <button
+                type="button"
+                className={`chip ${preferConsecutiveStays ? 'selected' : ''}`}
+                onClick={() => setPreferConsecutiveStays(true)}
+              >
+                盡量連住、少換宿
+              </button>
+              <button
+                type="button"
+                className={`chip ${!preferConsecutiveStays ? 'selected' : ''}`}
+                onClick={() => setPreferConsecutiveStays(false)}
+              >
+                依每日區域彈性換宿
+              </button>
+            </div>
+            <p className="muted-line">
+              {preferConsecutiveStays
+                ? '同都會圈的日遊（如大阪＋奈良＋神戶）會盡量住同一間，能日歸就不換酒店。'
+                : '較貼近每日景點區域，換宿可能較多。'}
+            </p>
+
+            <h3 className="subhead">住宿風格</h3>
             <div className="style-grid">
               {hotelStyles.map((style) => (
                 <button
                   key={style.id}
                   type="button"
                   className={`style-card ${hotelStyle === style.id ? 'selected' : ''}`}
-                  onClick={() => setHotelStyle(style.id)}
+                  onClick={() => {
+                    setHotelStyle(style.id)
+                    setPreferredHotelName('')
+                  }}
                 >
                   <strong>{style.label}</strong>
                   <span>{style.description}</span>
                 </button>
               ))}
             </div>
+
+            <h3 className="subhead">選擇主酒店（可選）</h3>
+            <p className="muted-line">
+              點選後會優先用這間做連住基地；長線多基地行程仍可能分段住宿。
+            </p>
+            <div className="hotel-pick-grid">
+              {hotels.map((hotel) => {
+                const active = preferredHotelName === hotel.name
+                return (
+                  <button
+                    key={hotel.name}
+                    type="button"
+                    className={`hotel-pick ${active ? 'selected' : ''}`}
+                    onClick={() =>
+                      setPreferredHotelName((prev) =>
+                        prev === hotel.name ? '' : hotel.name,
+                      )
+                    }
+                  >
+                    <strong>{hotel.name}</strong>
+                    <span>
+                      {hotel.area} · {hotel.pricePerNight}
+                    </span>
+                    <em>{hotel.highlight}</em>
+                    <small>{hotel.nightsHint}</small>
+                  </button>
+                )
+              })}
+            </div>
+
+            <aside className={`ai-panel ${hotelStayPlan.changes === 0 ? 'ready' : ''}`}>
+              <strong>
+                {preferConsecutiveStays
+                  ? hotelStayPlan.changes === 0
+                    ? '連住方案：全程同一酒店'
+                    : `連住方案：${hotelStayPlan.blocks.length} 段・換宿 ${hotelStayPlan.changes} 次`
+                  : '彈性換宿方案'}
+              </strong>
+              <p>{hotelStayPlan.summary}</p>
+              <ul className="tips-list">
+                {hotelStayPlan.blocks.map((block) => (
+                  <li key={`${block.hotelName}-${block.fromNight}`}>
+                    {block.nights >= 2
+                      ? `第 ${block.fromNight}–${block.toNight} 晚連住 ${block.hotelName}（${block.nights} 晚・${block.area}）`
+                      : `第 ${block.fromNight} 晚住 ${block.hotelName}（${block.area}）`}
+                  </li>
+                ))}
+              </ul>
+            </aside>
 
             <div className="nav-row">
               <button
@@ -1582,17 +1686,36 @@ function App() {
               </article>
 
               <article className="info-block wide">
-                <h3>
-                  {primary.curatedPlans ? '沿線酒店推薦' : `住宿建議 · ${styleLabel}`}
-                </h3>
+                <h3>連住住宿安排 · {styleLabel}</h3>
+                <p>{hotelStayPlan.summary}</p>
                 <p className="muted">
-                  {primary.curatedPlans
-                    ? `依基地少換宿：西寧 → 嘉峪關 → 敦煌 → 花土溝 → 德令哈 → 青海湖。${travelers} 人請各基地一次訂約 ${hotelAdvice.rooms} 間。`
-                    : `建議住 ${Math.min(hotelNights, planDays)} 晚，區域以 ${hotelAreaHint} 為主；${travelers} 人先估 ${hotelAdvice.rooms} 間房。`}
+                  {travelers} 人先估每段 {hotelAdvice.rooms} 間房
+                  {preferConsecutiveStays
+                    ? '；已優先安排連續晚數住同一酒店。'
+                    : '；目前為彈性換宿。'}
                 </p>
+                <ul className="tips-list stay-plan-list">
+                  {hotelStayPlan.blocks.map((block) => (
+                    <li key={`${block.hotelName}-${block.fromNight}`}>
+                      <strong>
+                        {block.nights >= 2
+                          ? `第 ${block.fromNight}–${block.toNight} 晚連住`
+                          : `第 ${block.fromNight} 晚`}
+                      </strong>
+                      {` ${block.hotelName} · ${block.area}（${block.nights} 晚）`}
+                    </li>
+                  ))}
+                </ul>
                 <div className="hotel-list">
                   {hotels.map((hotel) => (
-                    <div key={hotel.name} className="hotel-item">
+                    <div
+                      key={hotel.name}
+                      className={`hotel-item ${
+                        hotelStayPlan.blocks.some((b) => b.hotelName === hotel.name)
+                          ? 'in-plan'
+                          : ''
+                      }`}
+                    >
                       <div>
                         <strong>{hotel.name}</strong>
                         <span>

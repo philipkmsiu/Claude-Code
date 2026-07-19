@@ -726,6 +726,65 @@ main {
   color: #f4f0e4;
 }
 
+.hotel-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin: 0.35rem 0 1.1rem;
+}
+
+.hotel-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 1rem 1.05rem;
+  border: 0;
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.1);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.hotel-pick:hover {
+  transform: translateY(-2px);
+}
+
+.hotel-pick.selected {
+  background: rgba(31, 61, 54, 0.94);
+  color: #f4f0e4;
+}
+
+.hotel-pick strong {
+  font-family: var(--display);
+  font-size: 1.05rem;
+}
+
+.hotel-pick span,
+.hotel-pick em,
+.hotel-pick small {
+  color: inherit;
+  opacity: 0.88;
+  font-style: normal;
+}
+
+.hotel-pick.selected span,
+.hotel-pick.selected em,
+.hotel-pick.selected small {
+  color: #f4f0e4;
+}
+
+.stay-plan-list {
+  margin: 0.55rem 0 1rem;
+}
+
+.hotel-item.in-plan {
+  box-shadow: inset 0 0 0 1px rgba(63, 107, 93, 0.35);
+  background: rgba(63, 107, 93, 0.08);
+}
+
 .result-hero {
   margin-bottom: 1.5rem;
   padding: 1.6rem 1.4rem;

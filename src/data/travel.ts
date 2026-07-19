@@ -5,6 +5,8 @@ export type {
   Destination,
   DestinationId,
   HotelOption,
+  HotelStayBlock,
+  HotelStayPlan,
   HotelStyle,
   ScheduleItem,
   ScenicSpot,
@@ -17,6 +19,7 @@ import type {
   DayPlan,
   Destination,
   HotelOption,
+  HotelStayPlan,
   HotelStyle,
   ScheduleItem,
   ScenicSpot,
@@ -984,6 +987,251 @@ export function clampDays(value: number): number {
 
 export function nightsFromDays(days: number): number {
   return Math.max(clampDays(days) - 1, 1)
+}
+
+/** Collapse spot areas into a hotel base city/region. */
+export function hotelAreaBase(area: string): string {
+  const raw = (area || '').trim() || '市區'
+  const parts = raw.split(/[・／/·\|｜]/).map((p) => p.trim()).filter(Boolean)
+  if (!parts.length) return '市區'
+  // 北疆・阿勒泰 → keep both; 大阪・難波 → 大阪
+  if (/^[東西南北]?疆|青藏|青甘|華[北東]|關[東西]/.test(parts[0]) && parts[1]) {
+    return `${parts[0]}・${parts[1]}`
+  }
+  return parts[0]
+}
+
+/** Bases that can share one hotel with day trips (avoid unnecessary moves). */
+const SHARED_HOTEL_CLUSTERS: string[][] = [
+  ['大阪', '奈良', '神戶', '神戸', '京都'],
+  ['東京', '橫濱', '横浜', '鎌倉', '箱根'],
+  ['台北', '新北', '基隆', '桃園'],
+  ['首爾', '京畿', '仁川'],
+]
+
+function sharedHotelClusterId(base: string): string | null {
+  const hit = SHARED_HOTEL_CLUSTERS.find((cluster) =>
+    cluster.some((token) => base.includes(token) || token.includes(base)),
+  )
+  return hit ? hit[0] : null
+}
+
+function dayPreferredBase(day: DayPlan): string {
+  if (day.spotIds?.length && day.stayArea) {
+    // Prefer majority of schedule spot areas when present in theme/stay
+  }
+  return hotelAreaBase(day.stayArea)
+}
+
+function pickHotelForBase(
+  hotels: HotelOption[],
+  base: string,
+  preferredHotelName?: string,
+): HotelOption {
+  if (preferredHotelName) {
+    const preferred = hotels.find((h) => h.name === preferredHotelName)
+    if (preferred) return preferred
+  }
+  const scored = hotels.map((hotel) => {
+    const hotelBase = hotelAreaBase(hotel.area)
+    let score = 0
+    if (hotelBase === base || hotel.area.includes(base) || base.includes(hotelBase)) {
+      score += 8
+    }
+    const cluster = sharedHotelClusterId(base)
+    if (cluster && sharedHotelClusterId(hotelBase) === cluster) score += 5
+    if (/市中心|市區|梅田|難波|車站|基地/.test(hotel.area)) score += 1
+    if (/連住|少換宿|全程/.test(hotel.nightsHint)) score += 2
+    return { hotel, score }
+  })
+  scored.sort((a, b) => b.score - a.score)
+  return scored[0]?.hotel ?? hotels[0] ?? {
+    name: `${base}連住旅店`,
+    area: base,
+    nightsHint: '建議連住',
+    pricePerNight: '視淡旺季',
+    highlight: '以少換宿為原則的基地住宿',
+    styles: ['standard'],
+  }
+}
+
+/**
+ * Plan hotel nights to prefer consecutive stays at the same hotel when geography allows.
+ * Day-trips inside the same metro cluster keep the previous hotel instead of changing.
+ */
+export function buildHotelStayPlan(options: {
+  itinerary: DayPlan[]
+  hotels: HotelOption[]
+  totalNights: number
+  preferConsecutive?: boolean
+  preferredHotelName?: string
+}): HotelStayPlan {
+  const preferConsecutive = options.preferConsecutive !== false
+  const nights = Math.max(1, options.totalNights)
+  const days = options.itinerary
+  const hotels = options.hotels.length
+    ? options.hotels
+    : [
+        {
+          name: '行程基地旅店',
+          area: '市區',
+          nightsHint: '建議連住',
+          pricePerNight: '視淡旺季',
+          highlight: '少換宿優先',
+          styles: ['standard' as HotelStyle],
+        },
+      ]
+
+  // One sleep night after each day except typically the last departure day.
+  // Map night i (1..nights) → day i's preferred base (day index i-1).
+  const nightBases: string[] = []
+  for (let n = 1; n <= nights; n++) {
+    const day = days[Math.min(n - 1, Math.max(days.length - 1, 0))]
+    nightBases.push(day ? dayPreferredBase(day) : '市區')
+  }
+
+  // Stabilize bases: day-trips inside a metro cluster keep the dominant hotel base.
+  let stabilized = [...nightBases]
+  if (preferConsecutive && stabilized.length) {
+    const counts = new Map<string, number>()
+    for (const base of stabilized) {
+      const key = sharedHotelClusterId(base) || base
+      counts.set(key, (counts.get(key) || 0) + 1)
+    }
+    let dominantKey = stabilized[0]
+    let dominantCount = 0
+    for (const [key, count] of counts) {
+      if (count > dominantCount) {
+        dominantKey = key
+        dominantCount = count
+      }
+    }
+
+    // If one cluster/base covers most nights, keep that hotel for short outliers.
+    if (dominantCount >= Math.ceil(stabilized.length * 0.5)) {
+      const dominantHotelBase =
+        SHARED_HOTEL_CLUSTERS.find((c) => c[0] === dominantKey)?.[0] ||
+        stabilized.find((b) => (sharedHotelClusterId(b) || b) === dominantKey) ||
+        dominantKey
+
+      stabilized = stabilized.map((base, index) => {
+        const key = sharedHotelClusterId(base) || base
+        if (key === dominantKey) return dominantHotelBase
+        // Single-night outlier between same-base nights → keep previous hotel
+        const prev = stabilized[index - 1]
+        const next = stabilized[index + 1]
+        if (
+          prev &&
+          next &&
+          (sharedHotelClusterId(prev) || prev) === dominantKey &&
+          (sharedHotelClusterId(next) || next) === dominantKey
+        ) {
+          return dominantHotelBase
+        }
+        // Short trips (≤8 nights): prefer one hotel whenever cluster-compatible
+        if (
+          nights <= 8 &&
+          SHARED_HOTEL_CLUSTERS.some(
+            (cluster) =>
+              cluster.some((t) => base.includes(t)) &&
+              cluster.some((t) => dominantHotelBase.includes(t)),
+          )
+        ) {
+          return dominantHotelBase
+        }
+        return base
+      })
+    }
+
+    // Merge adjacent identical bases already; also collapse 1-night flickers
+    for (let i = 1; i < stabilized.length - 1; i++) {
+      if (
+        stabilized[i] !== stabilized[i - 1] &&
+        stabilized[i - 1] === stabilized[i + 1]
+      ) {
+        stabilized[i] = stabilized[i - 1]
+      }
+    }
+  }
+
+  const blocks: HotelStayPlan['blocks'] = []
+  let start = 0
+  while (start < stabilized.length) {
+    let end = start
+    while (end + 1 < stabilized.length && stabilized[end + 1] === stabilized[start]) {
+      end += 1
+    }
+    const base = stabilized[start]
+    const hotel = pickHotelForBase(hotels, base, options.preferredHotelName)
+    const fromNight = start + 1
+    const toNight = end + 1
+    const blockNights = toNight - fromNight + 1
+    const dayNumbers = Array.from({ length: blockNights }, (_, i) => fromNight + i)
+    blocks.push({
+      hotelName: hotel.name,
+      area: hotel.area,
+      base,
+      fromNight,
+      toNight,
+      nights: blockNights,
+      dayNumbers,
+      reason:
+        blockNights >= 2
+          ? `第 ${fromNight}–${toNight} 晚連住 ${hotel.name}（${base}），減少換宿`
+          : `第 ${fromNight} 晚住 ${hotel.name}（${base}）`,
+    })
+    start = end + 1
+  }
+
+  const changes = Math.max(0, blocks.length - 1)
+  const summary = preferConsecutive
+    ? changes === 0
+      ? `全程建議連住同一間：${blocks[0]?.hotelName || '基地旅店'}（${nights} 晚），避免頻繁換宿。`
+      : `已盡量連住：共 ${blocks.length} 段住宿、換宿 ${changes} 次（能日歸就不換酒店）。`
+    : `依每日區域安排住宿，共 ${blocks.length} 段。`
+
+  return {
+    preferConsecutive,
+    totalNights: nights,
+    changes,
+    blocks,
+    summary,
+  }
+}
+
+/** Rewrite itinerary stay labels to follow the consecutive hotel plan. */
+export function applyHotelStayPlan(
+  itinerary: DayPlan[],
+  plan: HotelStayPlan,
+): DayPlan[] {
+  if (!itinerary.length || !plan.blocks.length) return itinerary
+  return itinerary.map((day, index) => {
+    const dayNumber = index + 1
+    const nightIndex = Math.min(dayNumber, plan.totalNights)
+    const block =
+      plan.blocks.find(
+        (b) => nightIndex >= b.fromNight && nightIndex <= b.toNight,
+      ) || plan.blocks[plan.blocks.length - 1]
+    const stayLabel = `${block.hotelName}（${block.area}）`
+    const consecutiveNote = block.nights >= 2 ? '・連住中' : ''
+    const schedule = day.schedule.map((item) => {
+      const text = `${item.title} ${item.detail}`
+      if (!/回飯店|入住|住宿|今晚住|建議住/.test(text)) return item
+      return {
+        ...item,
+        detail: `今晚住 ${stayLabel}${consecutiveNote}`,
+      }
+    })
+    return {
+      ...day,
+      stayArea: stayLabel,
+      schedule,
+      tip:
+        block.nights >= 2
+          ? `${day.tip}（${block.reason}）`
+          : day.tip,
+    }
+  })
 }
 
 export function daysBetween(start: string, end: string): number | null {
