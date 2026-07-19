@@ -374,14 +374,19 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
     const content = await chatCompletion([
       {
         role: 'system',
-        content: `你是專業旅遊規劃 AI，熟悉各地真實景點、住宿基地與動線。
-請為指定目的地推薦可直接給旅客看的完整資料。
+        content: `你是專業旅遊規劃 AI。使用者選了任何目的地，你都要先完整調研，再輸出可直接做行程規劃的資料包。
 只回傳 JSON：
 {
   "intro": string,
   "tagline": string,
   "background": string,
   "memorable": string[],
+  "tips": string[],
+  "flexDayIdeas": string[],
+  "recommendedDays": { "min": number, "comfortable": number, "suggestedLongest": number, "note": string },
+  "mustEat": [{ "name": string, "daysLabel": string, "motif": string }],
+  "mustDrink": [{ "name": string, "motif": string }],
+  "mustBuy": [{ "name": string, "daysLabel": string, "motif": string }],
   "hotels": [
     {
       "name": string,
@@ -406,23 +411,18 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
     }
   ]
 }
-硬性規則：
-- 必須給 ${targetCount}–${targetCount + 4} 個景點（長天數行程需要足夠真實景點，禁止灌水空白日）
-- name 必須是真實景點／街區／體驗名稱（例如「新天鵝堡」「科隆大教堂」「布蘭登堡門」）
-- 禁止空泛類別名，例如「經典地標」「老城／歷史區」「觀景／打卡點」「在地美食區」「近郊日遊」「再訪最愛街區」
-- 禁止把目的地名稱直接串成「XX經典地標」「german景區度假酒店」這種模板
-- summary 必須是 2–3 句繁體中文：含一點歷史／場景氛圍＋為何值得去＋怎麼排較舒服；禁止空泛一句話
-- nearbyFood 必填：該景點附近可吃什麼（餐廳類型或具體在地菜），1 句繁體中文
-- souvenirs 必填：該區特色手信／伴手禮（禮物），1 句繁體中文；手信＝可帶回家送人的地方特產
-- background 用 3–4 句繁體中文講歷史／地理／旅行意義，要讓人感覺「認識這個地方」
-- memorable 給 4–6 條具體可想像的畫面（每條至少一句完整描述，不要「第一眼天際線」這種万能句）
-- hotels 給 3–5 間「真實常見住宿類型＋具體城區」，例如「柏林米特區精品酒店」「慕尼黑舊城設計旅店」；禁止「XX景區度假酒店」「主要基地城市」
-- area 用實際城市／城區（如「慕尼黑・舊城」「柏林・米特」「科隆・舊城」），方便同一城排同一天
-- tags 至少要有意義；必去用 must，打卡用 photo
-- stayHours 用 1–9 的數字（全日近郊可 7–9）
-- intro / ticket / hotel 文案用繁體中文
-- 覆蓋：必去、自然、文化、美食、打卡、近郊；依目的地真實特色調整
-- 不要 Markdown`,
+硬性規則（任何目的地都一樣，禁止偷懶套模板）：
+- 必須給 ${targetCount}–${targetCount + 4} 個真實景點
+- name 必須是真實景點／街區／體驗名稱；禁止「經典地標」「老城／歷史區」「XX經典地標」
+- summary 2–3 句繁體中文：歷史／場景氛圍＋為何值得去＋怎麼排
+- nearbyFood、souvenirs（手信／伴手禮）每個景點必填，要具體
+- background 3–4 句；memorable 4–6 條完整句子
+- hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
+- mustEat 5–7 道具體當地必吃（菜名／小吃名，不是「街頭小吃」「代表菜晚餐」）
+- mustDrink 3–4 種具體飲品；mustBuy 3–5 樣具體手信
+- recommendedDays 要符合該目的地真實尺度（城市遊別灌成 20 天；長線可較長）
+- area 用真實城市／城區，方便同城排同一天
+- 全文繁體中文；不要 Markdown`,
       },
       {
         role: 'user',
@@ -434,16 +434,27 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
-          ask: '請給真實景點、1–2 句景點說明、每個景點附近美食與特色手信（伴手禮／禮物）、目的地背景／難忘之處，以及分城市住宿建議。不要類別模板。',
+          ask: '請先完整調研這個目的地，再輸出：歷史背景、難忘之處、真實景點（含附近美食與手信）、分城市住宿、必吃必喝必買手信、建議天數。禁止空泛類別句。',
         }),
       },
-    ], 0.4)
+    ], 0.35)
 
     const parsed = extractJson(content) as {
       intro?: string
       tagline?: string
       background?: string
       memorable?: string[]
+      tips?: string[]
+      flexDayIdeas?: string[]
+      recommendedDays?: {
+        min?: number
+        comfortable?: number
+        suggestedLongest?: number
+        note?: string
+      }
+      mustEat?: { name?: string; daysLabel?: string; motif?: string }[]
+      mustDrink?: { name?: string; motif?: string }[]
+      mustBuy?: { name?: string; daysLabel?: string; motif?: string }[]
       hotels?: {
         name?: string
         area?: string
@@ -474,6 +485,16 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       ? parsed.memorable.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 6)
       : []
     const hotels = Array.isArray(parsed.hotels) ? parsed.hotels : []
+    const mustEat = Array.isArray(parsed.mustEat) ? parsed.mustEat : []
+    const mustDrink = Array.isArray(parsed.mustDrink) ? parsed.mustDrink : []
+    const mustBuy = Array.isArray(parsed.mustBuy) ? parsed.mustBuy : []
+    const tips = Array.isArray(parsed.tips)
+      ? parsed.tips.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 8)
+      : []
+    const flexDayIdeas = Array.isArray(parsed.flexDayIdeas)
+      ? parsed.flexDayIdeas.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 6)
+      : []
+    const rd = parsed.recommendedDays || {}
 
     sendJson(res, 200, {
       source: 'crazyrouter',
@@ -481,6 +502,37 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       tagline: parsed.tagline || '',
       background: parsed.background || '',
       memorable,
+      tips,
+      flexDayIdeas,
+      recommendedDays: {
+        min: Number(rd.min) || 0,
+        comfortable: Number(rd.comfortable) || 0,
+        suggestedLongest: Number(rd.suggestedLongest) || 0,
+        note: String(rd.note || '').trim(),
+      },
+      mustEat: mustEat
+        .map((item) => ({
+          name: String(item.name || '').trim(),
+          daysLabel: String(item.daysLabel || '').trim() || '行程中',
+          motif: String(item.motif || '').trim() || '🍽',
+        }))
+        .filter((item) => item.name)
+        .slice(0, 8),
+      mustDrink: mustDrink
+        .map((item) => ({
+          name: String(item.name || '').trim(),
+          motif: String(item.motif || '').trim() || '🥤',
+        }))
+        .filter((item) => item.name)
+        .slice(0, 6),
+      mustBuy: mustBuy
+        .map((item) => ({
+          name: String(item.name || '').trim(),
+          daysLabel: String(item.daysLabel || '').trim() || '手信',
+          motif: String(item.motif || '').trim() || '🎁',
+        }))
+        .filter((item) => item.name)
+        .slice(0, 8),
       hotels: hotels.map((hotel) => ({
         name: String(hotel.name || '').trim(),
         area: String(hotel.area || '').trim(),

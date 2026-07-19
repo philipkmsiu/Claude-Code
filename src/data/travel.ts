@@ -627,6 +627,63 @@ const ALLOWED_SPOT_TAGS: SpotTag[] = [
   'shopping',
 ]
 
+/** Build Stage-4 poster content from a full AI destination profile. */
+export function visualPosterFromAi(
+  destinationName: string,
+  suggestion: {
+    tagline?: string
+    tips?: string[]
+    mustEat?: { name?: string; daysLabel?: string; motif?: string }[]
+    mustDrink?: { name?: string; motif?: string }[]
+    mustBuy?: { name?: string; daysLabel?: string; motif?: string }[]
+  },
+  options?: {
+    days?: number
+    nights?: number
+    transportMode?: TransportMode
+  },
+): VisualPosterContent | undefined {
+  const mustEat = (suggestion.mustEat || [])
+    .map((item) => ({
+      name: String(item.name || '').trim(),
+      daysLabel: String(item.daysLabel || '').trim() || '行程中',
+      motif: String(item.motif || '').trim() || '🍽',
+    }))
+    .filter((item) => item.name)
+  const mustDrink = (suggestion.mustDrink || [])
+    .map((item) => ({
+      name: String(item.name || '').trim(),
+      motif: String(item.motif || '').trim() || '🥤',
+    }))
+    .filter((item) => item.name)
+  const mustBuy = (suggestion.mustBuy || [])
+    .map((item) => ({
+      name: String(item.name || '').trim(),
+      daysLabel: String(item.daysLabel || '').trim() || '手信',
+      motif: String(item.motif || '').trim() || '🎁',
+    }))
+    .filter((item) => item.name)
+  if (mustEat.length < 3) return undefined
+
+  const days = options?.days
+  const nights = options?.nights
+  const mode = options?.transportMode
+  const themeLine =
+    suggestion.tagline?.trim() ||
+    (days && nights != null && mode
+      ? `${days} 天 ${nights} 夜｜${transportModeLabel(mode)}｜AI 調研視覺摘要`
+      : `${destinationName}｜AI 調研視覺摘要`)
+
+  return {
+    themeLine,
+    mustEat: mustEat.slice(0, 8),
+    mustDrink: mustDrink.slice(0, 6),
+    mustBuy: mustBuy.length ? mustBuy.slice(0, 8) : undefined,
+    travelTips: (suggestion.tips || []).map((t) => t.trim()).filter(Boolean).slice(0, 8),
+    footerNote: `路線示意；${destinationName}景點與餐廳營業時間請出發前再確認。`,
+  }
+}
+
 /** Map Crazyrouter spot suggestions onto ScenicSpot records. */
 /** Expand thin one-liners like「經典必去」into a readable scene note. */
 export function ensureRichSpotCopy(

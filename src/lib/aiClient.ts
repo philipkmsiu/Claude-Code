@@ -39,12 +39,34 @@ export type AiSuggestedHotel = {
   styles: string[]
 }
 
+export type AiPosterDish = {
+  name: string
+  daysLabel?: string
+  motif?: string
+}
+
+export type AiPosterDrink = {
+  name: string
+  motif?: string
+}
+
 export type AiSpotSuggestion = {
   source: 'crazyrouter'
   intro: string
   tagline?: string
   background?: string
   memorable?: string[]
+  tips?: string[]
+  flexDayIdeas?: string[]
+  recommendedDays?: {
+    min: number
+    comfortable: number
+    suggestedLongest: number
+    note: string
+  }
+  mustEat?: AiPosterDish[]
+  mustDrink?: AiPosterDrink[]
+  mustBuy?: AiPosterDish[]
   hotels?: AiSuggestedHotel[]
   spots: AiSuggestedSpot[]
 }
