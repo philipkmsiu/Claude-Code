@@ -885,16 +885,19 @@ main {
 
 .route-legs {
   margin: 0.65rem 0 0.9rem;
-  padding: 0.75rem 0.85rem;
-  background: rgba(255, 255, 255, 0.45);
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.55);
   box-shadow: inset 0 0 0 1px rgba(31, 61, 54, 0.08);
   border-radius: 0.85rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .route-legs > strong {
   display: block;
-  margin-bottom: 0.45rem;
-  font-size: 0.92rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.95rem;
   color: var(--forest);
 }
 
@@ -903,32 +906,42 @@ main {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.75rem;
+  width: 100%;
 }
 
 .route-legs li {
-  display: grid;
-  gap: 0.15rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .route-legs em {
   font-style: normal;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--accent, #8a6b4a);
   letter-spacing: 0.02em;
 }
 
 .route-legs span {
+  display: block;
   font-weight: 600;
   color: var(--ink);
+  line-height: 1.4;
 }
 
 .route-legs p {
   margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.45;
+  font-size: 0.9rem;
+  line-height: 1.55;
   color: var(--ink-soft);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .journey-map-section {
@@ -1566,7 +1579,7 @@ main {
   font-size: 0.9rem;
 }
 
-.day-card ol {
+.day-card > ol {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1574,10 +1587,18 @@ main {
   gap: 0.7rem;
 }
 
-.day-card li {
+/* Only the schedule timeline uses the time + detail columns.
+   Do not apply this to nested lists (e.g. .route-legs), or body copy
+   collapses into the 4.2rem time gutter. */
+.day-card > ol > li {
   display: grid;
-  grid-template-columns: 4.2rem 1fr;
+  grid-template-columns: 4.2rem minmax(0, 1fr);
   gap: 0.7rem;
+  align-items: start;
+}
+
+.day-card > ol > li > div {
+  min-width: 0;
 }
 
 .day-card time {
@@ -1585,17 +1606,18 @@ main {
   color: var(--forest-soft);
 }
 
-.day-card li strong {
+.day-card > ol > li strong {
   display: block;
   color: var(--ink);
 }
 
-.day-card li span {
+.day-card > ol > li span {
   display: block;
   margin-top: 0.15rem;
   color: var(--ink-soft);
   font-size: 0.92rem;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .day-card footer {
