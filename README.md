@@ -57,13 +57,12 @@ On preferences, choose **包司機 / 自駕 / 大眾運輸**:
 
 ## Visual journey map (Stage 4)
 
-The result page ends with a **parchment-style journey poster** (sample-planner style):
+Every journey gets **two** Stage-4 posters (toggle on the result page):
 
-- Vertical winding DAY path with stay / highlights / motif art
-- Sidebands: 必吃美食 · 必喝飲品 · 旅行小貼士
-- **Download as PNG** (high-res) for sharing
+1. **相片版** — real destination photos on the winding path (when a photo library exists)
+2. **插畫海報版** — watercolor scrapbook / planning-book style (circular day art, postage stamp, multi-colour path)
 
-Xinjiang and Qinggan ship curated poster food/drink/tip content; other trips get sensible defaults.
+Both include 必吃美食 · 必喝飲品 · 旅行小貼士, and each can be **downloaded as PNG**.
 
 ## Planning handbook (青甘 / 新疆)
 

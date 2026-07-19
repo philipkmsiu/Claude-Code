@@ -1873,6 +1873,11 @@ function App() {
                 {itinerary.reduce((n, d) => n + d.spotIds.length, 0)} 個真實景點 ·{' '}
                 {styleLabel} · 約 {hotelAdvice.rooms} 間房
               </p>
+              <div className="cta-row" style={{ marginTop: '0.85rem' }}>
+                <a className="btn primary" href="#stage-4-poster">
+                  查看階段四 · 旅程海報（相片／插畫）
+                </a>
+              </div>
             </div>
 
             <JourneyWindow

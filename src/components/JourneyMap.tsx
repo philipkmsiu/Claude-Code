@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import type { DayPlan, TransportMode, VisualPosterContent } from '../data/types'
 import { inferVisualPoster, transportModeLabel } from '../data/travel'
+import { resolveDayPhotos } from '../lib/placePhotos'
 
 type Edition = 'photo' | 'scrapbook'
 
@@ -34,9 +35,11 @@ export function JourneyMap({
   photoSrcs = [],
 }: Props) {
   const posterRef = useRef<HTMLDivElement>(null)
-  const [edition, setEdition] = useState<Edition>(photoSrcs.length ? 'photo' : 'scrapbook')
+  const [edition, setEdition] = useState<Edition>('scrapbook')
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
+  const [dayPhotos, setDayPhotos] = useState<(string | null)[]>([])
+  const [photosLoading, setPhotosLoading] = useState(false)
 
   const poster = useMemo(() => {
     if (visualPoster?.mustEat?.length) return visualPoster
@@ -48,7 +51,45 @@ export function JourneyMap({
     [itinerary.length, edition],
   )
 
-  const hasPhotos = photoSrcs.length > 0
+  const itineraryPhotoKey = itinerary
+    .map((day) => `${day.theme}|${day.mainPlan || ''}|${day.stayCity || ''}|${day.spotIds.join(',')}`)
+    .join('||')
+
+  useEffect(() => {
+    let cancelled = false
+    setPhotosLoading(true)
+    void resolveDayPhotos(
+      itinerary.map((day) => ({
+        stayCity: day.stayCity || day.stayArea,
+        theme: day.theme,
+        mainPlan: day.mainPlan,
+        spotNames: [
+          ...(day.mainPlan ? day.mainPlan.split(/[、，,；;]/).map((s) => s.trim()) : []),
+          ...day.schedule.map((item) => item.title),
+        ],
+      })),
+      destinationName,
+    )
+      .then((rows) => {
+        if (cancelled) return
+        // Live landmark photos first; handbook gallery as fallback.
+        const merged = rows.map((url, index) => {
+          if (url) return url
+          if (photoSrcs.length) return photoSrcs[index % photoSrcs.length]
+          return null
+        })
+        setDayPhotos(merged)
+      })
+      .finally(() => {
+        if (!cancelled) setPhotosLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+    // itineraryPhotoKey captures day content changes without unstable array identity.
+  }, [destinationName, itineraryPhotoKey, photoSrcs.join('|')])
+
+  const hasPhotos = dayPhotos.some(Boolean)
 
   async function downloadPoster() {
     if (!posterRef.current) return
@@ -74,7 +115,11 @@ export function JourneyMap({
   }
 
   return (
-    <section className="journey-map-section" aria-label="視覺化旅程地圖">
+    <section
+      id="stage-4-poster"
+      className="journey-map-section"
+      aria-label="視覺化旅程地圖"
+    >
       <div className="section-head journey-map-head">
         <div>
           <h3>階段四 · 視覺化旅遊地圖</h3>
@@ -117,9 +162,12 @@ export function JourneyMap({
         </div>
       </div>
       {exportError ? <p className="input-error">{exportError}</p> : null}
-      {!hasPhotos && edition === 'photo' ? (
+      {photosLoading ? (
+        <p className="muted-line photo-fallback-note">正在載入每日景點相片…</p>
+      ) : null}
+      {!photosLoading && !hasPhotos ? (
         <p className="muted-line photo-fallback-note">
-          此目的地尚未附上景點相片庫；相片版會以水彩場景代替，建議同時查看插畫海報版。
+          暫時未能取得景點相片，會先用插畫場景；請確認已用 `npm run dev` 啟動（相片代理需要開發伺服器）。
         </p>
       ) : null}
 
@@ -211,7 +259,7 @@ export function JourneyMap({
               {itinerary.map((day, index) => {
                 const point = pathGeometry.points[index]
                 const bullets = dayBullets(day)
-                const photo = hasPhotos ? photoSrcs[index % photoSrcs.length] : undefined
+                const photo = dayPhotos[index] || undefined
                 const align = index % 2 === 0 ? 'card-left' : 'card-right'
                 const foodMotif =
                   edition === 'scrapbook' && index % 3 === 1
@@ -233,7 +281,13 @@ export function JourneyMap({
                     {edition === 'scrapbook' ? (
                       <div className="scrapbook-node">
                         <div className="scrapbook-ring">
-                          <DayScene day={day} index={index} photo={undefined} circular />
+                          <DayScene
+                            day={day}
+                            index={index}
+                            photo={photo}
+                            circular
+                            watercolor
+                          />
                         </div>
                         <div className="day-node deluxe-node scrapbook-badge">
                           <span>DAY</span>
@@ -386,25 +440,32 @@ function DayScene({
   index,
   photo,
   circular = false,
+  watercolor = false,
 }: {
   day: DayPlan
   index: number
   photo?: string
   circular?: boolean
+  watercolor?: boolean
 }) {
   const kind = sceneKind(day)
   return (
     <div
-      className={`day-scene scene-${kind} ${circular ? 'circular' : ''}`}
-      style={
-        photo
-          ? {
-              backgroundImage: `linear-gradient(165deg, rgba(244,239,228,0.12), rgba(40,55,48,0.4)), url(${photo})`,
-            }
-          : undefined
-      }
+      className={`day-scene scene-${kind} ${circular ? 'circular' : ''} ${
+        watercolor ? 'watercolor-photo' : ''
+      }`}
     >
-      {!photo ? <SceneArt kind={kind} index={index} /> : null}
+      {photo ? (
+        <img
+          className="day-scene-img"
+          src={photo}
+          alt={day.stayCity || day.theme}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <SceneArt kind={kind} index={index} />
+      )}
       {photo && !circular ? <span className="scene-caption">{sceneLabel(kind)}</span> : null}
     </div>
   )

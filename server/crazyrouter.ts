@@ -515,6 +515,137 @@ async function handleSeasonGuide(req: IncomingMessage, res: ServerResponse) {
   }
 }
 
+async function fetchCommonsThumb(search: string): Promise<string | null> {
+  const api =
+    'https://commons.wikimedia.org/w/api.php?' +
+    new URLSearchParams({
+      action: 'query',
+      generator: 'search',
+      gsrsearch: search,
+      gsrlimit: '5',
+      gsrnamespace: '6',
+      prop: 'imageinfo',
+      iiprop: 'url|mime',
+      iiurlwidth: '800',
+      format: 'json',
+      origin: '*',
+    }).toString()
+
+  const response = await fetch(api, {
+    headers: {
+      'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/Claude-Code)',
+      Accept: 'application/json',
+    },
+  })
+  if (!response.ok) return null
+  const data = (await response.json()) as {
+    query?: {
+      pages?: Record<
+        string,
+        {
+          imageinfo?: { thumburl?: string; url?: string; mime?: string }[]
+        }
+      >
+    }
+  }
+  const pages = Object.values(data.query?.pages || {})
+  for (const page of pages) {
+    const info = page.imageinfo?.[0]
+    const mime = info?.mime || ''
+    if (mime && !mime.startsWith('image/')) continue
+    const url = info?.thumburl || info?.url
+    if (url) return url
+  }
+  return null
+}
+
+async function handlePlacePhoto(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const host = req.headers.host || 'localhost'
+    const url = new URL(req.url || '/', `http://${host}`)
+    const q = (url.searchParams.get('q') || '').trim()
+    const fallback = (url.searchParams.get('fallback') || '').trim()
+    if (!q && !fallback) {
+      sendJson(res, 400, { error: 'q is required' })
+      return
+    }
+
+    const attempts = [q, fallback, `${q} landmark`, `${fallback} China`].filter(
+      (item, index, arr) => item && arr.indexOf(item) === index,
+    )
+
+    for (const attempt of attempts) {
+      const thumb = await fetchCommonsThumb(attempt)
+      if (thumb) {
+        // Same-origin proxy URL so the poster <img> always loads (and PNG export works).
+        const proxied = `/api/place-photo-file?src=${encodeURIComponent(thumb)}`
+        sendJson(res, 200, { url: proxied, source: thumb, query: attempt })
+        return
+      }
+    }
+
+    sendJson(res, 200, { url: null, query: q || fallback })
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'place-photo failed',
+    })
+  }
+}
+
+async function handlePlacePhotoFile(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const host = req.headers.host || 'localhost'
+    const url = new URL(req.url || '/', `http://${host}`)
+    const src = (url.searchParams.get('src') || '').trim()
+    if (!/^https:\/\/upload\.wikimedia\.org\//i.test(src)) {
+      sendJson(res, 400, { error: 'Only Wikimedia upload URLs are allowed' })
+      return
+    }
+
+    const upstream = await fetch(src, {
+      headers: {
+        'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/Claude-Code)',
+        Accept: 'image/*',
+      },
+    })
+    if (!upstream.ok) {
+      sendJson(res, upstream.status, { error: 'Upstream image fetch failed' })
+      return
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'image/jpeg'
+    const buffer = Buffer.from(await upstream.arrayBuffer())
+    res.statusCode = 200
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.end(buffer)
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'place-photo-file failed',
+    })
+  }
+}
+
 function attachRoutes(middlewares: Connect.Server) {
   middlewares.use('/api/ai/recommend-days', (req, res, next) => {
     handleRecommendDays(req, res).catch(next)
@@ -527,6 +658,12 @@ function attachRoutes(middlewares: Connect.Server) {
   })
   middlewares.use('/api/ai/season-guide', (req, res, next) => {
     handleSeasonGuide(req, res).catch(next)
+  })
+  middlewares.use('/api/place-photo', (req, res, next) => {
+    handlePlacePhoto(req, res).catch(next)
+  })
+  middlewares.use('/api/place-photo-file', (req, res, next) => {
+    handlePlacePhotoFile(req, res).catch(next)
   })
 }
 
