@@ -432,6 +432,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
 - nearbyFood、souvenirs（手信／伴手禮）每個景點必填，要具體菜名／店型／特產
 - background 3–4 句；memorable 4–6 條完整句子
 - hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
+- 若目的地含多個城市（如英國多城、德南＋柏林），hotels 必須覆蓋主要過夜城市各至少 1 間，不可全部擠在同一城
 - mustEat 5–7 道具體當地必吃；mustDrink 3–4；mustBuy 3–5 樣具體手信
 - seasonGuide.bestMonths / worstMonths 為 1–12 整數陣列，不可兩者相同；weather 四季各一句實用描述
 - recommendedDays 要符合該目的地真實尺度（城市遊別灌成 20 天；長線可較長）

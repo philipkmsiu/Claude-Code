@@ -2886,12 +2886,28 @@ function dayPreferredBase(day: DayPlan): string {
 
 function hotelMatchesBase(hotel: HotelOption, base: string): boolean {
   const hotelBase = hotelAreaBase(hotel.area)
-  if (!base || !hotelBase) return false
+  if (!base || base === '市區') return false
+  if (!hotelBase) return false
   if (hotelBase === base || hotel.area.includes(base) || base.includes(hotelBase)) {
     return true
   }
+  // Name sometimes carries the city when area is vague ("York Sojourn Hotel").
+  if (hotel.name.includes(base)) return true
   const cluster = sharedHotelClusterId(base)
-  return Boolean(cluster && sharedHotelClusterId(hotelBase) === cluster)
+  const hotelCluster = sharedHotelClusterId(hotelBase)
+  return Boolean(cluster && hotelCluster && cluster === hotelCluster)
+}
+
+function synthesizeHotelForBase(base: string): HotelOption {
+  const label = base && base !== '市區' ? base : '市區'
+  return {
+    name: `${label}市中心旅店`,
+    area: `${label}・市中心`,
+    nightsHint: '建議連住',
+    pricePerNight: '視淡旺季',
+    highlight: `住在${label}活動範圍內，方便當日行程`,
+    styles: ['standard', 'value'],
+  }
 }
 
 function pickHotelForBase(
@@ -2900,30 +2916,27 @@ function pickHotelForBase(
   preferredHotelName?: string,
 ): HotelOption {
   // Preferred hotel only wins when it actually belongs to this overnight base.
-  // Never force 嘉峪關 hotel onto 敦煌／西寧 nights.
+  // Never force 嘉峪關 hotel onto 敦煌／西寧 nights — or York onto Edinburgh.
   if (preferredHotelName) {
     const preferred = hotels.find((h) => h.name === preferredHotelName)
     if (preferred && hotelMatchesBase(preferred, base)) return preferred
   }
-  const scored = hotels.map((hotel) => {
-    const hotelBase = hotelAreaBase(hotel.area)
-    let score = 0
-    if (hotelMatchesBase(hotel, base)) score += 8
-    const cluster = sharedHotelClusterId(base)
-    if (cluster && sharedHotelClusterId(hotelBase) === cluster) score += 5
-    if (/市中心|市區|梅田|難波|車站|基地/.test(hotel.area)) score += 1
-    if (/連住|少換宿|全程/.test(hotel.nightsHint)) score += 2
-    return { hotel, score }
-  })
-  scored.sort((a, b) => b.score - a.score)
-  return scored[0]?.hotel ?? hotels[0] ?? {
-    name: `${base}連住旅店`,
-    area: base,
-    nightsHint: '建議連住',
-    pricePerNight: '視淡旺季',
-    highlight: '以少換宿為原則的基地住宿',
-    styles: ['standard'],
+
+  const matching = hotels.filter((hotel) => hotelMatchesBase(hotel, base))
+  if (matching.length) {
+    const scored = matching.map((hotel) => {
+      let score = 8
+      if (/市中心|市區|梅田|難波|車站|基地|中央/.test(hotel.area)) score += 1
+      if (/連住|少換宿|全程/.test(hotel.nightsHint)) score += 2
+      return { hotel, score }
+    })
+    scored.sort((a, b) => b.score - a.score)
+    return scored[0].hotel
   }
+
+  // No hotel for this city in the list — invent a local base.
+  // Do NOT reuse another city's hotel (that caused “all nights in York”).
+  return synthesizeHotelForBase(base)
 }
 
 /**
