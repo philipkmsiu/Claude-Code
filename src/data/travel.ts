@@ -34,7 +34,7 @@ function slugifyDestination(name: string): string {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\u4e00-\u9fff\-]+/g, '')
+    .replace(/[^a-z0-9\u4e00-\u9fff-]+/g, '')
     .slice(0, 40) || 'place'
 }
 
