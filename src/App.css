@@ -3058,6 +3058,18 @@ main {
   gap: 0.55rem;
 }
 
+.hotel-pick.muted,
+.readonly-hotels .hotel-pick {
+  cursor: default;
+  opacity: 0.92;
+  text-align: left;
+}
+
+.hotel-pick.muted:hover,
+.readonly-hotels .hotel-pick:hover {
+  transform: none;
+}
+
 a.btn {
   text-decoration: none;
   display: inline-flex;

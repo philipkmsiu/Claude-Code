@@ -1626,10 +1626,44 @@ export function nightsFromDays(days: number): number {
   return Math.max(clampDays(days) - 1, 1)
 }
 
+const KNOWN_HOTEL_CITIES = [
+  '西寧',
+  '嘉峪關',
+  '敦煌',
+  '花土溝',
+  '德令哈',
+  '青海湖',
+  '蘭州',
+  '張掖',
+  '西安',
+  '烏魯木齊',
+  '喀什',
+  '禾木',
+  '喀納斯',
+  '賽里木湖',
+  '大阪',
+  '京都',
+  '東京',
+  '奈良',
+  '神戶',
+  '台北',
+  '巴黎',
+  '首爾',
+]
+
 /** Collapse spot areas into a hotel base city/region. */
 export function hotelAreaBase(area: string): string {
   const raw = (area || '').trim() || '市區'
-  const parts = raw.split(/[・／/·\|｜]/).map((p) => p.trim()).filter(Boolean)
+  // Prefer a known city token anywhere in the label (handles 嘉峪關（同上，不換宿）).
+  for (const city of KNOWN_HOTEL_CITIES) {
+    if (raw.includes(city)) return city
+  }
+  const cleaned = raw
+    .replace(/（.*?）|\(.*?\)/g, '')
+    .replace(/同上.*$/g, '')
+    .replace(/優質.*$|新建.*$|湖景.*$|國際.*$|索菲特.*$|喜來登.*$/g, '')
+    .trim()
+  const parts = cleaned.split(/[・／/·\|｜]/).map((p) => p.trim()).filter(Boolean)
   if (!parts.length) return '市區'
   // 北疆・阿勒泰 → keep both; 大阪・難波 → 大阪
   if (/^[東西南北]?疆|青藏|青甘|華[北東]|關[東西]/.test(parts[0]) && parts[1]) {
@@ -1654,10 +1688,19 @@ function sharedHotelClusterId(base: string): string | null {
 }
 
 function dayPreferredBase(day: DayPlan): string {
-  if (day.spotIds?.length && day.stayArea) {
-    // Prefer majority of schedule spot areas when present in theme/stay
-  }
+  // stayCity first (cleaner), then stayArea labels like「敦煌（同上）」.
+  if (day.stayCity) return hotelAreaBase(day.stayCity)
   return hotelAreaBase(day.stayArea)
+}
+
+function hotelMatchesBase(hotel: HotelOption, base: string): boolean {
+  const hotelBase = hotelAreaBase(hotel.area)
+  if (!base || !hotelBase) return false
+  if (hotelBase === base || hotel.area.includes(base) || base.includes(hotelBase)) {
+    return true
+  }
+  const cluster = sharedHotelClusterId(base)
+  return Boolean(cluster && sharedHotelClusterId(hotelBase) === cluster)
 }
 
 function pickHotelForBase(
@@ -1665,16 +1708,16 @@ function pickHotelForBase(
   base: string,
   preferredHotelName?: string,
 ): HotelOption {
+  // Preferred hotel only wins when it actually belongs to this overnight base.
+  // Never force 嘉峪關 hotel onto 敦煌／西寧 nights.
   if (preferredHotelName) {
     const preferred = hotels.find((h) => h.name === preferredHotelName)
-    if (preferred) return preferred
+    if (preferred && hotelMatchesBase(preferred, base)) return preferred
   }
   const scored = hotels.map((hotel) => {
     const hotelBase = hotelAreaBase(hotel.area)
     let score = 0
-    if (hotelBase === base || hotel.area.includes(base) || base.includes(hotelBase)) {
-      score += 8
-    }
+    if (hotelMatchesBase(hotel, base)) score += 8
     const cluster = sharedHotelClusterId(base)
     if (cluster && sharedHotelClusterId(hotelBase) === cluster) score += 5
     if (/市中心|市區|梅田|難波|車站|基地/.test(hotel.area)) score += 1
@@ -1791,6 +1834,16 @@ export function buildHotelStayPlan(options: {
     }
   }
 
+  const distinctBases = [...new Set(stabilized.filter(Boolean))]
+  // One hotel for the whole trip only when overnight bases collapse to a single
+  // city/cluster (e.g. Osaka day-trips). Qinggan / Xinjiang multi-city = false.
+  const singleBasePossible = distinctBases.length <= 1
+
+  const preferredName = singleBasePossible
+    ? options.preferredHotelName
+    : // Multi-base trips: preferred hotel only seeds matching city blocks.
+      options.preferredHotelName
+
   const blocks: HotelStayPlan['blocks'] = []
   let start = 0
   while (start < stabilized.length) {
@@ -1799,7 +1852,7 @@ export function buildHotelStayPlan(options: {
       end += 1
     }
     const base = stabilized[start]
-    const hotel = pickHotelForBase(hotels, base, options.preferredHotelName)
+    const hotel = pickHotelForBase(hotels, base, preferredName)
     const fromNight = start + 1
     const toNight = end + 1
     const blockNights = toNight - fromNight + 1
@@ -1823,8 +1876,10 @@ export function buildHotelStayPlan(options: {
   const changes = Math.max(0, blocks.length - 1)
   const summary = preferConsecutive
     ? changes === 0
-      ? `全程建議連住同一間：${blocks[0]?.hotelName || '基地旅店'}（${nights} 晚），避免頻繁換宿。`
-      : `已盡量連住：共 ${blocks.length} 段住宿、換宿 ${changes} 次（能日歸就不換酒店）。`
+      ? `全程可連住同一間：${blocks[0]?.hotelName || '基地旅店'}（${nights} 晚）。`
+      : singleBasePossible
+        ? `同都會圈可連住為主：共 ${blocks.length} 段、換宿 ${changes} 次。`
+        : `這是多城市行程，無法全程住同一間酒店。已在各停留城市盡量連住：共 ${blocks.length} 段、換宿 ${changes} 次。`
     : `依每日區域安排住宿，共 ${blocks.length} 段。`
 
   return {
@@ -1833,6 +1888,8 @@ export function buildHotelStayPlan(options: {
     changes,
     blocks,
     summary,
+    singleBasePossible,
+    distinctBases,
   }
 }
 

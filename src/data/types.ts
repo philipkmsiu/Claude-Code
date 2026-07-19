@@ -60,6 +60,10 @@ export interface HotelStayPlan {
   changes: number
   blocks: HotelStayBlock[]
   summary: string
+  /** True only when geography allows one hotel for (almost) the whole trip. */
+  singleBasePossible: boolean
+  /** Distinct overnight bases after consecutive-stay stabilization. */
+  distinctBases: string[]
 }
 
 export interface ScheduleItem {

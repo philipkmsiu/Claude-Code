@@ -601,6 +601,13 @@ function App() {
     ],
   )
 
+  // Don't keep a "whole-trip main hotel" selection on multi-city routes.
+  useEffect(() => {
+    if (!hotelStayPlan.singleBasePossible && preferredHotelName) {
+      setPreferredHotelName('')
+    }
+  }, [hotelStayPlan.singleBasePossible, preferredHotelName])
+
   const itinerary = useMemo(
     () => applyHotelStayPlan(rawItinerary, hotelStayPlan),
     [rawItinerary, hotelStayPlan],
@@ -1751,7 +1758,7 @@ function App() {
               <h2>住宿偏好 🛏️</h2>
               <p>
                 你目前規劃 {planDays} 天 {nightsFromDays(planDays)} 夜 · {travelers}{' '}
-                人同行。可選風格與主酒店；系統會在可行時安排連住，避免頻繁換宿。
+                人同行。原則是：能住同一間就連住；多城市長線則按停留城市分段連住，不會假裝全程一間酒店。
               </p>
             </div>
 
@@ -1833,50 +1840,87 @@ function App() {
               ))}
             </div>
 
-            <h3 className="subhead">選擇主酒店（可選）</h3>
-            <p className="muted-line">
-              點選後會優先用這間做連住基地；長線多基地行程仍可能分段住宿。
-            </p>
-            <div className="hotel-pick-grid">
-              {hotels.map((hotel) => {
-                const active = preferredHotelName === hotel.name
-                return (
-                  <button
-                    key={hotel.name}
-                    type="button"
-                    className={`hotel-pick ${active ? 'selected' : ''}`}
-                    onClick={() =>
-                      setPreferredHotelName((prev) =>
-                        prev === hotel.name ? '' : hotel.name,
-                      )
-                    }
-                  >
-                    <strong>{hotel.name}</strong>
-                    <span>
-                      {hotel.area} · {hotel.pricePerNight}
-                    </span>
-                    <em>{hotel.highlight}</em>
-                    <small>{hotel.nightsHint}</small>
-                  </button>
-                )
-              })}
-            </div>
+            {hotelStayPlan.singleBasePossible ? (
+              <>
+                <h3 className="subhead">選擇連住酒店（可選）</h3>
+                <p className="muted-line">
+                  這趟行程可以住同一間酒店。點選後全程優先用這間，符合「能連住就不換宿」。
+                </p>
+                <div className="hotel-pick-grid">
+                  {hotels.map((hotel) => {
+                    const active = preferredHotelName === hotel.name
+                    return (
+                      <button
+                        key={hotel.name}
+                        type="button"
+                        className={`hotel-pick ${active ? 'selected' : ''}`}
+                        onClick={() =>
+                          setPreferredHotelName((prev) =>
+                            prev === hotel.name ? '' : hotel.name,
+                          )
+                        }
+                      >
+                        <strong>{hotel.name}</strong>
+                        <span>
+                          {hotel.area} · {hotel.pricePerNight}
+                        </span>
+                        <em>{hotel.highlight}</em>
+                        <small>{hotel.nightsHint}</small>
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            ) : (
+              <aside className="ai-panel">
+                <strong>無法全程住同一間酒店</strong>
+                <p>
+                  這是多城市行程（停留：
+                  {hotelStayPlan.distinctBases.slice(0, 6).join('、')}
+                  {hotelStayPlan.distinctBases.length > 6 ? '…' : ''}
+                  ）。系統會在每個停留城市盡量連住，但不會讓你選一間「全程主酒店」以免誤會。
+                </p>
+                <p className="muted-line">
+                  下方是各城市住宿建議（只作參考，不會被套用到其他城市的夜晚）。
+                </p>
+                <div className="hotel-pick-grid readonly-hotels">
+                  {hotels.map((hotel) => (
+                    <div key={hotel.name} className="hotel-pick muted">
+                      <strong>{hotel.name}</strong>
+                      <span>
+                        {hotel.area} · {hotel.pricePerNight}
+                      </span>
+                      <em>{hotel.highlight}</em>
+                      <small>{hotel.nightsHint}</small>
+                    </div>
+                  ))}
+                </div>
+              </aside>
+            )}
 
-            <aside className={`ai-panel ${hotelStayPlan.changes === 0 ? 'ready' : ''}`}>
+            <aside
+              className={`ai-panel ${
+                hotelStayPlan.singleBasePossible && hotelStayPlan.changes === 0
+                  ? 'ready'
+                  : ''
+              }`}
+            >
               <strong>
                 {preferConsecutiveStays
-                  ? hotelStayPlan.changes === 0
+                  ? hotelStayPlan.singleBasePossible && hotelStayPlan.changes === 0
                     ? '連住方案：全程同一酒店'
-                    : `連住方案：${hotelStayPlan.blocks.length} 段・換宿 ${hotelStayPlan.changes} 次`
+                    : hotelStayPlan.singleBasePossible
+                      ? `連住方案：${hotelStayPlan.blocks.length} 段・換宿 ${hotelStayPlan.changes} 次`
+                      : `多城市連住方案：${hotelStayPlan.blocks.length} 段・換宿 ${hotelStayPlan.changes} 次`
                   : '彈性換宿方案'}
               </strong>
               <p>{hotelStayPlan.summary}</p>
               <ul className="tips-list">
                 {hotelStayPlan.blocks.map((block) => (
-                  <li key={`${block.hotelName}-${block.fromNight}`}>
+                  <li key={`${block.hotelName}-${block.fromNight}-${block.base}`}>
                     {block.nights >= 2
-                      ? `第 ${block.fromNight}–${block.toNight} 晚連住 ${block.hotelName}（${block.nights} 晚・${block.area}）`
-                      : `第 ${block.fromNight} 晚住 ${block.hotelName}（${block.area}）`}
+                      ? `第 ${block.fromNight}–${block.toNight} 晚連住 ${block.hotelName}（${block.nights} 晚・${block.base}）`
+                      : `第 ${block.fromNight} 晚住 ${block.hotelName}（${block.base}）`}
                   </li>
                 ))}
               </ul>
