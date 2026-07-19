@@ -57,7 +57,13 @@ On preferences, choose **包司機 / 自駕 / 大眾運輸**:
 
 ## Visual journey map (Stage 4)
 
-The result page ends with an illustrated SVG **旅程地圖**: winding path, DAY stops, food / tip side bands — inspired by the Gemini travel-plan handbook flow.
+The result page ends with a **parchment-style journey poster** (sample-planner style):
+
+- Vertical winding DAY path with stay / highlights / motif art
+- Sidebands: 必吃美食 · 必喝飲品 · 旅行小貼士
+- **Download as PNG** (high-res) for sharing
+
+Xinjiang and Qinggan ship curated poster food/drink/tip content; other trips get sensible defaults.
 
 ## Planning handbook (青甘 / 新疆)
 

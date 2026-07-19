@@ -3,6 +3,8 @@ import { toPng } from 'html-to-image'
 import type { DayPlan, TransportMode, VisualPosterContent } from '../data/types'
 import { inferVisualPoster, transportModeLabel } from '../data/travel'
 
+type Edition = 'photo' | 'scrapbook'
+
 type Props = {
   destinationName: string
   startLabel: string
@@ -15,7 +17,11 @@ type Props = {
   photoSrcs?: string[]
 }
 
-/** Stage-4 parchment journey poster — closer to sample planning-book art. */
+/**
+ * Stage 4 — two editions for every journey:
+ * 1) 相片版：real destination photos on the path
+ * 2) 插畫海報版：watercolor scrapbook poster (sample-planner style)
+ */
 export function JourneyMap({
   destinationName,
   startLabel,
@@ -28,6 +34,7 @@ export function JourneyMap({
   photoSrcs = [],
 }: Props) {
   const posterRef = useRef<HTMLDivElement>(null)
+  const [edition, setEdition] = useState<Edition>(photoSrcs.length ? 'photo' : 'scrapbook')
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
 
@@ -36,7 +43,12 @@ export function JourneyMap({
     return inferVisualPoster({ destinationName, days, nights, transportMode })
   }, [visualPoster, destinationName, days, nights, transportMode])
 
-  const pathGeometry = useMemo(() => buildSerpentinePath(itinerary.length), [itinerary.length])
+  const pathGeometry = useMemo(
+    () => buildSerpentinePath(itinerary.length, edition === 'scrapbook' ? 168 : 148),
+    [itinerary.length, edition],
+  )
+
+  const hasPhotos = photoSrcs.length > 0
 
   async function downloadPoster() {
     if (!posterRef.current) return
@@ -46,11 +58,12 @@ export function JourneyMap({
       const dataUrl = await toPng(posterRef.current, {
         cacheBust: true,
         pixelRatio: 2,
-        backgroundColor: '#f3ebe0',
+        backgroundColor: edition === 'scrapbook' ? '#f6efe4' : '#f3ebe0',
       })
       const link = document.createElement('a')
       const safe = destinationName.replace(/\s+/g, '-') || 'journey'
-      link.download = `${safe}-旅程地圖.png`
+      const suffix = edition === 'photo' ? '相片版' : '插畫海報版'
+      link.download = `${safe}-旅程地圖-${suffix}.png`
       link.href = dataUrl
       link.click()
     } catch (error) {
@@ -66,28 +79,65 @@ export function JourneyMap({
         <div>
           <h3>階段四 · 視覺化旅遊地圖</h3>
           <p>
-            規劃書風格插畫海報：蜿蜒道路、每日站點插畫、必吃／必喝與小貼士。可下載高解析 PNG。
+            每個行程都有兩種海報：<strong>相片版</strong>（真實景點照片）與
+            <strong>插畫海報版</strong>（水彩手帳／規劃書風格）。可分別下載 PNG。
           </p>
         </div>
-        <button
-          type="button"
-          className="btn primary"
-          disabled={exporting}
-          onClick={() => void downloadPoster()}
-        >
-          {exporting ? '正在產生圖片…' : '下載旅程地圖 PNG'}
-        </button>
+        <div className="edition-actions">
+          <div className="edition-toggle" role="tablist" aria-label="海報版本">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={edition === 'photo'}
+              className={`chip ${edition === 'photo' ? 'selected' : ''}`}
+              onClick={() => setEdition('photo')}
+            >
+              相片版
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={edition === 'scrapbook'}
+              className={`chip ${edition === 'scrapbook' ? 'selected' : ''}`}
+              onClick={() => setEdition('scrapbook')}
+            >
+              插畫海報版
+            </button>
+          </div>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={exporting}
+            onClick={() => void downloadPoster()}
+          >
+            {exporting
+              ? '正在產生圖片…'
+              : `下載${edition === 'photo' ? '相片版' : '插畫海報版'} PNG`}
+          </button>
+        </div>
       </div>
       {exportError ? <p className="input-error">{exportError}</p> : null}
+      {!hasPhotos && edition === 'photo' ? (
+        <p className="muted-line photo-fallback-note">
+          此目的地尚未附上景點相片庫；相片版會以水彩場景代替，建議同時查看插畫海報版。
+        </p>
+      ) : null}
 
       <div className="poster-scroll">
-        <div ref={posterRef} className="journey-poster deluxe">
+        <div
+          ref={posterRef}
+          className={`journey-poster deluxe ${edition === 'scrapbook' ? 'scrapbook' : 'photo-edition'}`}
+        >
           <div className="poster-paper-texture" aria-hidden />
+          {edition === 'scrapbook' ? <div className="washi-strip top" aria-hidden /> : null}
 
           <header className="poster-header">
             <CompassStamp />
             <div className="poster-header-main">
-              <p className="poster-kicker">KM Travel Planner · Stage 4</p>
+              <p className="poster-kicker">
+                KM Travel Planner · Stage 4 ·{' '}
+                {edition === 'photo' ? '相片版' : '插畫海報版'}
+              </p>
               <h2>「{destinationName}」舒適慢遊旅程地圖</h2>
               <p className="poster-subtitle">
                 {poster.themeLine ||
@@ -97,7 +147,11 @@ export function JourneyMap({
                 {startLabel} — {endLabel}
               </p>
             </div>
-            <GoStamp />
+            {edition === 'scrapbook' ? (
+              <DestinationStamp name={destinationName} />
+            ) : (
+              <GoStamp />
+            )}
           </header>
 
           <div className="poster-body deluxe-body">
@@ -109,7 +163,7 @@ export function JourneyMap({
               <ul className="food-list">
                 {poster.mustEat.map((item) => (
                   <li key={item.name}>
-                    <FoodIcon label={item.name} motif={item.motif} />
+                    <FoodIcon label={item.name} motif={item.motif} scrapbook={edition === 'scrapbook'} />
                     <div>
                       <strong>{item.name}</strong>
                       <em>{item.daysLabel}</em>
@@ -119,10 +173,7 @@ export function JourneyMap({
               </ul>
             </aside>
 
-            <div
-              className="poster-path-col"
-              style={{ minHeight: pathGeometry.height }}
-            >
+            <div className="poster-path-col" style={{ minHeight: pathGeometry.height }}>
               <svg
                 className="serpentine-svg"
                 viewBox={`0 0 ${pathGeometry.width} ${pathGeometry.height}`}
@@ -130,81 +181,104 @@ export function JourneyMap({
                 aria-hidden
               >
                 <defs>
-                  <linearGradient id="roadWash" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#9a8b72" stopOpacity="0.55" />
-                    <stop offset="50%" stopColor="#c4a574" stopOpacity="0.7" />
-                    <stop offset="100%" stopColor="#6f8f7f" stopOpacity="0.55" />
+                  <linearGradient id="roadWashMulti" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#5b8fa8" />
+                    <stop offset="25%" stopColor="#6f8f7f" />
+                    <stop offset="50%" stopColor="#c4a574" />
+                    <stop offset="75%" stopColor="#c17a5a" />
+                    <stop offset="100%" stopColor="#8a5a6a" />
                   </linearGradient>
                 </defs>
                 <path
                   d={pathGeometry.d}
                   fill="none"
-                  stroke="url(#roadWash)"
-                  strokeWidth="18"
+                  stroke={edition === 'scrapbook' ? 'url(#roadWashMulti)' : '#9a8b72'}
+                  strokeWidth={edition === 'scrapbook' ? 16 : 14}
                   strokeLinecap="round"
-                  opacity="0.22"
+                  opacity={edition === 'scrapbook' ? 0.35 : 0.22}
                 />
                 <path
                   d={pathGeometry.d}
                   fill="none"
-                  stroke="#7a7264"
-                  strokeWidth="3.5"
+                  stroke={edition === 'scrapbook' ? '#5c5348' : '#7a7264'}
+                  strokeWidth="3.2"
                   strokeLinecap="round"
-                  strokeDasharray="9 11"
-                  opacity="0.75"
+                  strokeDasharray={edition === 'scrapbook' ? '7 10' : '9 11'}
+                  opacity="0.8"
                 />
               </svg>
 
               {itinerary.map((day, index) => {
                 const point = pathGeometry.points[index]
                 const bullets = dayBullets(day)
-                const photo = photoSrcs.length
-                  ? photoSrcs[index % photoSrcs.length]
-                  : undefined
+                const photo = hasPhotos ? photoSrcs[index % photoSrcs.length] : undefined
                 const align = index % 2 === 0 ? 'card-left' : 'card-right'
+                const foodMotif =
+                  edition === 'scrapbook' && index % 3 === 1
+                    ? poster.mustEat[index % poster.mustEat.length]?.motif
+                    : undefined
+
                 return (
                   <article
-                    key={`poster-day-${index}`}
-                    className={`poster-day-abs ${align}`}
-                    style={{
-                      top: point.y,
-                      left: point.x,
-                    }}
+                    key={`poster-day-${index}-${edition}`}
+                    className={`poster-day-abs ${align} ${edition}`}
+                    style={{ top: point.y, left: point.x }}
                   >
-                    <div className="day-node deluxe-node">
-                      <span>DAY</span>
-                      <strong>{index + 1}</strong>
-                    </div>
-                    <div className="day-card-poster deluxe-card">
-                      <div className="day-card-text">
-                        <h5>{day.stayCity || day.stayArea || day.theme}</h5>
-                        <p className="day-theme">{day.theme}</p>
-                        <ul>
-                          {bullets.map((b) => (
-                            <li key={b}>{b}</li>
-                          ))}
-                        </ul>
+                    {foodMotif ? (
+                      <span className="path-food-chip" aria-hidden>
+                        {foodMotif}
+                      </span>
+                    ) : null}
+
+                    {edition === 'scrapbook' ? (
+                      <div className="scrapbook-node">
+                        <div className="scrapbook-ring">
+                          <DayScene day={day} index={index} photo={undefined} circular />
+                        </div>
+                        <div className="day-node deluxe-node scrapbook-badge">
+                          <span>DAY</span>
+                          <strong>{index + 1}</strong>
+                        </div>
+                        <div className="scrapbook-caption">
+                          <h5>{day.stayCity || day.stayArea || day.theme}</h5>
+                          <ul>
+                            {bullets.map((b) => (
+                              <li key={b}>{b}</li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
-                      <DayScene
-                        day={day}
-                        index={index}
-                        photo={photo}
-                      />
-                    </div>
+                    ) : (
+                      <>
+                        <div className="day-node deluxe-node">
+                          <span>DAY</span>
+                          <strong>{index + 1}</strong>
+                        </div>
+                        <div className="day-card-poster deluxe-card photo-card">
+                          <div className="day-card-text">
+                            <h5>{day.stayCity || day.stayArea || day.theme}</h5>
+                            <p className="day-theme">{day.theme}</p>
+                            <ul>
+                              {bullets.map((b) => (
+                                <li key={b}>{b}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <DayScene day={day} index={index} photo={photo} />
+                        </div>
+                      </>
+                    )}
                   </article>
                 )
               })}
 
               <div
                 className="poster-finish deluxe-finish"
-                style={{
-                  top: pathGeometry.finishY,
-                  left: '50%',
-                }}
+                style={{ top: pathGeometry.finishY, left: '50%' }}
               >
                 <AirportMark />
                 <div>
-                  <strong>機場／返程</strong>
+                  <strong>終點：機場／返程</strong>
                   <p>謝謝相遇，期待下次！</p>
                 </div>
               </div>
@@ -218,7 +292,7 @@ export function JourneyMap({
               <ul className="food-list">
                 {poster.mustDrink.map((item) => (
                   <li key={item.name}>
-                    <FoodIcon label={item.name} motif={item.motif} />
+                    <FoodIcon label={item.name} motif={item.motif} scrapbook={edition === 'scrapbook'} />
                     <div>
                       <strong>{item.name}</strong>
                     </div>
@@ -245,6 +319,12 @@ export function JourneyMap({
               <CamelMascot />
               <p>跟著道路走，每天都有驚喜！</p>
             </div>
+            {edition === 'scrapbook' ? (
+              <div className="thanks-frame">
+                <strong>謝謝相遇</strong>
+                <span>期待下次再見</span>
+              </div>
+            ) : null}
             <p className="poster-disclaimer">
               {poster.footerNote ||
                 '路線示意，實際以天氣、交通與最終確認行程為準。'}
@@ -256,15 +336,14 @@ export function JourneyMap({
   )
 }
 
-function buildSerpentinePath(dayCount: number) {
+function buildSerpentinePath(dayCount: number, gap = 148) {
   const n = Math.max(dayCount, 1)
   const width = 420
-  const top = 36
-  const gap = 148
-  const height = top + n * gap + 110
+  const top = 40
+  const height = top + n * gap + 120
   const points = Array.from({ length: n }, (_, i) => {
     const y = top + i * gap
-    const wave = Math.sin(i * 0.95) * 58
+    const wave = Math.sin(i * 0.95) * 62
     const x = width / 2 + wave
     return { x, y }
   })
@@ -279,13 +358,7 @@ function buildSerpentinePath(dayCount: number) {
             return `C ${prev.x} ${cy}, ${p.x} ${cy}, ${p.x} ${p.y}`
           })
           .join(' ')
-  return {
-    width,
-    height,
-    d,
-    points,
-    finishY: top + n * gap + 24,
-  }
+  return { width, height, d, points, finishY: top + n * gap + 28 }
 }
 
 function dayBullets(day: DayPlan): string[] {
@@ -312,25 +385,27 @@ function DayScene({
   day,
   index,
   photo,
+  circular = false,
 }: {
   day: DayPlan
   index: number
   photo?: string
+  circular?: boolean
 }) {
   const kind = sceneKind(day)
   return (
     <div
-      className={`day-scene scene-${kind}`}
+      className={`day-scene scene-${kind} ${circular ? 'circular' : ''}`}
       style={
         photo
           ? {
-              backgroundImage: `linear-gradient(165deg, rgba(244,239,228,0.2), rgba(40,55,48,0.45)), url(${photo})`,
+              backgroundImage: `linear-gradient(165deg, rgba(244,239,228,0.12), rgba(40,55,48,0.4)), url(${photo})`,
             }
           : undefined
       }
     >
       {!photo ? <SceneArt kind={kind} index={index} /> : null}
-      {photo ? <span className="scene-caption">{sceneLabel(kind)}</span> : null}
+      {photo && !circular ? <span className="scene-caption">{sceneLabel(kind)}</span> : null}
     </div>
   )
 }
@@ -360,7 +435,7 @@ function sceneLabel(kind: string): string {
 }
 
 function SceneArt({ kind, index }: { kind: string; index: number }) {
-  const tones = ['#6f8f7f', '#9a6b3f', '#7a8fa0', '#b08a5a', '#5c7a6e']
+  const tones = ['#6f8f7f', '#9a6b3f', '#7a8fa0', '#b08a5a', '#5c7a6e', '#c17a5a']
   const c = tones[index % tones.length]
   return (
     <svg viewBox="0 0 120 90" className="scene-svg" aria-hidden>
@@ -369,62 +444,63 @@ function SceneArt({ kind, index }: { kind: string; index: number }) {
           <stop offset="0%" stopColor="#f3e7d4" />
           <stop offset="100%" stopColor="#d9e4dc" />
         </linearGradient>
+        <filter id={`wash-${index}`}>
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" />
+        </filter>
       </defs>
       <rect width="120" height="90" fill={`url(#sky-${index})`} rx="10" />
       <ellipse cx="28" cy="22" rx="16" ry="8" fill="#fff8ee" opacity="0.7" />
-      <ellipse cx="48" cy="20" rx="12" ry="6" fill="#fff8ee" opacity="0.55" />
-      {kind === 'lake' ? (
-        <>
-          <path d="M0 58 Q40 48 70 58 T120 56 L120 90 L0 90 Z" fill={c} opacity="0.55" />
-          <path d="M0 66 Q45 58 80 66 T120 64" fill="none" stroke="#f7f3ea" strokeWidth="1.5" opacity="0.6" />
-          <circle cx="88" cy="30" r="10" fill="#e8c97a" opacity="0.7" />
-        </>
-      ) : kind === 'heritage' ? (
-        <>
-          <rect x="35" y="34" width="50" height="36" fill={c} opacity="0.75" rx="2" />
-          <polygon points="30,34 60,18 90,34" fill={c} />
-          <rect x="52" y="48" width="16" height="22" fill="#f3ebe0" opacity="0.85" />
-          <circle cx="22" cy="24" r="7" fill="#e8c97a" opacity="0.65" />
-        </>
-      ) : kind === 'landscape' ? (
-        <>
+      <g filter={`url(#wash-${index})`} opacity="0.95">
+        {kind === 'lake' ? (
+          <>
+            <path d="M0 58 Q40 48 70 58 T120 56 L120 90 L0 90 Z" fill={c} opacity="0.55" />
+            <circle cx="88" cy="30" r="10" fill="#e8c97a" opacity="0.7" />
+          </>
+        ) : kind === 'heritage' ? (
+          <>
+            <rect x="35" y="34" width="50" height="36" fill={c} opacity="0.75" rx="2" />
+            <polygon points="30,34 60,18 90,34" fill={c} />
+            <rect x="52" y="48" width="16" height="22" fill="#f3ebe0" opacity="0.85" />
+          </>
+        ) : kind === 'landscape' ? (
           <path d="M0 70 L28 38 L52 62 L78 28 L120 70 Z" fill={c} opacity="0.7" />
-          <path d="M0 78 L40 50 L70 72 L100 44 L120 78 Z" fill="#8a6b4a" opacity="0.35" />
-        </>
-      ) : kind === 'street' ? (
-        <>
-          <rect x="18" y="40" width="22" height="30" fill={c} opacity="0.7" />
-          <rect x="48" y="32" width="26" height="38" fill="#8a6b4a" opacity="0.55" />
-          <rect x="82" y="44" width="20" height="26" fill={c} opacity="0.65" />
-          <circle cx="30" cy="70" r="3" fill="#e8c97a" />
-          <circle cx="60" cy="70" r="3" fill="#e8c97a" />
-        </>
-      ) : kind === 'rest' ? (
-        <>
-          <ellipse cx="60" cy="58" rx="34" ry="12" fill={c} opacity="0.25" />
-          <path d="M40 50 Q60 30 80 50" fill="none" stroke={c} strokeWidth="3" />
-          <circle cx="60" cy="42" r="8" fill="#e8c97a" opacity="0.8" />
-        </>
-      ) : kind === 'travel' ? (
-        <>
+        ) : kind === 'street' ? (
+          <>
+            <rect x="18" y="40" width="22" height="30" fill={c} opacity="0.7" />
+            <rect x="48" y="32" width="26" height="38" fill="#8a6b4a" opacity="0.55" />
+            <rect x="82" y="44" width="20" height="26" fill={c} opacity="0.65" />
+          </>
+        ) : kind === 'rest' ? (
+          <>
+            <ellipse cx="60" cy="58" rx="34" ry="12" fill={c} opacity="0.25" />
+            <circle cx="60" cy="42" r="8" fill="#e8c97a" opacity="0.8" />
+          </>
+        ) : kind === 'travel' ? (
           <path d="M20 55 L70 40 L100 48 L70 52 L55 70 Z" fill={c} opacity="0.75" />
-          <circle cx="30" cy="28" r="8" fill="#e8c97a" opacity="0.65" />
-        </>
-      ) : (
-        <>
-          <rect x="22" y="36" width="18" height="34" fill={c} opacity="0.65" />
-          <rect x="48" y="28" width="22" height="42" fill="#8a6b4a" opacity="0.5" />
-          <rect x="78" y="40" width="20" height="30" fill={c} opacity="0.7" />
-          <path d="M0 78 Q60 68 120 78" fill="none" stroke="#c4a574" strokeWidth="2" />
-        </>
-      )}
+        ) : (
+          <>
+            <rect x="22" y="36" width="18" height="34" fill={c} opacity="0.65" />
+            <rect x="48" y="28" width="22" height="42" fill="#8a6b4a" opacity="0.5" />
+            <rect x="78" y="40" width="20" height="30" fill={c} opacity="0.7" />
+          </>
+        )}
+      </g>
     </svg>
   )
 }
 
-function FoodIcon({ label, motif }: { label: string; motif?: string }) {
+function FoodIcon({
+  label,
+  motif,
+  scrapbook,
+}: {
+  label: string
+  motif?: string
+  scrapbook?: boolean
+}) {
   return (
-    <span className="food-badge" title={label} aria-hidden>
+    <span className={`food-badge ${scrapbook ? 'scrapbook-food' : ''}`} title={label} aria-hidden>
       <span>{motif || '🍽'}</span>
     </span>
   )
@@ -459,6 +535,19 @@ function GoStamp() {
   )
 }
 
+function DestinationStamp({ name }: { name: string }) {
+  const short = name.length > 6 ? name.slice(0, 6) : name
+  return (
+    <div className="dest-postage" aria-hidden>
+      <div className="postage-inner">
+        <CamelMascot small />
+        <strong>{short}</strong>
+        <em>TRAVEL</em>
+      </div>
+    </div>
+  )
+}
+
 function AirportMark() {
   return (
     <div className="finish-art" aria-hidden>
@@ -471,10 +560,10 @@ function AirportMark() {
   )
 }
 
-function CamelMascot() {
+function CamelMascot({ small = false }: { small?: boolean }) {
   return (
-    <div className="camel-art" aria-hidden>
-      <svg viewBox="0 0 80 64" width="72" height="58">
+    <div className={`camel-art ${small ? 'small' : ''}`} aria-hidden>
+      <svg viewBox="0 0 80 64" width={small ? 40 : 72} height={small ? 32 : 58}>
         <ellipse cx="40" cy="42" rx="22" ry="12" fill="#c4a574" />
         <circle cx="58" cy="28" r="10" fill="#c4a574" />
         <circle cx="62" cy="26" r="1.6" fill="#2c3a34" />
