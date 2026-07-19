@@ -411,7 +411,7 @@ function App() {
                 id="dest-input"
                 multiline
                 rows={3}
-                placeholder={'可打中文，或用鍵盤語音輸入，也可從別的 App 複製貼上\n例如：巴黎\n北海道\n青甘大環線'}
+                placeholder={'點這裡後貼上，例如：新疆南北疆舒適慢遊\n也可打中文／用語音輸入'}
                 value={destinationInput}
                 onValueChange={(value) => {
                   setDestinationInput(value)
@@ -430,15 +430,19 @@ function App() {
                   type="button"
                   className="btn ghost"
                   onClick={async () => {
-                    const text = await readClipboardText()
-                    if (text.trim()) {
+                    let text = (await readClipboardText()).trim()
+                    if (!text) {
+                      // Fallback when browser blocks clipboard API — prompt accepts paste.
+                      text = (window.prompt('請在此貼上目的地（Ctrl/Cmd+V）：', '') || '').trim()
+                    }
+                    if (text) {
                       setDestinationInput((prev) =>
-                        prev.trim() ? `${prev.trim()}\n${text.trim()}` : text.trim(),
+                        prev.trim() ? `${prev.trim()}\n${text}` : text,
                       )
                       setInputError('')
                       return
                     }
-                    setInputError('無法讀取剪貼簿，請長按輸入框選擇「貼上」')
+                    setInputError('請直接在上方輸入框按 Ctrl+V（Mac：Cmd+V）或長按選擇貼上')
                   }}
                 >
                   從剪貼簿貼上
@@ -859,13 +863,16 @@ function App() {
                   type="button"
                   className="btn ghost"
                   onClick={async () => {
-                    const text = await readClipboardText()
-                    if (text.trim()) {
-                      setCustomSpotName(text.trim())
+                    let text = (await readClipboardText()).trim()
+                    if (!text) {
+                      text = (window.prompt('請在此貼上景點名稱（Ctrl/Cmd+V）：', '') || '').trim()
+                    }
+                    if (text) {
+                      setCustomSpotName(text)
                       setInputError('')
                       return
                     }
-                    setInputError('無法讀取剪貼簿，請長按輸入框選擇「貼上」')
+                    setInputError('請直接在上方輸入框按 Ctrl+V（Mac：Cmd+V）或長按選擇貼上')
                   }}
                 >
                   從剪貼簿貼上

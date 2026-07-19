@@ -1,4 +1,10 @@
-import { useEffect, useRef, type TextareaHTMLAttributes } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type TextareaHTMLAttributes,
+} from 'react'
 
 type Props = {
   id: string
@@ -8,13 +14,22 @@ type Props = {
   rows?: number
 } & Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
-  'value' | 'onChange' | 'id' | 'rows'
+  'value' | 'onChange' | 'id' | 'rows' | 'defaultValue'
 >
 
+function insertAtCursor(
+  current: string,
+  inserted: string,
+  start: number,
+  end: number,
+): { next: string; caret: number } {
+  const next = current.slice(0, start) + inserted + current.slice(end)
+  return { next, caret: start + inserted.length }
+}
+
 /**
- * Text field that plays nicely with Chinese IME, mobile voice keyboards,
- * and paste-from-other-apps. Stays uncontrolled during composition so React
- * re-renders cannot interrupt typing.
+ * Text field tuned for Chinese IME, voice keyboards, and paste-from-other-apps.
+ * Paste is applied manually from clipboardData so it is not lost on re-render.
  */
 export function FreeTextField({
   id,
@@ -30,19 +45,67 @@ export function FreeTextField({
 }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const composing = useRef(false)
+  const [draft, setDraft] = useState(value)
+
+  // Keep local draft aligned with parent when not composing.
+  useEffect(() => {
+    if (!composing.current) setDraft(value)
+  }, [value])
 
   useEffect(() => {
     const el = ref.current
     if (!el || composing.current) return
-    if (el.value !== value) el.value = value
-  }, [value])
+    if (el.value !== draft) {
+      const start = el.selectionStart
+      const end = el.selectionEnd
+      el.value = draft
+      try {
+        el.setSelectionRange(start, end)
+      } catch {
+        // Ignore selection errors on some mobile browsers.
+      }
+    }
+  }, [draft])
+
+  function commit(next: string) {
+    setDraft(next)
+    onValueChange(next)
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    onPaste?.(e)
+    if (e.defaultPrevented) return
+
+    const text =
+      e.clipboardData?.getData('text/plain') ||
+      e.clipboardData?.getData('text') ||
+      ''
+
+    // Always handle paste ourselves so Chinese text from other apps is kept.
+    e.preventDefault()
+    if (!text) return
+
+    const el = e.currentTarget
+    const start = el.selectionStart ?? draft.length
+    const end = el.selectionEnd ?? draft.length
+    const { next, caret } = insertAtCursor(draft, text, start, end)
+    commit(next)
+
+    requestAnimationFrame(() => {
+      try {
+        el.setSelectionRange(caret, caret)
+      } catch {
+        // ignore
+      }
+    })
+  }
 
   return (
     <textarea
       {...rest}
       id={id}
       ref={ref}
-      rows={multiline ? rows : 1}
+      rows={multiline ? rows : 2}
       lang="zh-Hant"
       inputMode="text"
       autoCapitalize="off"
@@ -51,39 +114,40 @@ export function FreeTextField({
       spellCheck={false}
       enterKeyHint={multiline ? 'enter' : 'done'}
       className={`free-text-field ${multiline ? 'multiline' : 'singleline'} ${rest.className ?? ''}`}
-      defaultValue={value}
+      value={draft}
       onCompositionStart={(e) => {
         composing.current = true
         onCompositionStart?.(e)
       }}
       onCompositionEnd={(e) => {
         composing.current = false
-        onValueChange(e.currentTarget.value)
+        commit(e.currentTarget.value)
         onCompositionEnd?.(e)
       }}
       onChange={(e) => {
-        // Keep React state in sync when not composing (voice / paste / Latin).
-        if (!composing.current) onValueChange(e.currentTarget.value)
+        const next = e.currentTarget.value
+        setDraft(next)
+        if (!composing.current) onValueChange(next)
       }}
-      onPaste={(e) => {
-        // Let the browser paste first (supports Chinese & clipboard from other apps),
-        // then sync React state from the DOM value.
-        onPaste?.(e)
-        if (e.defaultPrevented) return
-        window.requestAnimationFrame(() => {
-          if (ref.current) onValueChange(ref.current.value)
-        })
+      onPaste={handlePaste}
+      onDrop={(e) => {
+        const text = e.dataTransfer?.getData('text/plain')
+        if (!text) return
+        e.preventDefault()
+        commit(draft.trim() ? `${draft.trim()}\n${text}` : text)
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer?.types?.includes('text/plain')) e.preventDefault()
       }}
       onKeyDown={(e) => {
         const native = e.nativeEvent
         if (native.isComposing || composing.current || native.keyCode === 229) {
-          // Don't let parent form treat IME confirmation Enter as submit.
           onKeyDown?.(e)
           return
         }
         if (!multiline && e.key === 'Enter') {
           e.preventDefault()
-          onValueChange(e.currentTarget.value)
+          commit(e.currentTarget.value)
           e.currentTarget.form?.requestSubmit()
         }
         onKeyDown?.(e)
