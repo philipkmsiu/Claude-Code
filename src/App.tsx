@@ -80,6 +80,7 @@ import {
   IconWallet,
 } from './components/Icons'
 import { JourneyMap } from './components/JourneyMap'
+import { KmLogo } from './components/KmLogo'
 import { TripHandbookPanel } from './components/TripHandbook'
 import {
   recommendDaysWithAi,
@@ -989,13 +990,7 @@ function App() {
       <header className="topbar">
         <button type="button" className="brand" onClick={reset}>
           <span className="brand-logo-wrap">
-            <img
-              className="brand-logo"
-              src="/km-logo.png"
-              alt="KM"
-              width={48}
-              height={48}
-            />
+            <KmLogo className="brand-logo" size={48} />
           </span>
           <span className="brand-text">
             KM Travel Planner
@@ -1025,13 +1020,7 @@ function App() {
             <div className="hero-copy">
               <BounceBadge>🎉 開心出發模式 ON</BounceBadge>
               <span className="hero-logo-wrap">
-                <img
-                  className="hero-logo"
-                  src="/km-logo.png"
-                  alt="KM"
-                  width={128}
-                  height={128}
-                />
+                <KmLogo className="hero-logo" size={128} />
               </span>
               <h1 className="hero-brand">KM Travel Planner</h1>
               <p className="eyebrow">
@@ -2590,7 +2579,7 @@ function App() {
 
       <footer className="footer">
         <span className="footer-brand">
-          <img src="/km-logo.png" alt="" width={32} height={32} />
+          <KmLogo size={32} className="footer-km" />
           KM Travel Planner
           <small>開心規劃每一程 ❤️</small>
         </span>
