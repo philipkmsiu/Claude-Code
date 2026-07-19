@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   MAX_TRIP_DAYS,
   MIN_TRIP_DAYS,
@@ -28,6 +28,12 @@ import {
   type TripPace,
 } from './data/travel'
 import { FreeTextField } from './components/FreeTextField'
+import {
+  recommendDaysWithAi,
+  reviewPlanWithAi,
+  type AiDayRecommendation,
+  type AiPlanReview,
+} from './lib/aiClient'
 import { readClipboardText } from './lib/clipboard'
 import './App.css'
 
@@ -61,7 +67,13 @@ function App() {
   const [customSpotName, setCustomSpotName] = useState('')
   const [customSpotHours, setCustomSpotHours] = useState(2)
   const [inputError, setInputError] = useState('')
+  const [aiDayRec, setAiDayRec] = useState<AiDayRecommendation | null>(null)
+  const [aiReview, setAiReview] = useState<AiPlanReview | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiReviewLoading, setAiReviewLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
   const destComposing = useRef(false)
+  const reviewTimer = useRef<number | null>(null)
 
   const catalog = useMemo(() => {
     const overrides = new Map(customDestinations.map((d) => [d.id, d]))
@@ -114,9 +126,178 @@ function App() {
       }),
     [selectedSpotObjects, planDays, pace, specialNeeds, primary],
   )
+
+  const displayAdvice = useMemo(() => {
+    if (
+      aiDayRec &&
+      Number.isFinite(aiDayRec.minDays) &&
+      Number.isFinite(aiDayRec.comfortableDays) &&
+      Number.isFinite(aiDayRec.suggestedLongestDays)
+    ) {
+      return {
+        min: clampDays(aiDayRec.minDays),
+        comfortable: clampDays(aiDayRec.comfortableDays),
+        suggestedLongest: clampDays(aiDayRec.suggestedLongestDays),
+        note: aiDayRec.reason,
+      }
+    }
+    return dayAdvice
+  }, [aiDayRec, dayAdvice])
+
+  const displayFit = useMemo(() => {
+    if (!aiReview || !Number.isFinite(aiReview.recommendedDays)) return durationFit
+    const status =
+      aiReview.status === 'too_packed' ||
+      aiReview.status === 'too_light' ||
+      aiReview.status === 'balanced'
+        ? aiReview.status
+        : durationFit.status
+    return {
+      ...durationFit,
+      status,
+      recommendedDays: clampDays(aiReview.recommendedDays),
+      minDays: clampDays(aiReview.minDays || aiReview.recommendedDays),
+      comfortableDays: clampDays(
+        aiReview.comfortableDays || aiReview.recommendedDays,
+      ),
+      title: aiReview.title || durationFit.title,
+      message: [aiReview.message, ...(aiReview.adjustments || [])]
+        .filter(Boolean)
+        .join(' '),
+    }
+  }, [aiReview, durationFit])
+
   const styleLabel = hotelStyles.find((s) => s.id === hotelStyle)?.label ?? ''
   const paceLabel = tripPaces.find((p) => p.id === pace)?.label ?? ''
   const companionLabel = companions.find((c) => c.id === companion)?.label ?? ''
+
+  const selectedDestKey = selectedDestIds.join('|')
+  const selectedSpotKey = selectedSpotIds.join('|')
+  const selectedDestNames = selectedDestinations.map((d) => d.nameZh).join(' + ')
+
+  const runAiDayRecommendation = async (
+    destName: string,
+    options?: { applyDays?: boolean },
+  ) => {
+    const applyDays = options?.applyDays ?? true
+    setAiLoading(true)
+    setAiError('')
+    try {
+      const result = await recommendDaysWithAi({
+        destinationName: destName,
+        pace,
+        companions: companion,
+        specialNeeds,
+        heuristic: {
+          minDays: dayAdvice.min,
+          comfortableDays: dayAdvice.comfortable,
+          suggestedLongestDays: dayAdvice.suggestedLongest,
+        },
+      })
+      setAiDayRec(result)
+      if (applyDays && Number.isFinite(result.comfortableDays)) {
+        setTripDays(result.comfortableDays)
+      }
+      return result
+    } catch (error) {
+      setAiDayRec(null)
+      setAiError(error instanceof Error ? error.message : 'AI 天數建議失敗')
+      return null
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (step !== 'preferences' || !primary || !selectedDestNames) return
+    let cancelled = false
+    setAiLoading(true)
+    setAiError('')
+    void recommendDaysWithAi({
+      destinationName: selectedDestNames,
+      pace,
+      companions: companion,
+      specialNeeds,
+      heuristic: {
+        minDays: dayAdvice.min,
+        comfortableDays: dayAdvice.comfortable,
+        suggestedLongestDays: dayAdvice.suggestedLongest,
+      },
+    })
+      .then((result) => {
+        if (cancelled) return
+        setAiDayRec(result)
+        if (Number.isFinite(result.comfortableDays)) {
+          setTripDays(result.comfortableDays)
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setAiDayRec(null)
+        setAiError(error instanceof Error ? error.message : 'AI 天數建議失敗')
+      })
+      .finally(() => {
+        if (!cancelled) setAiLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+    // Re-run when destination set changes; preferences page entry triggers via step.
+  }, [step, selectedDestKey, selectedDestNames])
+
+  useEffect(() => {
+    if ((step !== 'spots' && step !== 'result') || !primary) return
+    if (reviewTimer.current) window.clearTimeout(reviewTimer.current)
+    const destinationName = selectedDestNames
+    const spotsPayload = selectedSpotObjects.map((s) => ({
+      name: s.name,
+      stayHours: s.stayHours,
+      area: s.area,
+    }))
+    const heuristic = {
+      status: durationFit.status,
+      recommendedDays: durationFit.recommendedDays,
+      minDays: durationFit.minDays,
+      comfortableDays: durationFit.comfortableDays,
+    }
+    reviewTimer.current = window.setTimeout(() => {
+      setAiReviewLoading(true)
+      void reviewPlanWithAi({
+        destinationName,
+        chosenDays: planDays,
+        pace,
+        companions: companion,
+        specialNeeds,
+        spots: spotsPayload,
+        heuristic,
+      })
+        .then((result) => {
+          setAiReview(result)
+          setAiError('')
+        })
+        .catch((error: unknown) => {
+          setAiReview(null)
+          setAiError(error instanceof Error ? error.message : 'AI 行程審核失敗')
+        })
+        .finally(() => setAiReviewLoading(false))
+    }, 600)
+    return () => {
+      if (reviewTimer.current) window.clearTimeout(reviewTimer.current)
+    }
+  }, [
+    step,
+    planDays,
+    pace,
+    companion,
+    specialNeeds,
+    selectedSpotKey,
+    selectedDestNames,
+    primary?.id,
+    durationFit.status,
+    durationFit.recommendedDays,
+    durationFit.minDays,
+    durationFit.comfortableDays,
+  ])
 
   const itinerary = useMemo(() => {
     void planVersion
@@ -528,42 +709,77 @@ function App() {
             <div className="section-head">
               <h2>這個地方建議玩幾天？</h2>
               <p>
-                先看建議，再自己輸入。建議最長多半落在 {dayAdvice.suggestedLongest}{' '}
-                天左右，但你仍可輸入到 {MAX_TRIP_DAYS} 天（更長也能排，多出來會變彈性日）。
+                AI（Crazyrouter）會先審核目的地再給天數。建議最長多半落在{' '}
+                {displayAdvice.suggestedLongest} 天左右，你仍可輸入到 {MAX_TRIP_DAYS} 天。
               </p>
             </div>
+
+            <aside className={`ai-panel ${aiLoading ? 'loading' : aiDayRec ? 'ready' : ''}`}>
+              <strong>
+                {aiLoading
+                  ? 'AI 正在審核行程天數…'
+                  : aiDayRec
+                    ? 'AI 已審核天數建議'
+                    : '等待 AI 審核'}
+              </strong>
+              {aiError ? <p className="input-error">{aiError}</p> : null}
+              {aiDayRec ? (
+                <>
+                  <p>{aiDayRec.reason}</p>
+                  {aiDayRec.warnings?.length ? (
+                    <ul className="tips-list">
+                      {aiDayRec.warnings.map((w) => (
+                        <li key={w}>{w}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() =>
+                      primary &&
+                      void runAiDayRecommendation(
+                        selectedDestinations.map((d) => d.nameZh).join(' + '),
+                      )
+                    }
+                  >
+                    重新請 AI 審核
+                  </button>
+                </>
+              ) : null}
+            </aside>
 
             <div className="advice-strip">
               <button
                 type="button"
-                className={`advice clickable ${days === dayAdvice.min ? 'emphasize' : ''}`}
-                onClick={() => setTripDays(dayAdvice.min)}
+                className={`advice clickable ${days === displayAdvice.min ? 'emphasize' : ''}`}
+                onClick={() => setTripDays(displayAdvice.min)}
               >
                 <span>最少</span>
-                <strong>{dayAdvice.min} 天</strong>
+                <strong>{displayAdvice.min} 天</strong>
                 <em>能碰到精華</em>
               </button>
               <button
                 type="button"
-                className={`advice clickable ${days === dayAdvice.comfortable ? 'emphasize' : ''}`}
-                onClick={() => setTripDays(dayAdvice.comfortable)}
+                className={`advice clickable ${days === displayAdvice.comfortable ? 'emphasize' : ''}`}
+                onClick={() => setTripDays(displayAdvice.comfortable)}
               >
                 <span>最舒服</span>
-                <strong>{dayAdvice.comfortable} 天</strong>
-                <em>推薦首選</em>
+                <strong>{displayAdvice.comfortable} 天</strong>
+                <em>AI 推薦</em>
               </button>
               <button
                 type="button"
-                className={`advice clickable ${days === dayAdvice.suggestedLongest ? 'emphasize' : ''}`}
-                onClick={() => setTripDays(dayAdvice.suggestedLongest)}
+                className={`advice clickable ${days === displayAdvice.suggestedLongest ? 'emphasize' : ''}`}
+                onClick={() => setTripDays(displayAdvice.suggestedLongest)}
               >
                 <span>建議最長</span>
-                <strong>{dayAdvice.suggestedLongest} 天</strong>
+                <strong>{displayAdvice.suggestedLongest} 天</strong>
                 <em>慢慢玩也不嫌多</em>
               </button>
             </div>
 
-            <p className="muted-line">{dayAdvice.note}</p>
+            <p className="muted-line">{displayAdvice.note}</p>
 
             <div className="day-input-panel">
               <div className="field-block grow">
@@ -599,7 +815,7 @@ function App() {
                     onBlur={() => {
                       const parsed = Number(daysInput)
                       setTripDays(
-                        Number.isFinite(parsed) ? parsed : dayAdvice.comfortable,
+                        Number.isFinite(parsed) ? parsed : displayAdvice.comfortable,
                       )
                     }}
                   />
@@ -621,7 +837,14 @@ function App() {
               </div>
 
               <div className="quick-days">
-                {[dayAdvice.min, dayAdvice.comfortable, dayAdvice.suggestedLongest, 14, 16, MAX_TRIP_DAYS]
+                {[
+                  displayAdvice.min,
+                  displayAdvice.comfortable,
+                  displayAdvice.suggestedLongest,
+                  14,
+                  16,
+                  MAX_TRIP_DAYS,
+                ]
                   .filter((value, index, arr) => arr.indexOf(value) === index)
                   .map((value) => (
                     <button
@@ -825,11 +1048,30 @@ function App() {
               </div>
             </div>
 
+            <aside className={`ai-panel ${aiReviewLoading ? 'loading' : aiReview ? 'ready' : ''}`}>
+              <strong>
+                {aiReviewLoading
+                  ? 'AI 正在比對天數與景點…'
+                  : aiReview
+                    ? 'AI 已審核景點／天數搭配'
+                    : '選擇景點後，AI 會自動審核'}
+              </strong>
+              {aiError && step === 'spots' ? (
+                <p className="input-error">{aiError}</p>
+              ) : null}
+              {aiReview && !aiReviewLoading ? (
+                <p>
+                  {aiReview.message ||
+                    `建議正常完成約 ${aiReview.recommendedDays} 天（最少 ${aiReview.minDays} · 舒服 ${aiReview.comfortableDays}）。`}
+                </p>
+              ) : null}
+            </aside>
+
             <DurationFitPanel
-              assessment={durationFit}
-              onApplyRecommended={() => setTripDays(durationFit.recommendedDays)}
-              onApplyComfortable={() => setTripDays(durationFit.comfortableDays)}
-              onApplyMin={() => setTripDays(durationFit.minDays)}
+              assessment={displayFit}
+              onApplyRecommended={() => setTripDays(displayFit.recommendedDays)}
+              onApplyComfortable={() => setTripDays(displayFit.comfortableDays)}
+              onApplyMin={() => setTripDays(displayFit.minDays)}
             />
 
             <form
@@ -970,19 +1212,20 @@ function App() {
               <article className="info-block">
                 <h3>天數與天氣</h3>
                 <p className="season-note">
-                  最少 {dayAdvice.min} 天 · 最舒服 {dayAdvice.comfortable} 天 · 建議最長{' '}
-                  {dayAdvice.suggestedLongest} 天
+                  最少 {displayAdvice.min} 天 · 最舒服 {displayAdvice.comfortable} 天 ·
+                  建議最長 {displayAdvice.suggestedLongest} 天
+                  {aiDayRec ? '（AI）' : ''}
                 </p>
                 <p>
                   <strong>你目前選擇：</strong>
                   {planDays} 天 {nightsFromDays(planDays)} 夜
                 </p>
                 <p>
-                  <strong>依景點估算正常完成：</strong>
-                  {durationFit.recommendedDays} 天
-                  {durationFit.status === 'too_packed'
+                  <strong>AI 正常完成建議：</strong>
+                  {displayFit.recommendedDays} 天
+                  {displayFit.status === 'too_packed'
                     ? '（目前偏趕）'
-                    : durationFit.status === 'too_light'
+                    : displayFit.status === 'too_light'
                       ? '（目前偏鬆）'
                       : '（搭配剛好）'}
                 </p>
@@ -1051,18 +1294,34 @@ function App() {
               )}
             </div>
 
+            <aside className={`ai-panel ${aiReviewLoading ? 'loading' : aiReview ? 'ready' : ''}`}>
+              <strong>
+                {aiReviewLoading
+                  ? 'AI 正在覆核最終行程…'
+                  : aiReview
+                    ? 'AI 已覆核最終行程天數'
+                    : 'AI 行程覆核'}
+              </strong>
+              {aiReview ? (
+                <p>
+                  {aiReview.message ||
+                    `正常完成建議 ${aiReview.recommendedDays} 天。`}
+                </p>
+              ) : null}
+            </aside>
+
             <DurationFitPanel
-              assessment={durationFit}
+              assessment={displayFit}
               onApplyRecommended={() => {
-                setTripDays(durationFit.recommendedDays)
+                setTripDays(displayFit.recommendedDays)
                 setPlanVersion((v) => v + 1)
               }}
               onApplyComfortable={() => {
-                setTripDays(durationFit.comfortableDays)
+                setTripDays(displayFit.comfortableDays)
                 setPlanVersion((v) => v + 1)
               }}
               onApplyMin={() => {
-                setTripDays(durationFit.minDays)
+                setTripDays(displayFit.minDays)
                 setPlanVersion((v) => v + 1)
               }}
             />
