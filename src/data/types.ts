@@ -215,6 +215,27 @@ export interface SeasonGuide {
   note: string
 }
 
+/** One city / region proposed inside a country-wide tour. */
+export interface RouteCityOption {
+  id: string
+  nameZh: string
+  nameLocal: string
+  region: string
+  typicalNights: number
+  blurb: string
+}
+
+/** Classic visitor package for a country (e.g. 英格蘭＋蘇格蘭). */
+export interface CommonRouteOption {
+  id: string
+  nameZh: string
+  summary: string
+  cityIds: string[]
+  minDays: number
+  comfortableDays: number
+  suggestedLongest: number
+}
+
 export interface Destination {
   id: DestinationId
   nameZh: string
@@ -248,4 +269,15 @@ export interface Destination {
   tips?: string[]
   /** Rich handbook sections for long private-driver trips. */
   handbook?: TripHandbook
+  /**
+   * Country-wide tour: cities normal visitors cover (英國≠只有倫敦).
+   * User can select / add from these before planning.
+   */
+  routeCities?: RouteCityOption[]
+  /** Classic route packages for quick select. */
+  commonRoutes?: CommonRouteOption[]
+  /** Currently selected route city ids. */
+  selectedRouteCityIds?: string[]
+  /** Active common-route package id, if any. */
+  selectedRoutePackageId?: string
 }

@@ -113,6 +113,8 @@ export function recommendDaysWithAi(input: {
   companions: string
   partySize: number
   specialNeeds: string[]
+  /** Selected country-route cities when user picked a nation tour. */
+  selectedCities?: string[]
   heuristic?: {
     minDays: number
     comfortableDays: number
@@ -147,6 +149,9 @@ export function suggestSpotsWithAi(input: {
   partySize: number
   specialNeeds: string[]
   days?: number
+  /** Selected country-route cities — AI must cover these, not only the capital. */
+  selectedCities?: string[]
+  routePackageName?: string
 }): Promise<AiSpotSuggestion> {
   return postJson('/api/ai/suggest-spots', input)
 }

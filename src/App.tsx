@@ -50,6 +50,7 @@ import {
   spotInputExamples,
   estimateTripBudget,
   isLongHaulDestination,
+  applyCountryRouteSelection,
   type Companion,
   type Destination,
   type DestinationId,
@@ -421,12 +422,19 @@ function App() {
     setAiLoading(true)
     setAiError('')
     try {
+      const selectedCities = selectedDestinations.flatMap(
+        (d) =>
+          d.routeCities
+            ?.filter((c) => d.selectedRouteCityIds?.includes(c.id))
+            .map((c) => `${c.nameZh}（${c.region}）`) || [],
+      )
       const result = await recommendDaysWithAi({
         destinationName: destName,
         pace,
         companions: companion,
         partySize: travelers,
         specialNeeds,
+        selectedCities: selectedCities.length ? selectedCities : undefined,
         heuristic: {
           minDays: dayAdvice.min,
           comfortableDays: dayAdvice.comfortable,
@@ -452,12 +460,19 @@ function App() {
     let cancelled = false
     setAiLoading(true)
     setAiError('')
+    const selectedCities = selectedDestinations.flatMap(
+      (d) =>
+        d.routeCities
+          ?.filter((c) => d.selectedRouteCityIds?.includes(c.id))
+          .map((c) => `${c.nameZh}（${c.region}）`) || [],
+    )
     void recommendDaysWithAi({
       destinationName: selectedDestNames,
       pace,
       companions: companion,
       partySize: travelers,
       specialNeeds,
+      selectedCities: selectedCities.length ? selectedCities : undefined,
       heuristic: {
         minDays: dayAdvice.min,
         comfortableDays: dayAdvice.comfortable,
@@ -887,6 +902,13 @@ function App() {
       const notes: string[] = []
 
       for (const dest of targets) {
+        const selectedCityLabels =
+          dest.routeCities
+            ?.filter((c) => dest.selectedRouteCityIds?.includes(c.id))
+            .map((c) => `${c.nameZh}（${c.region}）`) || []
+        const routePackageName = dest.commonRoutes?.find(
+          (r) => r.id === dest.selectedRoutePackageId,
+        )?.nameZh
         const result = await suggestSpotsWithAi({
           destinationName: dest.nameZh,
           pace,
@@ -894,6 +916,10 @@ function App() {
           partySize: travelers,
           specialNeeds,
           days: planDays,
+          selectedCities: selectedCityLabels.length
+            ? selectedCityLabels
+            : undefined,
+          routePackageName,
         })
         const aiSpots = scenicSpotsFromAi(dest.nameZh, result.spots)
         if (aiSpots.length < 8) {
@@ -995,7 +1021,27 @@ function App() {
               update.flexDayIdeas && update.flexDayIdeas.length
                 ? update.flexDayIdeas
                 : base.flexDayIdeas,
-            recommendedDays: update.recommendedDays || base.recommendedDays,
+            recommendedDays: update.recommendedDays
+              ? base.routeCities?.length
+                ? {
+                    // Country tours: never let AI shrink below the selected-route estimate.
+                    min: Math.max(
+                      update.recommendedDays.min,
+                      base.recommendedDays.min,
+                    ),
+                    comfortable: Math.max(
+                      update.recommendedDays.comfortable,
+                      base.recommendedDays.comfortable,
+                    ),
+                    suggestedLongest: Math.max(
+                      update.recommendedDays.suggestedLongest,
+                      base.recommendedDays.suggestedLongest,
+                    ),
+                    note:
+                      update.recommendedDays.note || base.recommendedDays.note,
+                  }
+                : update.recommendedDays
+              : base.recommendedDays,
             seasonGuide: update.seasonGuide || base.seasonGuide,
             bestSeason: update.seasonGuide
               ? `最適合 ${formatMonthsZh(update.seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(update.seasonGuide.worstMonths)}`
@@ -1505,6 +1551,9 @@ function App() {
                 { emoji: '🐪', text: '新疆南北疆' },
                 { emoji: '🍜', text: '大阪' },
                 { emoji: '🗼', text: '巴黎' },
+                { emoji: '🇬🇧', text: '英國' },
+                { emoji: '🇨🇭', text: '瑞士' },
+                { emoji: '🇫🇷', text: '法國' },
               ]}
               onPick={(text) => {
                 setDestinationInput(text)
@@ -1592,6 +1641,97 @@ function App() {
                 ))}
               </div>
             )}
+
+            {selectedDestinations.some((d) => d.routeCities?.length) ? (
+              <div className="country-route-panel">
+                <h3 className="subhead">常見城市／經典路線（可勾選增減）</h3>
+                <p className="range-value">
+                  輸入國家時，系統會先提出一般旅客常走的城市與路線——不是只有首都週邊。勾選會影響建議天數與之後 AI 調研涵蓋範圍；多國行程天數會合計。
+                </p>
+                {selectedDestinations.map((dest) => {
+                  if (!dest.routeCities?.length) return null
+                  const selected = new Set(dest.selectedRouteCityIds || [])
+                  return (
+                    <div key={dest.id} className="country-route-block">
+                      <strong>
+                        {dest.nameZh} · 建議{' '}
+                        {dest.recommendedDays.comfortable} 天（最長約{' '}
+                        {dest.recommendedDays.suggestedLongest} 天）
+                      </strong>
+                      {dest.commonRoutes?.length ? (
+                        <div className="chip-row" style={{ marginTop: '0.5rem' }}>
+                          {dest.commonRoutes.map((route) => (
+                            <button
+                              key={route.id}
+                              type="button"
+                              className={`chip ${dest.selectedRoutePackageId === route.id ? 'selected' : ''}`}
+                              onClick={() => {
+                                setCustomDestinations((prev) =>
+                                  prev.map((d) =>
+                                    d.id === dest.id
+                                      ? applyCountryRouteSelection(d, {
+                                          routePackageId: route.id,
+                                        })
+                                      : d,
+                                  ),
+                                )
+                                setAiSpotsLoadedKeys((prev) =>
+                                  prev.filter((id) => id !== dest.id),
+                                )
+                              }}
+                            >
+                              {route.nameZh}
+                              <span className="chip-meta">
+                                {' '}
+                                · {route.comfortableDays} 天
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="chip-row" style={{ marginTop: '0.65rem' }}>
+                        {dest.routeCities.map((city) => {
+                          const on = selected.has(city.id)
+                          return (
+                            <button
+                              key={city.id}
+                              type="button"
+                              className={`chip ${on ? 'selected' : ''}`}
+                              title={city.blurb}
+                              onClick={() => {
+                                const nextIds = on
+                                  ? (dest.selectedRouteCityIds || []).filter(
+                                      (id) => id !== city.id,
+                                    )
+                                  : [...(dest.selectedRouteCityIds || []), city.id]
+                                if (!nextIds.length) return
+                                setCustomDestinations((prev) =>
+                                  prev.map((d) =>
+                                    d.id === dest.id
+                                      ? applyCountryRouteSelection(d, {
+                                          cityIds: nextIds,
+                                          routePackageId: null,
+                                        })
+                                      : d,
+                                  ),
+                                )
+                                setAiSpotsLoadedKeys((prev) =>
+                                  prev.filter((id) => id !== dest.id),
+                                )
+                              }}
+                            >
+                              {city.nameZh}
+                              <span className="chip-meta"> · {city.region}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <p className="range-value">{dest.recommendedDays.note}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
 
             <h3 className="subhead">或從範例快速選擇</h3>
             <div className="dest-grid">

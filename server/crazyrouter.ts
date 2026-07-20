@@ -87,6 +87,7 @@ async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
       companions?: string
       partySize?: number
       specialNeeds?: string[]
+      selectedCities?: string[]
       heuristic?: {
         minDays?: number
         comfortableDays?: number
@@ -113,11 +114,12 @@ async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
   "warnings": string[]
 }
 規則：
-- 天數必須是 2 到 21 的整數
+- 天數必須是 2 到 32 的整數
 - minDays <= comfortableDays <= suggestedLongestDays
-- 單一城市（如西安、大阪、台北）comfortableDays 通常 3–7，suggestedLongestDays 很少超過 10；禁止無故給 12–14 天
-- 只有新疆南北疆、青甘大環線、長公路環線才把 comfortableDays 拉到 >= 12
-- 「慢遊／舒適」可小幅加天，但不能把城市遊加成兩週空轉
+- 單一城市（如西安、大阪、台北、倫敦、巴黎）comfortableDays 通常 3–7，suggestedLongestDays 很少超過 10；禁止無故給 12–14 天
+- 國家級／多城路線（英國含英格蘭＋蘇格蘭＋愛爾蘭、法國多城、瑞士山城串線、新疆南北疆、青甘大環線）comfortableDays 常 >= 12，suggestedLongestDays 可到 21–32
+- 「英國」若涵蓋英格蘭＋蘇格蘭（甚至愛爾蘭）重要場景，禁止估成只有倫敦週邊 8–10 天
+- 「慢遊／舒適」可加天；城市遊不要空轉兩週，但國家多城線要給足移動天數
 - reason / warnings 用繁體中文，簡短可執行
 - 不要輸出 Markdown`,
       },
@@ -130,7 +132,8 @@ async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
           partySize: Number(payload.partySize) || 2,
           specialNeeds: payload.specialNeeds ?? [],
           localHeuristicHint: payload.heuristic ?? null,
-          ask: '請審核並給出你認為正確的最少／最舒服／建議最長天數；可順便提醒人數對交通／訂房的影響。',
+          selectedCities: payload.selectedCities ?? null,
+          ask: '請審核並給出你認為正確的最少／最舒服／建議最長天數。若是國家多城路線，請依涵蓋城市估天，不要縮成首都城市遊。',
         }),
       },
     ])
@@ -289,13 +292,19 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
     if (minDays > recommendedDays) minDays = recommendedDays
     if (comfortableDays < recommendedDays) comfortableDays = recommendedDays
 
-    // City breaks must not inflate toward long-haul ranges (e.g. Xi'an ≠ 21 days).
+    // City breaks must not inflate; country multi-city tours must not be capped as city-breaks.
     const longHaul =
-      /新疆|南北疆|青甘|大環線|環線|帕米爾|川藏|滇藏/.test(destinationName)
+      /新疆|南北疆|青甘|大環線|環線|帕米爾|川藏|滇藏|英國|UK|Britain|英倫|法國|France|瑞士|Switzerland|愛爾蘭|Ireland|英格蘭|蘇格蘭/.test(
+        destinationName,
+      )
     if (!longHaul) {
       minDays = clamp(minDays, 2, 7)
       recommendedDays = clamp(recommendedDays, minDays, 9)
       comfortableDays = clamp(comfortableDays, recommendedDays, 11)
+    } else {
+      minDays = clamp(minDays, 2, 28)
+      recommendedDays = clamp(recommendedDays, minDays, 30)
+      comfortableDays = clamp(comfortableDays, recommendedDays, 32)
     }
 
     let status: 'too_packed' | 'too_light' | 'balanced' = 'balanced'
@@ -362,6 +371,8 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
       partySize?: number
       specialNeeds?: string[]
       days?: number
+      selectedCities?: string[]
+      routePackageName?: string
     }
 
     const destinationName = payload.destinationName?.trim()
@@ -371,9 +382,22 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
     }
 
     const plannedDays = Number(payload.days)
+    const selectedCities = (payload.selectedCities || [])
+      .map((c) => String(c || '').trim())
+      .filter(Boolean)
+    const isCountryMultiCity =
+      selectedCities.length >= 3 ||
+      /英國|UK|Britain|法國|France|瑞士|Switzerland|愛爾蘭|Ireland|英格蘭|蘇格蘭/.test(
+        destinationName,
+      )
     const targetCount = Number.isFinite(plannedDays)
-      ? Math.min(28, Math.max(16, Math.ceil(plannedDays * 2.2)))
-      : 18
+      ? Math.min(
+          isCountryMultiCity ? 36 : 28,
+          Math.max(isCountryMultiCity ? 20 : 16, Math.ceil(plannedDays * 2.2)),
+        )
+      : isCountryMultiCity
+        ? 22
+        : 18
 
     const content = await chatCompletion([
       {
@@ -440,7 +464,8 @@ ${AI_RESEARCH_PRINCIPLES_ZH}
 - hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
 - mustEat 5–7 道具體當地必吃；mustDrink 3–4；mustBuy 3–5 樣具體手信
 - seasonGuide.bestMonths / worstMonths 為 1–12 整數陣列，不可兩者相同；weather 四季各一句實用描述
-- recommendedDays 要符合該目的地真實尺度（城市遊別灌成 20 天；長線可較長）
+- recommendedDays 要符合該目的地真實尺度（單一城市遊別灌成 20 天；國家多城／長線必須給足天數）
+- 若提供 selectedCities：spots 與 hotels 必須覆蓋這些城市／區域，禁止只輸出首都＋近郊
 - tips 含交通／門票／排隊／天氣應變等可執行建議`,
       },
       {
@@ -453,6 +478,8 @@ ${AI_RESEARCH_PRINCIPLES_ZH}
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
+          selectedCities: selectedCities.length ? selectedCities : null,
+          routePackageName: payload.routePackageName || null,
           ask: AI_RESEARCH_ASK_ZH,
         }),
       },

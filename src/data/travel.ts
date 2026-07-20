@@ -1,5 +1,6 @@
 export type {
   BudgetSummary,
+  CommonRouteOption,
   Companion,
   DayPlan,
   DayRouteLeg,
@@ -11,6 +12,7 @@ export type {
   HotelStayBlock,
   HotelStayPlan,
   HotelStyle,
+  RouteCityOption,
   ScheduleItem,
   ScenicSpot,
   SeasonGuide,
@@ -23,6 +25,7 @@ export type {
 
 import type {
   BudgetSummary,
+  CommonRouteOption,
   Companion,
   DayPlan,
   DayRouteLeg,
@@ -30,6 +33,7 @@ import type {
   HotelOption,
   HotelStayPlan,
   HotelStyle,
+  RouteCityOption,
   ScheduleItem,
   ScenicSpot,
   SeasonGuide,
@@ -45,6 +49,14 @@ import {
   isOutletDaytripSpam,
   shouldInjectFamousOutlet,
 } from './travelPrinciples'
+import {
+  defaultSelectedCityIds,
+  estimateDaysForCities,
+  findCountryRouteProfile,
+  isCountryTourName,
+  routeCitiesToSpotSeeds,
+  type CountryRouteProfile,
+} from './countryRoutes'
 
 /** Hard ceiling for manual day input — long trips (e.g. 新疆 29 日) are allowed. */
 export const MAX_TRIP_DAYS = 32
@@ -335,7 +347,121 @@ function xinjiangTemplateSeeds(): SpotSeed[] {
 }
 
 export function isLongHaulDestination(name: string): boolean {
-  return /新疆|南北疆|青甘|大環線|環線|帕米爾|自駕公路|西藏.*線|川藏|滇藏/.test(name)
+  return (
+    /新疆|南北疆|青甘|大環線|環線|帕米爾|自駕公路|西藏.*線|川藏|滇藏/.test(name) ||
+    isCountryTourName(name)
+  )
+}
+
+/** Country-scale tours (UK / France / Switzerland…) — not capital city-breaks. */
+export function isCountryTourDestination(name: string): boolean {
+  return isCountryTourName(name)
+}
+
+function countryProfileToTripBits(
+  profile: CountryRouteProfile,
+  cityIds: string[],
+  routePackageId?: string,
+): {
+  recommendedDays: Destination['recommendedDays']
+  tagline: string
+  intro: string
+  background: string
+  memorable: string[]
+  spots: ScenicSpot[]
+  tips: string[]
+  flexDayIdeas: string[]
+  routeCities: RouteCityOption[]
+  commonRoutes: CommonRouteOption[]
+  selectedRouteCityIds: string[]
+  selectedRoutePackageId?: string
+} {
+  const days = estimateDaysForCities(profile, cityIds)
+  const selectedCities = profile.cities.filter((c) => cityIds.includes(c.id))
+  const seeds = routeCitiesToSpotSeeds(profile, cityIds)
+  return {
+    recommendedDays: {
+      min: days.min,
+      comfortable: days.comfortable,
+      suggestedLongest: days.suggestedLongest,
+      note: days.note,
+    },
+    tagline: profile.tagline,
+    intro: profile.intro,
+    background: profile.background,
+    memorable: profile.memorable,
+    spots: spotsFromSeeds(
+      profile.countryNameZh,
+      seeds.map((s) => ({
+        name: s.name,
+        tags: s.tags,
+        hours: s.hours,
+        area: s.area,
+        summary: s.summary,
+      })),
+    ),
+    tips: profile.tips,
+    flexDayIdeas: selectedCities.map(
+      (c) => `${c.nameZh}多留半日／彈性日（${c.region}）`,
+    ),
+    routeCities: profile.cities.map((c) => ({
+      id: c.id,
+      nameZh: c.nameZh,
+      nameLocal: c.nameLocal,
+      region: c.region,
+      typicalNights: c.typicalNights,
+      blurb: c.blurb,
+    })),
+    commonRoutes: profile.routes.map((r) => ({
+      id: r.id,
+      nameZh: r.nameZh,
+      summary: r.summary,
+      cityIds: [...r.cityIds],
+      minDays: r.minDays,
+      comfortableDays: r.comfortableDays,
+      suggestedLongest: r.suggestedLongest,
+    })),
+    selectedRouteCityIds: [...cityIds],
+    selectedRoutePackageId: routePackageId,
+  }
+}
+
+/** Re-apply city / route package selection on a country destination. */
+export function applyCountryRouteSelection(
+  dest: Destination,
+  options: { cityIds?: string[]; routePackageId?: string | null },
+): Destination {
+  const profile = findCountryRouteProfile(dest.nameZh) || findCountryRouteProfile(dest.nameLocal)
+  if (!profile) return dest
+  let cityIds = options.cityIds ? [...options.cityIds] : [...(dest.selectedRouteCityIds || [])]
+  let packageId = options.routePackageId === null ? undefined : options.routePackageId
+  if (options.routePackageId) {
+    const pack = profile.routes.find((r) => r.id === options.routePackageId)
+    if (pack) {
+      cityIds = [...pack.cityIds]
+      packageId = pack.id
+    }
+  }
+  if (!cityIds.length) cityIds = defaultSelectedCityIds(profile)
+  const bits = countryProfileToTripBits(profile, cityIds, packageId)
+  // Keep user-added spots; replace generated route seeds.
+  const userSpots = dest.spots.filter((s) => s.id.startsWith('user-spot-'))
+  return {
+    ...dest,
+    tagline: bits.tagline,
+    intro: bits.intro,
+    background: bits.background,
+    memorable: bits.memorable,
+    recommendedDays: bits.recommendedDays,
+    tips: bits.tips,
+    flexDayIdeas: bits.flexDayIdeas,
+    routeCities: bits.routeCities,
+    commonRoutes: bits.commonRoutes,
+    selectedRouteCityIds: bits.selectedRouteCityIds,
+    selectedRoutePackageId: bits.selectedRoutePackageId,
+    curatedPlans: undefined,
+    spots: [...userSpots, ...bits.spots],
+  }
 }
 
 /** Infer trip length from destination wording (環線 / 南北疆 / 慢遊 etc.). */
@@ -350,6 +476,10 @@ export function inferCustomTripProfile(name: string): {
   spots: ScenicSpot[]
   tips: string[]
   flexDayIdeas: string[]
+  routeCities?: RouteCityOption[]
+  commonRoutes?: CommonRouteOption[]
+  selectedRouteCityIds?: string[]
+  selectedRoutePackageId?: string
 } {
   const text = name.trim()
   const seasonGuide = inferSeasonGuide(text)
@@ -363,6 +493,33 @@ export function inferCustomTripProfile(name: string): {
   const germany = /德國|Germany|german|Deutschland|柏林|慕尼黑|科隆|德累斯頓|法蘭克福/i.test(
     text,
   )
+  const countryProfile = findCountryRouteProfile(text)
+
+  // Country-wide tours: propose common cities / classic routes (英國≠只有倫敦).
+  if (countryProfile) {
+    const cityIds = defaultSelectedCityIds(countryProfile)
+    const bits = countryProfileToTripBits(
+      countryProfile,
+      cityIds,
+      countryProfile.defaultRouteId,
+    )
+    return {
+      recommendedDays: bits.recommendedDays,
+      tagline: bits.tagline,
+      intro: bits.intro,
+      background: bits.background,
+      memorable: bits.memorable,
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
+      spots: bits.spots,
+      flexDayIdeas: bits.flexDayIdeas,
+      tips: bits.tips,
+      routeCities: bits.routeCities,
+      commonRoutes: bits.commonRoutes,
+      selectedRouteCityIds: bits.selectedRouteCityIds,
+      selectedRoutePackageId: bits.selectedRoutePackageId,
+    }
+  }
 
   // Single Chinese historic cities: keep advice in a realistic city-break range.
   if (/西安|西京|兵馬俑/.test(text) && !loop) {
@@ -1167,6 +1324,106 @@ export function hotelsForCustomPlace(name: string): HotelOption[] {
       },
     ]
   }
+  if (isCountryTourName(text) && /英國|UK|Britain|英倫/i.test(text)) {
+    return [
+      {
+        name: '倫敦瑪麗勒本／西區飯店',
+        area: '倫敦・瑪麗勒本',
+        nightsHint: '英格蘭南段連住 3–4 晚',
+        pricePerNight: '£140–280',
+        highlight: '近火車站，方便溫莎／Bicester／南英格蘭日遊',
+        styles: ['standard', 'luxuryValue', 'value'],
+      },
+      {
+        name: '巴斯市中心石造旅店',
+        area: '巴斯・市中心',
+        nightsHint: '1–2 晚',
+        pricePerNight: '£120–220',
+        highlight: '走路可到羅馬浴場與修道院',
+        styles: ['standard', 'clean'],
+      },
+      {
+        name: '約克古城牆內飯店',
+        area: '約克・古城',
+        nightsHint: '1–2 晚',
+        pricePerNight: '£110–200',
+        highlight: '北上蘇格蘭前常見過夜基地',
+        styles: ['standard', 'value'],
+      },
+      {
+        name: '愛丁堡舊城／新城飯店',
+        area: '愛丁堡・舊城',
+        nightsHint: '蘇格蘭段連住 2–3 晚',
+        pricePerNight: '£130–250',
+        highlight: '近城堡與皇家英里；高地可由此出發',
+        styles: ['standard', 'luxuryValue', 'clean'],
+      },
+      {
+        name: '都柏林聖殿酒吧區飯店',
+        area: '都柏林・市中心',
+        nightsHint: '愛爾蘭段 2–3 晚（若有選）',
+        pricePerNight: '€130–240',
+        highlight: '若路線含愛爾蘭，獨立過夜城，勿與倫敦混住',
+        styles: ['standard', 'value'],
+      },
+    ]
+  }
+  if (isCountryTourName(text) && /法國|France/i.test(text)) {
+    return [
+      {
+        name: '巴黎瑪黑／聖日耳曼飯店',
+        area: '巴黎・市中心',
+        nightsHint: '巴黎段 3–4 晚',
+        pricePerNight: '€180–320',
+        highlight: '法國多城線的首都基地',
+        styles: ['standard', 'luxuryValue'],
+      },
+      {
+        name: '里昂老城飯店',
+        area: '里昂・老城',
+        nightsHint: '1–2 晚',
+        pricePerNight: '€120–220',
+        highlight: '南北法轉場常見過夜',
+        styles: ['standard', 'value'],
+      },
+      {
+        name: '尼斯海濱／舊城飯店',
+        area: '尼斯・海濱',
+        nightsHint: '蔚藍海岸 2–3 晚',
+        pricePerNight: '€150–280',
+        highlight: '南部海岸基地',
+        styles: ['standard', 'luxuryValue'],
+      },
+    ]
+  }
+  if (isCountryTourName(text) && /瑞士|Switzerland|Swiss/i.test(text)) {
+    return [
+      {
+        name: '琉森湖畔飯店',
+        area: '琉森・湖畔',
+        nightsHint: '2 晚',
+        pricePerNight: 'CHF 180–320',
+        highlight: '湖光山城經典過夜',
+        styles: ['standard', 'luxuryValue'],
+      },
+      {
+        name: '因特拉肯／格林德瓦山景飯店',
+        area: '因特拉肯',
+        nightsHint: '少女峰段 2–3 晚',
+        pricePerNight: 'CHF 160–300',
+        highlight: '山景核心，建議連住',
+        styles: ['standard', 'clean'],
+      },
+      {
+        name: '策馬特無車村飯店',
+        area: '策馬特',
+        nightsHint: '1–2 晚',
+        pricePerNight: 'CHF 200–360',
+        highlight: '馬特洪峰基地',
+        styles: ['standard', 'luxuryValue'],
+      },
+    ]
+  }
   if (/巴黎|Paris/i.test(text)) {
     return [
       {
@@ -1324,6 +1581,10 @@ export function createCustomDestination(rawName: string): Destination {
     spots: profile.spots,
     flexDayIdeas: profile.flexDayIdeas,
     tips: profile.tips,
+    routeCities: profile.routeCities,
+    commonRoutes: profile.commonRoutes,
+    selectedRouteCityIds: profile.selectedRouteCityIds,
+    selectedRoutePackageId: profile.selectedRoutePackageId,
   }
 }
 
@@ -3490,11 +3751,27 @@ export function aggregateDayAdvice(dests: Destination[]) {
   if (!dests.length) {
     return { min: 3, comfortable: 5, suggestedLongest: 12, note: '' }
   }
+  // Multi-country / multi-destination: ADD days (with a small transfer overlap),
+  // never collapse France+Switzerland to a single city-break max.
+  if (dests.length > 1) {
+    const sumMin = dests.reduce((n, d) => n + d.recommendedDays.min, 0)
+    const sumCom = dests.reduce((n, d) => n + d.recommendedDays.comfortable, 0)
+    const sumLong = dests.reduce((n, d) => n + d.recommendedDays.suggestedLongest, 0)
+    const overlap = Math.max(0, dests.length - 1) // shared arrival/departure slack
+    return {
+      min: clampDays(Math.max(sumMin - overlap, dests.length * 3)),
+      comfortable: clampDays(Math.max(sumCom - overlap, sumMin)),
+      suggestedLongest: clampDays(Math.max(sumLong - overlap, sumCom)),
+      note: `多目的地合計：${dests.map((d) => d.nameZh).join('＋')}。天數應相加（不是只取最長那一個）。${dests
+        .map((d) => `${d.nameZh}約 ${d.recommendedDays.comfortable} 天`)
+        .join('；')}。`,
+    }
+  }
   return {
-    min: Math.max(...dests.map((d) => d.recommendedDays.min)),
-    comfortable: Math.max(...dests.map((d) => d.recommendedDays.comfortable)),
-    suggestedLongest: Math.max(...dests.map((d) => d.recommendedDays.suggestedLongest)),
-    note: dests.map((d) => `${d.nameZh}：${d.recommendedDays.note}`).join(' '),
+    min: dests[0].recommendedDays.min,
+    comfortable: dests[0].recommendedDays.comfortable,
+    suggestedLongest: dests[0].recommendedDays.suggestedLongest,
+    note: dests[0].recommendedDays.note,
   }
 }
 
@@ -3514,9 +3791,14 @@ export function defaultSelectedSpotIds(
       (s) => s.tags.includes('popular') && !must.includes(s.id) && !photo.includes(s.id),
     )
     .map((s) => s.id)
-  // Keep city defaults modest so fit advice stays in a realistic 4–8 day range.
-  const cap = isLongHaulDestination(dest?.nameZh || '') ? 14 : 8
-  return [...must, ...photo.slice(0, 4), ...popular.slice(0, 3)].slice(0, cap)
+  // Country tours need more defaults selected; city-breaks stay modest.
+  const name = dest?.nameZh || ''
+  const cap = isCountryTourDestination(name)
+    ? 22
+    : isLongHaulDestination(name)
+      ? 14
+      : 8
+  return [...must, ...photo.slice(0, 8), ...popular.slice(0, 6)].slice(0, cap)
 }
 
 export type DurationFitStatus = 'too_packed' | 'too_light' | 'balanced' | 'empty'
