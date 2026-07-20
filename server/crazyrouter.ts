@@ -294,7 +294,7 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
 
     // City breaks must not inflate; country multi-city tours must not be capped as city-breaks.
     const longHaul =
-      /新疆|南北疆|青甘|大環線|環線|帕米爾|川藏|滇藏|英國|UK|Britain|英倫|法國|France|瑞士|Switzerland|愛爾蘭|Ireland|英格蘭|蘇格蘭/.test(
+      /新疆|南北疆|青甘|大環線|環線|帕米爾|川藏|滇藏|英國|UK|Britain|英倫|法國|France|瑞士|Switzerland|愛爾蘭|Ireland|英格蘭|蘇格蘭|德國|Germany|義大利|意大利|Italy|西班牙|Spain|葡萄牙|Portugal|希臘|Greece|日本|Japan|韓國|Korea|泰國|Thailand|美國|USA|澳洲|Australia|挪威|Norway|冰島|Iceland|土耳其|Turkey|越南|Vietnam|紐西蘭|New Zealand|加拿大|Canada/.test(
         destinationName,
       )
     if (!longHaul) {
