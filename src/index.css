@@ -1,0 +1,74 @@
+:root {
+  /* KM Building Company brand + travel planner atmosphere */
+  --brand-red: #c8102e;
+  --brand-red-soft: #e04555;
+  --brand-grey: #6e6e6e;
+  --brand-ink: #2a2a2a;
+  --forest: #1f3d36;
+  --forest-soft: #3f6b5d;
+  --ochre: #c9963a;
+  --ochre-deep: #a67a2a;
+  --ink: #1c2622;
+  --ink-soft: #3d4a44;
+  --muted: #6a756f;
+  --paper: #f4f1ec;
+  --mist: #e8eef0;
+  --display: 'Bricolage Grotesque', 'Noto Sans TC', sans-serif;
+  --body: 'Noto Sans TC', 'Bricolage Grotesque', sans-serif;
+  font-family: var(--body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--ink);
+  background: var(--mist);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Brand mark color cycles are non-spatial; keep them visible */
+  .km-logo-live .km-logo-base,
+  .km-logo-live .km-logo-foot {
+    animation-duration: 3.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .km-logo-live .km-logo-foot {
+    animation-duration: 2s !important;
+  }
+}

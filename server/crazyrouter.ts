@@ -1,0 +1,1132 @@
+import type { Connect, Plugin } from 'vite'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import {
+  AI_RESEARCH_ASK_ZH,
+  AI_RESEARCH_PRINCIPLES_ZH,
+} from '../src/data/travelPrinciples.js'
+
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
+
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []
+    req.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('error', reject)
+  })
+}
+
+function sendJson(res: ServerResponse, status: number, body: unknown) {
+  res.statusCode = status
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.end(JSON.stringify(body))
+}
+
+async function chatCompletion(messages: ChatMessage[], temperature = 0.3): Promise<string> {
+  const baseUrl = (process.env.OPENAI_BASE_URL || '').replace(/\/$/, '')
+  const apiKey = process.env.OPENAI_API_KEY || ''
+  const model = process.env.OPENAI_CHAT_MODEL || 'gpt-4o'
+
+  if (!baseUrl || !apiKey) {
+    throw new Error('Crazyrouter API is not configured (OPENAI_BASE_URL / OPENAI_API_KEY).')
+  }
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature,
+      messages,
+      response_format: { type: 'json_object' },
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Crazyrouter error ${response.status}: ${text.slice(0, 300)}`)
+  }
+
+  const data = (await response.json()) as {
+    choices?: { message?: { content?: string } }[]
+  }
+  const content = data.choices?.[0]?.message?.content
+  if (!content) throw new Error('Crazyrouter returned empty content.')
+  return content
+}
+
+function extractJson(text: string): unknown {
+  const trimmed = text.trim()
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    const match = trimmed.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('AI response was not valid JSON.')
+    return JSON.parse(match[0])
+  }
+}
+
+async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(await readBody(req)) as {
+      destinationName?: string
+      pace?: string
+      companions?: string
+      partySize?: number
+      specialNeeds?: string[]
+      selectedCities?: string[]
+      heuristic?: {
+        minDays?: number
+        comfortableDays?: number
+        suggestedLongestDays?: number
+      }
+    }
+
+    const destinationName = payload.destinationName?.trim()
+    if (!destinationName) {
+      sendJson(res, 400, { error: 'destinationName is required' })
+      return
+    }
+
+    const content = await chatCompletion([
+      {
+        role: 'system',
+        content: `你是專業旅遊規劃 AI。請依目的地真實距離、交通與旅遊節奏，估算行程天數。
+只回傳 JSON，欄位如下：
+{
+  "minDays": number,
+  "comfortableDays": number,
+  "suggestedLongestDays": number,
+  "reason": string,
+  "warnings": string[]
+}
+規則：
+- 天數必須是 2 到 32 的整數
+- minDays <= comfortableDays <= suggestedLongestDays
+- 單一城市（如西安、大阪、台北、倫敦、巴黎）comfortableDays 通常 3–7，suggestedLongestDays 很少超過 10；禁止無故給 12–14 天
+- 國家級／多城路線（英國含英格蘭＋蘇格蘭＋愛爾蘭、法國多城、瑞士山城串線、新疆南北疆、青甘大環線）comfortableDays 常 >= 12，suggestedLongestDays 可到 21–32
+- 「英國」若涵蓋英格蘭＋蘇格蘭（甚至愛爾蘭）重要場景，禁止估成只有倫敦週邊 8–10 天
+- 「慢遊／舒適」可加天；城市遊不要空轉兩週，但國家多城線要給足移動天數
+- reason / warnings 用繁體中文，簡短可執行
+- 不要輸出 Markdown`,
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          destinationName,
+          pace: payload.pace ?? 'balanced',
+          companions: payload.companions ?? 'friends',
+          partySize: Number(payload.partySize) || 2,
+          specialNeeds: payload.specialNeeds ?? [],
+          localHeuristicHint: payload.heuristic ?? null,
+          selectedCities: payload.selectedCities ?? null,
+          ask: '請審核並給出你認為正確的最少／最舒服／建議最長天數。若是國家多城路線，請依涵蓋城市估天，不要縮成首都城市遊。',
+        }),
+      },
+    ])
+
+    const parsed = extractJson(content) as {
+      minDays?: number
+      comfortableDays?: number
+      suggestedLongestDays?: number
+      reason?: string
+      warnings?: string[]
+    }
+
+    sendJson(res, 200, {
+      source: 'crazyrouter',
+      minDays: Number(parsed.minDays),
+      comfortableDays: Number(parsed.comfortableDays),
+      suggestedLongestDays: Number(parsed.suggestedLongestDays),
+      reason: parsed.reason || '',
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+      raw: parsed,
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'AI recommend-days failed',
+    })
+  }
+}
+
+async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(await readBody(req)) as {
+      destinationName?: string
+      chosenDays?: number
+      pace?: string
+      companions?: string
+      partySize?: number
+      specialNeeds?: string[]
+      spots?: { name: string; stayHours: number; area: string }[]
+      heuristic?: {
+        status?: string
+        recommendedDays?: number
+        minDays?: number
+        comfortableDays?: number
+      }
+    }
+
+    const destinationName = payload.destinationName?.trim()
+    const chosenDays = Number(payload.chosenDays)
+    if (!destinationName || !Number.isFinite(chosenDays)) {
+      sendJson(res, 400, { error: 'destinationName and chosenDays are required' })
+      return
+    }
+
+    const heuristic = payload.heuristic ?? {}
+    const hMin = Number(heuristic.minDays)
+    const hRec = Number(heuristic.recommendedDays)
+    const hCom = Number(heuristic.comfortableDays)
+
+    const content = await chatCompletion([
+      {
+        role: 'system',
+        content: `你是專業旅遊規劃 AI。請依「已選景點」估算完成這趟行程需要的絕對天數。
+重要：不要被使用者目前選的天數帶偏；先估景點真正需要多久，status 由系統另算。
+只回傳 JSON：
+{
+  "recommendedDays": number,
+  "minDays": number,
+  "comfortableDays": number,
+  "message": string,
+  "adjustments": string[]
+}
+規則：
+- 天數 2-21 整數，且 minDays <= recommendedDays <= comfortableDays
+- recommendedDays = 正常完成（不過度趕、也不故意拖）
+- 一般城市＋1–2 個近郊日遊：多數落在 4–8 天，不要無故估到 14 天以上
+- 只有長線（新疆南北疆／青甘／大環線公路）才給 12 天以上
+- 必須參考 localHeuristicHint，最終數字應落在 heuristic 附近（約 ±2 天），長線可放寬
+- 全文繁體中文，不要 Markdown`,
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          destinationName,
+          // chosenDays is context only — do not inflate/deflate absolute need to match it
+          currentlySelectedDaysForContextOnly: chosenDays,
+          pace: payload.pace ?? 'balanced',
+          companions: payload.companions ?? 'friends',
+          partySize: Number(payload.partySize) || 2,
+          specialNeeds: payload.specialNeeds ?? [],
+          spots: payload.spots ?? [],
+          localHeuristicHint: {
+            minDays: Number.isFinite(hMin) ? hMin : null,
+            recommendedDays: Number.isFinite(hRec) ? hRec : null,
+            comfortableDays: Number.isFinite(hCom) ? hCom : null,
+          },
+          ask: '請給出完成這些景點的最少／正常／舒服天數（絕對估計，前後一致）。',
+        }),
+      },
+    ], 0.2)
+
+    const parsed = extractJson(content) as {
+      recommendedDays?: number
+      minDays?: number
+      comfortableDays?: number
+      message?: string
+      adjustments?: string[]
+    }
+
+    const clamp = (n: number, lo: number, hi: number) =>
+      Math.min(hi, Math.max(lo, Math.round(n)))
+
+    let minDays = Number(parsed.minDays)
+    let recommendedDays = Number(parsed.recommendedDays)
+    let comfortableDays = Number(parsed.comfortableDays)
+
+    // Anchor to heuristic so spots/result pages don't drift wildly.
+    if (Number.isFinite(hMin) && Number.isFinite(hRec) && Number.isFinite(hCom)) {
+      if (!Number.isFinite(minDays)) minDays = hMin
+      if (!Number.isFinite(recommendedDays)) recommendedDays = hRec
+      if (!Number.isFinite(comfortableDays)) comfortableDays = hCom
+      minDays = clamp(minDays, Math.max(2, hMin - 1), Math.min(21, hRec + 2))
+      recommendedDays = clamp(
+        Math.round(recommendedDays * 0.4 + hRec * 0.6),
+        Math.max(2, hMin),
+        Math.min(21, hCom + 2),
+      )
+      comfortableDays = clamp(
+        Math.round(comfortableDays * 0.4 + hCom * 0.6),
+        recommendedDays,
+        Math.min(21, hCom + 3),
+      )
+    } else {
+      minDays = clamp(Number.isFinite(minDays) ? minDays : 3, 2, 21)
+      recommendedDays = clamp(
+        Number.isFinite(recommendedDays) ? recommendedDays : minDays + 1,
+        2,
+        21,
+      )
+      comfortableDays = clamp(
+        Number.isFinite(comfortableDays) ? comfortableDays : recommendedDays + 1,
+        2,
+        21,
+      )
+    }
+
+    if (minDays > recommendedDays) minDays = recommendedDays
+    if (comfortableDays < recommendedDays) comfortableDays = recommendedDays
+
+    // City breaks must not inflate; country multi-city tours must not be capped as city-breaks.
+    const longHaul =
+      /新疆|南北疆|青甘|大環線|環線|帕米爾|川藏|滇藏|英國|UK|Britain|英倫|法國|France|瑞士|Switzerland|愛爾蘭|Ireland|英格蘭|蘇格蘭|德國|Germany|義大利|意大利|Italy|西班牙|Spain|葡萄牙|Portugal|希臘|Greece|日本|Japan|韓國|Korea|泰國|Thailand|美國|USA|澳洲|Australia|挪威|Norway|冰島|Iceland|土耳其|Turkey|越南|Vietnam|紐西蘭|New Zealand|加拿大|Canada/.test(
+        destinationName,
+      )
+    if (!longHaul) {
+      minDays = clamp(minDays, 2, 7)
+      recommendedDays = clamp(recommendedDays, minDays, 9)
+      comfortableDays = clamp(comfortableDays, recommendedDays, 11)
+    } else {
+      minDays = clamp(minDays, 2, 28)
+      recommendedDays = clamp(recommendedDays, minDays, 30)
+      comfortableDays = clamp(comfortableDays, recommendedDays, 32)
+    }
+
+    let status: 'too_packed' | 'too_light' | 'balanced' = 'balanced'
+    const lightThreshold = Math.max(recommendedDays + 2, comfortableDays)
+    if (chosenDays < recommendedDays) status = 'too_packed'
+    else if (chosenDays > lightThreshold) status = 'too_light'
+
+    const title = !longHaul
+      ? status === 'too_packed'
+        ? '景點偏多：可加天或刪減景點（城市遊不必拉到 20 天）'
+        : status === 'too_light'
+          ? '行程天數偏多，可適度縮短'
+          : '天數與景點搭配合理'
+      : status === 'too_packed'
+        ? '行程過於緊湊，建議延長天數'
+        : status === 'too_light'
+          ? '行程天數偏多，可適度縮短'
+          : '天數與景點搭配合理'
+
+    let message = typeof parsed.message === 'string' ? parsed.message : ''
+    if (
+      !longHaul &&
+      (/1[2-9]\s*天|2[0-9]\s*天|兩週|三週|二十/.test(message) || !message.trim())
+    ) {
+      message =
+        status === 'too_packed'
+          ? `城市深度遊正常完成約 ${recommendedDays} 天即可（最少 ${minDays}、舒服 ${comfortableDays}）。不必拉到兩週以上；偏趕時優先刪遠程／重複景點，或小幅加到 ${recommendedDays} 天。`
+          : `以目前景點量，城市遊約 ${recommendedDays} 天可正常完成（舒服 ${comfortableDays} 天）。`
+    }
+
+    sendJson(res, 200, {
+      source: 'crazyrouter',
+      status,
+      recommendedDays,
+      minDays,
+      comfortableDays,
+      title,
+      message,
+      adjustments: Array.isArray(parsed.adjustments) ? parsed.adjustments : [],
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'AI review-plan failed',
+    })
+  }
+}
+
+async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(await readBody(req)) as {
+      destinationName?: string
+      pace?: string
+      companions?: string
+      partySize?: number
+      specialNeeds?: string[]
+      days?: number
+      selectedCities?: string[]
+      routePackageName?: string
+    }
+
+    const destinationName = payload.destinationName?.trim()
+    if (!destinationName) {
+      sendJson(res, 400, { error: 'destinationName is required' })
+      return
+    }
+
+    const plannedDays = Number(payload.days)
+    const selectedCities = (payload.selectedCities || [])
+      .map((c) => String(c || '').trim())
+      .filter(Boolean)
+    const isCountryMultiCity =
+      selectedCities.length >= 3 ||
+      /英國|UK|Britain|法國|France|瑞士|Switzerland|愛爾蘭|Ireland|英格蘭|蘇格蘭/.test(
+        destinationName,
+      )
+    const targetCount = Number.isFinite(plannedDays)
+      ? Math.min(
+          isCountryMultiCity ? 36 : 28,
+          Math.max(isCountryMultiCity ? 20 : 16, Math.ceil(plannedDays * 2.2)),
+        )
+      : isCountryMultiCity
+        ? 22
+        : 18
+
+    const content = await chatCompletion([
+      {
+        role: 'system',
+        content: `你是專業旅遊規劃 AI。不論目的地是哪裡（熱門城市、偏鄉、自訂地名都一樣），都必須先自行完成完整調研與分析，再輸出可直接做行程規劃的資料包。使用者不會再逐一提示你要查什麼——你要主動涵蓋。
+只回傳 JSON：
+{
+  "intro": string,
+  "tagline": string,
+  "background": string,
+  "memorable": string[],
+  "tips": string[],
+  "flexDayIdeas": string[],
+  "recommendedDays": { "min": number, "comfortable": number, "suggestedLongest": number, "note": string },
+  "seasonGuide": {
+    "bestMonths": number[],
+    "worstMonths": number[],
+    "bestReason": string,
+    "worstReason": string,
+    "note": string
+  },
+  "weather": {
+    "spring": string,
+    "summer": string,
+    "autumn": string,
+    "winter": string
+  },
+  "mustEat": [{ "name": string, "daysLabel": string, "motif": string }],
+  "mustDrink": [{ "name": string, "motif": string }],
+  "mustBuy": [{ "name": string, "daysLabel": string, "motif": string }],
+  "hotels": [
+    {
+      "name": string,
+      "area": string,
+      "nightsHint": string,
+      "pricePerNight": string,
+      "highlight": string,
+      "styles": ("value"|"standard"|"clean"|"luxury"|"luxuryValue")[]
+    }
+  ],
+  "spots": [
+    {
+      "name": string,
+      "nameLocal": string,
+      "area": string,
+      "stayHours": number,
+      "summary": string,
+      "nearbyFood": string,
+      "souvenirs": string,
+      "shoppingOutlet": string,
+      "tags": ("must"|"photo"|"popular"|"culture"|"nature"|"food"|"shopping")[],
+      "ticket": string
+    }
+  ]
+}
+硬性規則（任何目的地都一樣，禁止偷懶套模板、禁止等使用者補充）：
+${AI_RESEARCH_PRINCIPLES_ZH}
+- 必須給 ${targetCount}–${targetCount + 4} 個真實景點
+- summary 2–3 句繁體中文：歷史／場景氛圍＋為何值得去＋怎麼排
+- nearbyFood、souvenirs（手信／伴手禮）每個景點必填，要具體菜名／店型／特產
+- shoppingOutlet 每個景點必填（遵守上方購物原則）
+- 若 specialNeeds 含「購物」或目的地以購物聞名：至少 2–3 個景點 tags 含 shopping；著名 Outlet 用獨立景點滿足
+- background 3–4 句；memorable 4–6 條完整句子
+- hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
+- mustEat 5–7 道具體當地必吃；mustDrink 3–4；mustBuy 3–5 樣具體手信
+- seasonGuide.bestMonths / worstMonths 為 1–12 整數陣列，不可兩者相同；weather 四季各一句實用描述
+- recommendedDays 要符合該目的地真實尺度（單一城市遊別灌成 20 天；國家多城／長線必須給足天數）
+- 若提供 selectedCities：spots 與 hotels 必須覆蓋這些城市／區域，禁止只輸出首都＋近郊
+- tips 含交通／門票／排隊／天氣應變等可執行建議`,
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          destinationName,
+          pace: payload.pace ?? 'balanced',
+          companions: payload.companions ?? 'friends',
+          partySize: Number(payload.partySize) || 2,
+          specialNeeds: payload.specialNeeds ?? [],
+          plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
+          targetSpotCount: targetCount,
+          selectedCities: selectedCities.length ? selectedCities : null,
+          routePackageName: payload.routePackageName || null,
+          ask: AI_RESEARCH_ASK_ZH,
+        }),
+      },
+    ], 0.35)
+
+    const parsed = extractJson(content) as {
+      intro?: string
+      tagline?: string
+      background?: string
+      memorable?: string[]
+      tips?: string[]
+      flexDayIdeas?: string[]
+      recommendedDays?: {
+        min?: number
+        comfortable?: number
+        suggestedLongest?: number
+        note?: string
+      }
+      seasonGuide?: {
+        bestMonths?: number[]
+        worstMonths?: number[]
+        bestReason?: string
+        worstReason?: string
+        note?: string
+      }
+      weather?: {
+        spring?: string
+        summer?: string
+        autumn?: string
+        winter?: string
+      }
+      mustEat?: { name?: string; daysLabel?: string; motif?: string }[]
+      mustDrink?: { name?: string; motif?: string }[]
+      mustBuy?: { name?: string; daysLabel?: string; motif?: string }[]
+      hotels?: {
+        name?: string
+        area?: string
+        nightsHint?: string
+        pricePerNight?: string
+        highlight?: string
+        styles?: string[]
+      }[]
+      spots?: {
+        name?: string
+        nameLocal?: string
+        area?: string
+        stayHours?: number
+        summary?: string
+        nearbyFood?: string
+        souvenirs?: string
+        shoppingOutlet?: string
+        tags?: string[]
+        ticket?: string
+      }[]
+    }
+
+    const spots = Array.isArray(parsed.spots) ? parsed.spots : []
+    if (spots.length < 8) {
+      throw new Error('AI returned too few real spots.')
+    }
+
+    const memorable = Array.isArray(parsed.memorable)
+      ? parsed.memorable.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 6)
+      : []
+    const hotels = Array.isArray(parsed.hotels) ? parsed.hotels : []
+    const mustEat = Array.isArray(parsed.mustEat) ? parsed.mustEat : []
+    const mustDrink = Array.isArray(parsed.mustDrink) ? parsed.mustDrink : []
+    const mustBuy = Array.isArray(parsed.mustBuy) ? parsed.mustBuy : []
+    const tips = Array.isArray(parsed.tips)
+      ? parsed.tips.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 8)
+      : []
+    const flexDayIdeas = Array.isArray(parsed.flexDayIdeas)
+      ? parsed.flexDayIdeas.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 6)
+      : []
+    const rd = parsed.recommendedDays || {}
+    const sg = parsed.seasonGuide || {}
+    const bestMonths = Array.isArray(sg.bestMonths)
+      ? sg.bestMonths.map(Number).filter((m) => m >= 1 && m <= 12)
+      : []
+    const worstMonths = Array.isArray(sg.worstMonths)
+      ? sg.worstMonths.map(Number).filter((m) => m >= 1 && m <= 12)
+      : []
+    const wx = parsed.weather || {}
+
+    sendJson(res, 200, {
+      source: 'crazyrouter',
+      intro: parsed.intro || '',
+      tagline: parsed.tagline || '',
+      background: parsed.background || '',
+      memorable,
+      tips,
+      flexDayIdeas,
+      recommendedDays: {
+        min: Number(rd.min) || 0,
+        comfortable: Number(rd.comfortable) || 0,
+        suggestedLongest: Number(rd.suggestedLongest) || 0,
+        note: String(rd.note || '').trim(),
+      },
+      seasonGuide: {
+        bestMonths: [...new Set(bestMonths)].sort((a, b) => a - b),
+        worstMonths: [...new Set(worstMonths)].sort((a, b) => a - b),
+        bestReason: String(sg.bestReason || '').trim(),
+        worstReason: String(sg.worstReason || '').trim(),
+        note: String(sg.note || '').trim(),
+      },
+      weather: {
+        spring: String(wx.spring || '').trim(),
+        summer: String(wx.summer || '').trim(),
+        autumn: String(wx.autumn || '').trim(),
+        winter: String(wx.winter || '').trim(),
+      },
+      mustEat: mustEat
+        .map((item) => ({
+          name: String(item.name || '').trim(),
+          daysLabel: String(item.daysLabel || '').trim() || '行程中',
+          motif: String(item.motif || '').trim() || '🍽',
+        }))
+        .filter((item) => item.name)
+        .slice(0, 8),
+      mustDrink: mustDrink
+        .map((item) => ({
+          name: String(item.name || '').trim(),
+          motif: String(item.motif || '').trim() || '🥤',
+        }))
+        .filter((item) => item.name)
+        .slice(0, 6),
+      mustBuy: mustBuy
+        .map((item) => ({
+          name: String(item.name || '').trim(),
+          daysLabel: String(item.daysLabel || '').trim() || '手信',
+          motif: String(item.motif || '').trim() || '🎁',
+        }))
+        .filter((item) => item.name)
+        .slice(0, 8),
+      hotels: hotels.map((hotel) => ({
+        name: String(hotel.name || '').trim(),
+        area: String(hotel.area || '').trim(),
+        nightsHint: String(hotel.nightsHint || '').trim(),
+        pricePerNight: String(hotel.pricePerNight || '').trim(),
+        highlight: String(hotel.highlight || '').trim(),
+        styles: Array.isArray(hotel.styles) ? hotel.styles : [],
+      })),
+      spots: spots.map((spot) => ({
+        name: String(spot.name || '').trim(),
+        nameLocal: String(spot.nameLocal || spot.name || '').trim(),
+        area: String(spot.area || '市區').trim(),
+        stayHours: Number(spot.stayHours) || 2,
+        summary: String(spot.summary || '').trim(),
+        nearbyFood: String(spot.nearbyFood || '').trim(),
+        souvenirs: String(spot.souvenirs || '').trim(),
+        shoppingOutlet: String(spot.shoppingOutlet || '').trim(),
+        tags: Array.isArray(spot.tags) ? spot.tags : [],
+        ticket: String(spot.ticket || '視當地而定').trim(),
+      })),
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'AI suggest-spots failed',
+    })
+  }
+}
+
+async function handleSeasonGuide(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(await readBody(req)) as {
+      destinationName?: string
+    }
+    const destinationName = payload.destinationName?.trim()
+    if (!destinationName) {
+      sendJson(res, 400, { error: 'destinationName is required' })
+      return
+    }
+
+    const content = await chatCompletion(
+      [
+        {
+          role: 'system',
+          content: `你是專業旅遊氣候顧問。請為目的地給出「最適合」與「最不建議」的旅遊月份，並說明理由。
+硬性規則：
+- 幾乎沒有目的地是十二個月都同等適合；禁止寫成全年皆宜／每月都行
+- bestMonths 與 worstMonths 必須是 1–12 的整數陣列，且不能相同
+- 理由要具體（溫度、降雨、颱風、封路、開花、極晝等）
+只回傳 JSON：
+{
+  "bestMonths": number[],
+  "worstMonths": number[],
+  "bestReason": string,
+  "worstReason": string,
+  "note": string
+}
+繁體中文，不要 Markdown。`,
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            destinationName,
+            ask: '請給最適合與最不建議月份，並說明原因。',
+          }),
+        },
+      ],
+      0.2,
+    )
+
+    const parsed = extractJson(content) as {
+      bestMonths?: number[]
+      worstMonths?: number[]
+      bestReason?: string
+      worstReason?: string
+      note?: string
+    }
+
+    const bestMonths = (parsed.bestMonths || [])
+      .map(Number)
+      .filter((m) => m >= 1 && m <= 12)
+    const worstMonths = (parsed.worstMonths || [])
+      .map(Number)
+      .filter((m) => m >= 1 && m <= 12)
+    if (!bestMonths.length || !worstMonths.length) {
+      throw new Error('AI season guide missing months')
+    }
+
+    sendJson(res, 200, {
+      source: 'crazyrouter',
+      bestMonths: [...new Set(bestMonths)].sort((a, b) => a - b),
+      worstMonths: [...new Set(worstMonths)].sort((a, b) => a - b),
+      bestReason: parsed.bestReason || '',
+      worstReason: parsed.worstReason || '',
+      note: parsed.note || '',
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'AI season-guide failed',
+    })
+  }
+}
+
+const BAD_PHOTO_RE =
+  /map|plan|diagram|floor|sketch|drawing|logo|icon|svg|layout|blueprint|schematic|chart|graph|coat_of_arms|flag|pictogram|symbol|route|transit|stamp|postcard_back|qr.?code|screenshot/i
+
+function isScenicPhotoCandidate(options: {
+  title?: string
+  url?: string
+  mime?: string
+}): boolean {
+  const mime = options.mime || ''
+  if (mime && !mime.startsWith('image/')) return false
+  if (/svg/i.test(mime)) return false
+  const blob = `${options.title || ''} ${options.url || ''}`
+  if (BAD_PHOTO_RE.test(blob)) return false
+  return Boolean(options.url)
+}
+
+async function fetchCommonsThumb(
+  search: string,
+  options?: { offset?: number },
+): Promise<string | null> {
+  const offset = Math.max(0, options?.offset || 0)
+  const api =
+    'https://commons.wikimedia.org/w/api.php?' +
+    new URLSearchParams({
+      action: 'query',
+      generator: 'search',
+      gsrsearch: search,
+      gsrlimit: '12',
+      gsroffset: String(offset),
+      gsrnamespace: '6',
+      prop: 'imageinfo',
+      iiprop: 'url|mime',
+      iiurlwidth: '800',
+      format: 'json',
+      origin: '*',
+    }).toString()
+
+  const response = await fetch(api, {
+    headers: {
+      'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/KM-Travel-Planner)',
+      Accept: 'application/json',
+    },
+  })
+  if (!response.ok) return null
+  const data = (await response.json()) as {
+    query?: {
+      pages?: Record<
+        string,
+        {
+          title?: string
+          index?: number
+          imageinfo?: { thumburl?: string; url?: string; mime?: string }[]
+        }
+      >
+    }
+  }
+  const pages = Object.values(data.query?.pages || {}).sort(
+    (a, b) => (a.index || 0) - (b.index || 0),
+  )
+  for (const page of pages) {
+    const info = page.imageinfo?.[0]
+    const url = info?.thumburl || info?.url
+    if (
+      isScenicPhotoCandidate({
+        title: page.title,
+        url,
+        mime: info?.mime,
+      })
+    ) {
+      return url || null
+    }
+  }
+  return null
+}
+
+/** Wikipedia page thumbnail — more reliable scenic shot than random Commons hits. */
+async function fetchWikipediaThumb(title: string): Promise<string | null> {
+  const page = title.trim()
+  if (!page) return null
+  try {
+    const api = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(page.replace(/ /g, '_'))}`
+    const response = await fetch(api, {
+      headers: {
+        'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/KM-Travel-Planner)',
+        Accept: 'application/json',
+      },
+    })
+    if (!response.ok) return null
+    const data = (await response.json()) as {
+      thumbnail?: { source?: string }
+      originalimage?: { source?: string }
+      type?: string
+    }
+    if (data.type === 'disambiguation') return null
+    const url = data.originalimage?.source || data.thumbnail?.source
+    if (!url || !/^https:\/\/upload\.wikimedia\.org\//i.test(url)) return null
+    if (BAD_PHOTO_RE.test(url)) return null
+    return url
+  } catch {
+    return null
+  }
+}
+
+async function handlePlacePhoto(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const host = req.headers.host || 'localhost'
+    const url = new URL(req.url || '/', `http://${host}`)
+    const q = (url.searchParams.get('q') || '').trim()
+    const fallback = (url.searchParams.get('fallback') || '').trim()
+    if (!q && !fallback) {
+      sendJson(res, 400, { error: 'q is required' })
+      return
+    }
+
+    const offset = Number(url.searchParams.get('offset') || 0) || 0
+    const wikiTitle = (url.searchParams.get('wiki') || '').trim()
+    const region = (url.searchParams.get('region') || '').trim()
+    const blob = `${q} ${fallback} ${region}`
+    const regionSuffix = /japan|kansai|tokyo|osaka|kyoto|korea|seoul/i.test(blob)
+      ? region || 'Japan'
+      : /uk|united kingdom|britain|london|edinburgh|cambridge|oxford|york|bath|cardiff|liverpool|stonehenge|england|scotland|wales/i.test(
+            blob,
+          )
+        ? region || 'United Kingdom'
+        : /europe|germany|paris|berlin|munich|cologne/i.test(blob)
+          ? region || 'Europe'
+          : /china|xi.?an|xinjiang|qinghai|silk/i.test(blob)
+            ? 'China'
+            : region || 'travel landmark'
+
+    const attempts = [
+      q,
+      fallback,
+      `${q} landmark`,
+      `${q} ${regionSuffix}`,
+      `${fallback} ${regionSuffix}`,
+      wikiTitle,
+    ].filter((item, index, arr) => item && arr.indexOf(item) === index)
+
+    // Prefer Wikipedia thumbs for named landmarks — but skip when offset>0 so
+    // callers can request alternate frames instead of the same wiki image.
+    if (wikiTitle && offset <= 0) {
+      const wikiThumb = await fetchWikipediaThumb(wikiTitle)
+      if (wikiThumb) {
+        const proxied = `/api/place-photo-file?src=${encodeURIComponent(wikiThumb)}`
+        sendJson(res, 200, { url: proxied, source: wikiThumb, query: wikiTitle })
+        return
+      }
+    }
+
+    for (const attempt of attempts) {
+      const thumb = await fetchCommonsThumb(attempt, { offset })
+      if (thumb) {
+        // Same-origin proxy URL so the poster <img> always loads (and PNG export works).
+        const proxied = `/api/place-photo-file?src=${encodeURIComponent(thumb)}`
+        sendJson(res, 200, { url: proxied, source: thumb, query: attempt })
+        return
+      }
+    }
+
+    // Last try: treat the English hint as a Wikipedia page title.
+    for (const attempt of [q, fallback]) {
+      if (!attempt || !/^[A-Za-z0-9 ,.'()\-]+$/.test(attempt)) continue
+      const wikiThumb = await fetchWikipediaThumb(attempt)
+      if (wikiThumb) {
+        const proxied = `/api/place-photo-file?src=${encodeURIComponent(wikiThumb)}`
+        sendJson(res, 200, { url: proxied, source: wikiThumb, query: attempt })
+        return
+      }
+    }
+
+    sendJson(res, 200, { url: null, query: q || fallback })
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'place-photo failed',
+    })
+  }
+}
+
+async function handlePlacePhotoFile(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const host = req.headers.host || 'localhost'
+    const url = new URL(req.url || '/', `http://${host}`)
+    const src = (url.searchParams.get('src') || '').trim()
+    if (!/^https:\/\/upload\.wikimedia\.org\//i.test(src)) {
+      sendJson(res, 400, { error: 'Only Wikimedia upload URLs are allowed' })
+      return
+    }
+
+    const upstream = await fetch(src, {
+      headers: {
+        'User-Agent': 'KMTravelPlanner/1.0 (https://github.com/philipkmsiu/KM-Travel-Planner)',
+        Accept: 'image/*',
+      },
+    })
+    if (!upstream.ok) {
+      sendJson(res, upstream.status, { error: 'Upstream image fetch failed' })
+      return
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'image/jpeg'
+    const buffer = Buffer.from(await upstream.arrayBuffer())
+    res.statusCode = 200
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.end(buffer)
+  } catch (error) {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'place-photo-file failed',
+    })
+  }
+}
+
+async function handleSuggestCountryRoutes(
+  req: IncomingMessage,
+  res: ServerResponse,
+) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(await readBody(req)) as {
+      destinationName?: string
+    }
+    const destinationName = payload.destinationName?.trim()
+    if (!destinationName) {
+      sendJson(res, 400, { error: 'destinationName is required' })
+      return
+    }
+
+    const content = await chatCompletion(
+      [
+        {
+          role: 'system',
+          content: `你是資深旅行社產品經理。使用者輸入一個地名時，你要判斷它是「國家／多城旅程」還是「單一城市假期」，並為國家級目的地提出一般旅行社會賣的常見城市與經典路線。
+只回傳 JSON：
+{
+  "isCountryTour": boolean,
+  "countryNameZh": string,
+  "tagline": string,
+  "intro": string,
+  "background": string,
+  "memorable": string[],
+  "tips": string[],
+  "defaultRouteId": string,
+  "cities": [
+    {
+      "id": string,
+      "nameZh": string,
+      "nameLocal": string,
+      "region": string,
+      "typicalNights": number,
+      "blurb": string,
+      "highlights": string[],
+      "defaultSelected": boolean
+    }
+  ],
+  "routes": [
+    {
+      "id": string,
+      "nameZh": string,
+      "summary": string,
+      "cityIds": string[],
+      "minDays": number,
+      "comfortableDays": number,
+      "suggestedLongest": number
+    }
+  ],
+  "recommendedDays": {
+    "min": number,
+    "comfortable": number,
+    "suggestedLongest": number,
+    "note": string
+  }
+}
+硬性規則：
+- 若輸入是單一城市（巴黎、東京、大阪、羅馬、紐約…）→ isCountryTour=false，cities/routes 可空陣列
+- 若輸入是國家或明顯全國／多城遊（義大利、西班牙、日本、美國、泰國、澳洲、挪威…）→ isCountryTour=true
+- cities：8–14 個旅行社常排的 overnight／區域（含非首都），每城 highlights 2–4 個真實景點名
+- routes：至少 3 條（短假期／經典／完整），天數要真實：完整國家線常 14–28 天，禁止把全國估成首都 8–10 天
+- defaultRouteId 指向「最常見經典路線」
+- typicalNights：該城一般連住晚數（日遊點可 0）
+- 全文繁體中文；不要 Markdown`,
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            destinationName,
+            ask: '請像旅行社一樣，判斷這是否國家多城行程；若是，列出一般旅客會涵蓋的城市與 3 條經典路線（含合理天數）。不要只給首都。',
+          }),
+        },
+      ],
+      0.35,
+    )
+
+    const parsed = extractJson(content) as {
+      isCountryTour?: boolean
+      countryNameZh?: string
+      tagline?: string
+      intro?: string
+      background?: string
+      memorable?: string[]
+      tips?: string[]
+      defaultRouteId?: string
+      cities?: unknown[]
+      routes?: unknown[]
+      recommendedDays?: {
+        min?: number
+        comfortable?: number
+        suggestedLongest?: number
+        note?: string
+      }
+    }
+
+    sendJson(res, 200, {
+      source: 'crazyrouter',
+      isCountryTour: Boolean(parsed.isCountryTour),
+      countryNameZh: String(parsed.countryNameZh || destinationName).trim(),
+      tagline: String(parsed.tagline || '').trim(),
+      intro: String(parsed.intro || '').trim(),
+      background: String(parsed.background || '').trim(),
+      memorable: Array.isArray(parsed.memorable)
+        ? parsed.memorable.map((m) => String(m || '').trim()).filter(Boolean)
+        : [],
+      tips: Array.isArray(parsed.tips)
+        ? parsed.tips.map((t) => String(t || '').trim()).filter(Boolean)
+        : [],
+      defaultRouteId: String(parsed.defaultRouteId || '').trim(),
+      cities: Array.isArray(parsed.cities) ? parsed.cities : [],
+      routes: Array.isArray(parsed.routes) ? parsed.routes : [],
+      recommendedDays: parsed.recommendedDays || null,
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      error:
+        error instanceof Error
+          ? error.message
+          : 'AI suggest-country-routes failed',
+    })
+  }
+}
+
+function attachRoutes(middlewares: Connect.Server) {
+  middlewares.use('/api/ai/recommend-days', (req, res, next) => {
+    handleRecommendDays(req, res).catch(next)
+  })
+  middlewares.use('/api/ai/review-plan', (req, res, next) => {
+    handleReviewPlan(req, res).catch(next)
+  })
+  middlewares.use('/api/ai/suggest-spots', (req, res, next) => {
+    handleSuggestSpots(req, res).catch(next)
+  })
+  middlewares.use('/api/ai/suggest-country-routes', (req, res, next) => {
+    handleSuggestCountryRoutes(req, res).catch(next)
+  })
+  middlewares.use('/api/ai/season-guide', (req, res, next) => {
+    handleSeasonGuide(req, res).catch(next)
+  })
+  middlewares.use('/api/place-photo', (req, res, next) => {
+    handlePlacePhoto(req, res).catch(next)
+  })
+  middlewares.use('/api/place-photo-file', (req, res, next) => {
+    handlePlacePhotoFile(req, res).catch(next)
+  })
+}
+
+export function crazyRouterPlugin(): Plugin {
+  return {
+    name: 'crazyrouter-ai-proxy',
+    configureServer(server) {
+      attachRoutes(server.middlewares)
+    },
+    configurePreviewServer(server) {
+      attachRoutes(server.middlewares)
+    },
+  }
+}
