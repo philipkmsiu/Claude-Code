@@ -4,6 +4,10 @@ import {
   AI_RESEARCH_ASK_ZH,
   AI_RESEARCH_PRINCIPLES_ZH,
 } from '../src/data/travelPrinciples.js'
+import {
+  allowsExtendedTripDuration,
+  commonRouteOptionsForPrompt,
+} from '../src/data/commonRoutes.js'
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
@@ -113,11 +117,12 @@ async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
   "warnings": string[]
 }
 規則：
-- 天數必須是 2 到 21 的整數
+- 天數必須是 2 到 32 的整數
 - minDays <= comfortableDays <= suggestedLongestDays
-- 單一城市（如西安、大阪、台北）comfortableDays 通常 3–7，suggestedLongestDays 很少超過 10；禁止無故給 12–14 天
-- 只有新疆南北疆、青甘大環線、長公路環線才把 comfortableDays 拉到 >= 12
-- 「慢遊／舒適」可小幅加天，但不能把城市遊加成兩週空轉
+- 單一城市（如西安、大阪、台北、倫敦、巴黎）comfortableDays 通常 3–7，suggestedLongestDays 很少超過 10；禁止無故給 12–14 天
+- 國土／多區行程（英國、法國、瑞士、德國、義大利等）必須按「常見多城串線」估天數，不可當成首都城市遊：英國含英格蘭／蘇格蘭／可選愛爾蘭常需 14–24 天；法國含巴黎＋羅亞爾／南法常需 14–21 天；瑞士山湖串線常需 10–18 天
+- 新疆南北疆、青甘大環線、長公路環線 comfortableDays 可 >= 12
+- 「慢遊／舒適」可小幅加天，但不能把單一城市遊加成兩週空轉
 - reason / warnings 用繁體中文，簡短可執行
 - 不要輸出 Markdown`,
       },
@@ -130,7 +135,8 @@ async function handleRecommendDays(req: IncomingMessage, res: ServerResponse) {
           partySize: Number(payload.partySize) || 2,
           specialNeeds: payload.specialNeeds ?? [],
           localHeuristicHint: payload.heuristic ?? null,
-          ask: '請審核並給出你認為正確的最少／最舒服／建議最長天數；可順便提醒人數對交通／訂房的影響。',
+          commonRouteHint: commonRouteOptionsForPrompt(destinationName),
+          ask: '請審核並給出你認為正確的最少／最舒服／建議最長天數；若是國土行程請依常見多城路線估，不要只按首都估。可順便提醒人數對交通／訂房的影響。',
         }),
       },
     ])
@@ -213,11 +219,11 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
   "adjustments": string[]
 }
 規則：
-- 天數 2-21 整數，且 minDays <= recommendedDays <= comfortableDays
+- 天數 2-32 整數，且 minDays <= recommendedDays <= comfortableDays
 - recommendedDays = 正常完成（不過度趕、也不故意拖）
-- 一般城市＋1–2 個近郊日遊：多數落在 4–8 天，不要無故估到 14 天以上
-- 只有長線（新疆南北疆／青甘／大環線公路）才給 12 天以上
-- 必須參考 localHeuristicHint，最終數字應落在 heuristic 附近（約 ±2 天），長線可放寬
+- 一般單一城市＋1–2 個近郊日遊：多數落在 4–8 天，不要無故估到 14 天以上
+- 國土／多區串線（英國英格蘭＋蘇格蘭＋愛爾蘭、法國巴黎＋南法、瑞士山湖多城、長公路環線、新疆／青甘）可給 12–24 天
+- 必須參考 localHeuristicHint，最終數字應落在 heuristic 附近（約 ±2 天），多城／長線可放寬
 - 全文繁體中文，不要 Markdown`,
       },
       {
@@ -236,7 +242,8 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
             recommendedDays: Number.isFinite(hRec) ? hRec : null,
             comfortableDays: Number.isFinite(hCom) ? hCom : null,
           },
-          ask: '請給出完成這些景點的最少／正常／舒服天數（絕對估計，前後一致）。',
+          commonRouteHint: commonRouteOptionsForPrompt(destinationName),
+          ask: '請給出完成這些景點的最少／正常／舒服天數（絕對估計，前後一致）。若景點已跨多個 overnight 城市，按多城串線估，不要當首都城市遊。',
         }),
       },
     ], 0.2)
@@ -256,33 +263,36 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
     let recommendedDays = Number(parsed.recommendedDays)
     let comfortableDays = Number(parsed.comfortableDays)
 
+    const extendedTrip = allowsExtendedTripDuration(destinationName)
+    const dayCap = extendedTrip ? 32 : 21
+
     // Anchor to heuristic so spots/result pages don't drift wildly.
     if (Number.isFinite(hMin) && Number.isFinite(hRec) && Number.isFinite(hCom)) {
       if (!Number.isFinite(minDays)) minDays = hMin
       if (!Number.isFinite(recommendedDays)) recommendedDays = hRec
       if (!Number.isFinite(comfortableDays)) comfortableDays = hCom
-      minDays = clamp(minDays, Math.max(2, hMin - 1), Math.min(21, hRec + 2))
+      minDays = clamp(minDays, Math.max(2, hMin - 1), Math.min(dayCap, hRec + 2))
       recommendedDays = clamp(
         Math.round(recommendedDays * 0.4 + hRec * 0.6),
         Math.max(2, hMin),
-        Math.min(21, hCom + 2),
+        Math.min(dayCap, hCom + 2),
       )
       comfortableDays = clamp(
         Math.round(comfortableDays * 0.4 + hCom * 0.6),
         recommendedDays,
-        Math.min(21, hCom + 3),
+        Math.min(dayCap, hCom + 3),
       )
     } else {
-      minDays = clamp(Number.isFinite(minDays) ? minDays : 3, 2, 21)
+      minDays = clamp(Number.isFinite(minDays) ? minDays : 3, 2, dayCap)
       recommendedDays = clamp(
         Number.isFinite(recommendedDays) ? recommendedDays : minDays + 1,
         2,
-        21,
+        dayCap,
       )
       comfortableDays = clamp(
         Number.isFinite(comfortableDays) ? comfortableDays : recommendedDays + 1,
         2,
-        21,
+        dayCap,
       )
     }
 
@@ -290,12 +300,15 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
     if (comfortableDays < recommendedDays) comfortableDays = recommendedDays
 
     // City breaks must not inflate toward long-haul ranges (e.g. Xi'an ≠ 21 days).
-    const longHaul =
-      /新疆|南北疆|青甘|大環線|環線|帕米爾|川藏|滇藏/.test(destinationName)
-    if (!longHaul) {
+    // Country-scale multi-region trips (UK / France / Swiss…) may need 2–3 weeks.
+    if (!extendedTrip) {
       minDays = clamp(minDays, 2, 7)
       recommendedDays = clamp(recommendedDays, minDays, 9)
       comfortableDays = clamp(comfortableDays, recommendedDays, 11)
+    } else {
+      minDays = clamp(minDays, 2, 28)
+      recommendedDays = clamp(recommendedDays, minDays, 30)
+      comfortableDays = clamp(comfortableDays, recommendedDays, 32)
     }
 
     let status: 'too_packed' | 'too_light' | 'balanced' = 'balanced'
@@ -303,7 +316,7 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
     if (chosenDays < recommendedDays) status = 'too_packed'
     else if (chosenDays > lightThreshold) status = 'too_light'
 
-    const title = !longHaul
+    const title = !extendedTrip
       ? status === 'too_packed'
         ? '景點偏多：可加天或刪減景點（城市遊不必拉到 20 天）'
         : status === 'too_light'
@@ -317,13 +330,18 @@ async function handleReviewPlan(req: IncomingMessage, res: ServerResponse) {
 
     let message = typeof parsed.message === 'string' ? parsed.message : ''
     if (
-      !longHaul &&
+      !extendedTrip &&
       (/1[2-9]\s*天|2[0-9]\s*天|兩週|三週|二十/.test(message) || !message.trim())
     ) {
       message =
         status === 'too_packed'
           ? `城市深度遊正常完成約 ${recommendedDays} 天即可（最少 ${minDays}、舒服 ${comfortableDays}）。不必拉到兩週以上；偏趕時優先刪遠程／重複景點，或小幅加到 ${recommendedDays} 天。`
           : `以目前景點量，城市遊約 ${recommendedDays} 天可正常完成（舒服 ${comfortableDays} 天）。`
+    } else if (extendedTrip && !message.trim()) {
+      message =
+        status === 'too_packed'
+          ? `多城／國土串線正常完成約 ${recommendedDays} 天（最少 ${minDays}、舒服 ${comfortableDays}）。現在的 ${chosenDays} 天偏趕，建議加長或刪減跨區景點。`
+          : `以目前跨區景點量，約 ${recommendedDays} 天可正常完成（舒服 ${comfortableDays} 天）。`
     }
 
     sendJson(res, 200, {
@@ -371,9 +389,13 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
     }
 
     const plannedDays = Number(payload.days)
+    const routeHint = commonRouteOptionsForPrompt(destinationName)
+    const extendedTrip = allowsExtendedTripDuration(destinationName)
     const targetCount = Number.isFinite(plannedDays)
-      ? Math.min(28, Math.max(16, Math.ceil(plannedDays * 2.2)))
-      : 18
+      ? Math.min(extendedTrip ? 32 : 28, Math.max(extendedTrip ? 20 : 16, Math.ceil(plannedDays * 2.2)))
+      : extendedTrip
+        ? 22
+        : 18
 
     const content = await chatCompletion([
       {
@@ -388,6 +410,7 @@ async function handleSuggestSpots(req: IncomingMessage, res: ServerResponse) {
   "tips": string[],
   "flexDayIdeas": string[],
   "recommendedDays": { "min": number, "comfortable": number, "suggestedLongest": number, "note": string },
+  "commonRoutes": [{ "name": string, "cities": string[], "comfortableDays": number, "summary": string }],
   "seasonGuide": {
     "bestMonths": number[],
     "worstMonths": number[],
@@ -437,11 +460,12 @@ ${AI_RESEARCH_PRINCIPLES_ZH}
 - shoppingOutlet 每個景點必填（遵守上方購物原則）
 - 若 specialNeeds 含「購物」或目的地以購物聞名：至少 2–3 個景點 tags 含 shopping；著名 Outlet 用獨立景點滿足
 - background 3–4 句；memorable 4–6 條完整句子
-- hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」
+- hotels 3–5 間，寫具體城區與住宿類型；禁止「XX景區度假酒店」；多城行程必須分城 overnight
 - mustEat 5–7 道具體當地必吃；mustDrink 3–4；mustBuy 3–5 樣具體手信
 - seasonGuide.bestMonths / worstMonths 為 1–12 整數陣列，不可兩者相同；weather 四季各一句實用描述
-- recommendedDays 要符合該目的地真實尺度（城市遊別灌成 20 天；長線可較長）
-- tips 含交通／門票／排隊／天氣應變等可執行建議`,
+- recommendedDays 要符合該目的地真實尺度（單一城市遊別灌成 20 天；國土／多城串線可到 14–24 天）
+- 若目的地是國家／多區：commonRoutes 必須給 2–3 條常見路線（含 overnight 城市與天數），spots 必須覆蓋這些 overnight 城市，禁止只輸出首都＋近郊
+- tips 含交通／門票／排隊／天氣應變等可執行建議，並簡述可選的常見路線尺度`,
       },
       {
         role: 'user',
@@ -453,6 +477,7 @@ ${AI_RESEARCH_PRINCIPLES_ZH}
           specialNeeds: payload.specialNeeds ?? [],
           plannedDays: Number.isFinite(plannedDays) ? plannedDays : null,
           targetSpotCount: targetCount,
+          commonRouteHint: routeHint,
           ask: AI_RESEARCH_ASK_ZH,
         }),
       },
@@ -471,6 +496,12 @@ ${AI_RESEARCH_PRINCIPLES_ZH}
         suggestedLongest?: number
         note?: string
       }
+      commonRoutes?: {
+        name?: string
+        cities?: string[]
+        comfortableDays?: number
+        summary?: string
+      }[]
       seasonGuide?: {
         bestMonths?: number[]
         worstMonths?: number[]
@@ -551,6 +582,19 @@ ${AI_RESEARCH_PRINCIPLES_ZH}
         suggestedLongest: Number(rd.suggestedLongest) || 0,
         note: String(rd.note || '').trim(),
       },
+      commonRoutes: Array.isArray(parsed.commonRoutes)
+        ? parsed.commonRoutes
+            .map((route) => ({
+              name: String(route.name || '').trim(),
+              cities: Array.isArray(route.cities)
+                ? route.cities.map((city) => String(city || '').trim()).filter(Boolean)
+                : [],
+              comfortableDays: Number(route.comfortableDays) || 0,
+              summary: String(route.summary || '').trim(),
+            }))
+            .filter((route) => route.name)
+            .slice(0, 4)
+        : [],
       seasonGuide: {
         bestMonths: [...new Set(bestMonths)].sort((a, b) => a - b),
         worstMonths: [...new Set(worstMonths)].sort((a, b) => a - b),

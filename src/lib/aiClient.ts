@@ -65,6 +65,12 @@ export type AiSpotSuggestion = {
     suggestedLongest: number
     note: string
   }
+  commonRoutes?: {
+    name: string
+    cities: string[]
+    comfortableDays: number
+    summary: string
+  }[]
   seasonGuide?: {
     bestMonths: number[]
     worstMonths: number[]
