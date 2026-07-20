@@ -51,6 +51,8 @@ import {
   estimateTripBudget,
   isLongHaulDestination,
   applyCountryRouteSelection,
+  applyAiCountryRoutePayload,
+  looksLikeCountryTourName,
   type Companion,
   type Destination,
   type DestinationId,
@@ -94,6 +96,7 @@ import {
   recommendDaysWithAi,
   reviewPlanWithAi,
   seasonGuideWithAi,
+  suggestCountryRoutesWithAi,
   suggestSpotsWithAi,
   type AiDayRecommendation,
   type AiPlanReview,
@@ -154,11 +157,15 @@ function App() {
   const [aiSpotsLoadedKeys, setAiSpotsLoadedKeys] = useState<string[]>([])
   const [pendingGoToResult, setPendingGoToResult] = useState(false)
   const [aiError, setAiError] = useState('')
+  const [countryRoutesLoading, setCountryRoutesLoading] = useState(false)
+  const [countryRoutesNote, setCountryRoutesNote] = useState('')
   const [soundMuted, setSoundMuted] = useState(() => soundscape.isMuted)
   const [soundUnlocked, setSoundUnlocked] = useState(() => soundscape.isUnlocked)
   const destComposing = useRef(false)
   const reviewTimer = useRef<number | null>(null)
   const aiSpotsInFlight = useRef(false)
+  const countryRoutesInFlight = useRef(false)
+  const countryRoutesLoadedRef = useRef<Set<string>>(new Set())
   const prevStepRef = useRef<Step>(step)
   const aiReadySoundRef = useRef(false)
   const aiReviewCache = useRef<{
@@ -413,6 +420,86 @@ function App() {
     prevStepRef.current = step
     if (step === 'home') soundscape.play('softPop')
   }, [step])
+
+  // For any country-like destination without a city menu yet, ask AI for
+  // travel-agent-style cities / classic routes (Italy, Spain, Japan, USA…).
+  const countryRoutePendingKey = selectedDestinations
+    .filter(
+      (d) =>
+        looksLikeCountryTourName(d.nameZh) &&
+        !(d.routeCities && d.routeCities.length >= 3) &&
+        !countryRoutesLoadedRef.current.has(d.id),
+    )
+    .map((d) => d.id)
+    .join('|')
+
+  useEffect(() => {
+    if (step !== 'destination' && step !== 'preferences') return
+    if (!countryRoutePendingKey || countryRoutesInFlight.current) return
+    const pending = selectedDestinations.filter((d) =>
+      countryRoutePendingKey.split('|').includes(d.id),
+    )
+    if (!pending.length) return
+
+    let cancelled = false
+    countryRoutesInFlight.current = true
+    setCountryRoutesLoading(true)
+    setCountryRoutesNote('AI 正在準備旅行社常見城市與經典路線…')
+
+    void (async () => {
+      let applied = 0
+      try {
+        for (const dest of pending) {
+          if (cancelled) return
+          try {
+            const result = await suggestCountryRoutesWithAi({
+              destinationName: dest.nameZh,
+            })
+            if (result.isCountryTour && result.cities?.length) {
+              setCustomDestinations((prev) => {
+                const existing = prev.find((d) => d.id === dest.id)
+                const base = existing || dest
+                const merged = applyAiCountryRoutePayload(base, {
+                  ...result,
+                  recommendedDays: result.recommendedDays || undefined,
+                })
+                if (existing) {
+                  return prev.map((d) => (d.id === dest.id ? merged : d))
+                }
+                return [merged, ...prev]
+              })
+              setAiSpotsLoadedKeys((keys) => keys.filter((id) => id !== dest.id))
+              applied += 1
+            }
+          } finally {
+            countryRoutesLoadedRef.current.add(dest.id)
+          }
+        }
+        if (!cancelled) {
+          setCountryRoutesNote(
+            applied
+              ? 'AI 已提出常見城市／經典路線，可勾選增減。'
+              : '此目的地偏向單一城市；若要全國多城，請輸入國家名稱（如：義大利）。',
+          )
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCountryRoutesNote(
+            error instanceof Error
+              ? error.message
+              : 'AI 城市路線建議失敗，可稍後重試或手動輸入城市',
+          )
+        }
+      } finally {
+        countryRoutesInFlight.current = false
+        if (!cancelled) setCountryRoutesLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [step, countryRoutePendingKey])
 
   const runAiDayRecommendation = async (
     destName: string,
@@ -1642,11 +1729,19 @@ function App() {
               </div>
             )}
 
+            {countryRoutesLoading || countryRoutesNote ? (
+              <p className="range-value" style={{ marginBottom: '0.75rem' }}>
+                {countryRoutesLoading
+                  ? 'AI 正在為國家目的地準備旅行社常見城市／路線…'
+                  : countryRoutesNote}
+              </p>
+            ) : null}
+
             {selectedDestinations.some((d) => d.routeCities?.length) ? (
               <div className="country-route-panel">
                 <h3 className="subhead">常見城市／經典路線（可勾選增減）</h3>
                 <p className="range-value">
-                  輸入國家時，系統會先提出一般旅客常走的城市與路線——不是只有首都週邊。勾選會影響建議天數與之後 AI 調研涵蓋範圍；多國行程天數會合計。
+                  輸入任何國家時，AI 會提出一般旅行社常涵蓋的城市與經典路線——不是只有首都週邊。勾選會影響建議天數與之後調研；多國行程天數會合計。
                 </p>
                 {selectedDestinations.map((dest) => {
                   if (!dest.routeCities?.length) return null

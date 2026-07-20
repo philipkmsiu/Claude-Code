@@ -52,11 +52,18 @@ import {
 import {
   defaultSelectedCityIds,
   estimateDaysForCities,
+  estimateDaysFromCityOptions,
   findCountryRouteProfile,
   isCountryTourName,
+  looksLikeCountryTourName,
   routeCitiesToSpotSeeds,
+  routeCityHighlightsToSeeds,
+  type AiCountryRoutePayload,
   type CountryRouteProfile,
+  type RouteCity,
 } from './countryRoutes'
+
+export { looksLikeCountryTourName, isCountryTourName } from './countryRoutes'
 
 /** Hard ceiling for manual day input — long trips (e.g. 新疆 29 日) are allowed. */
 export const MAX_TRIP_DAYS = 32
@@ -426,41 +433,223 @@ function countryProfileToTripBits(
   }
 }
 
-/** Re-apply city / route package selection on a country destination. */
+/** Re-apply city / route package selection on a country destination (curated or AI). */
 export function applyCountryRouteSelection(
   dest: Destination,
   options: { cityIds?: string[]; routePackageId?: string | null },
 ): Destination {
   const profile = findCountryRouteProfile(dest.nameZh) || findCountryRouteProfile(dest.nameLocal)
-  if (!profile) return dest
   let cityIds = options.cityIds ? [...options.cityIds] : [...(dest.selectedRouteCityIds || [])]
-  let packageId = options.routePackageId === null ? undefined : options.routePackageId
+  let packageId =
+    options.routePackageId === null
+      ? undefined
+      : options.routePackageId || dest.selectedRoutePackageId
+
   if (options.routePackageId) {
-    const pack = profile.routes.find((r) => r.id === options.routePackageId)
+    const pack = (profile?.routes || dest.commonRoutes || []).find(
+      (r) => r.id === options.routePackageId,
+    )
     if (pack) {
       cityIds = [...pack.cityIds]
       packageId = pack.id
     }
   }
-  if (!cityIds.length) cityIds = defaultSelectedCityIds(profile)
-  const bits = countryProfileToTripBits(profile, cityIds, packageId)
-  // Keep user-added spots; replace generated route seeds.
+
+  if (profile) {
+    if (!cityIds.length) cityIds = defaultSelectedCityIds(profile)
+    const bits = countryProfileToTripBits(profile, cityIds, packageId)
+    const userSpots = dest.spots.filter((s) => s.id.startsWith('user-spot-'))
+    return {
+      ...dest,
+      tagline: bits.tagline,
+      intro: bits.intro,
+      background: bits.background,
+      memorable: bits.memorable,
+      recommendedDays: bits.recommendedDays,
+      tips: bits.tips,
+      flexDayIdeas: bits.flexDayIdeas,
+      routeCities: bits.routeCities,
+      commonRoutes: bits.commonRoutes,
+      selectedRouteCityIds: bits.selectedRouteCityIds,
+      selectedRoutePackageId: bits.selectedRoutePackageId,
+      curatedPlans: undefined,
+      spots: [...userSpots, ...bits.spots],
+    }
+  }
+
+  // AI-sourced country routes stored on the destination itself.
+  if (!dest.routeCities?.length) return dest
+  if (!cityIds.length) {
+    cityIds = dest.routeCities.slice(0, Math.min(6, dest.routeCities.length)).map((c) => c.id)
+  }
+  const days = estimateDaysFromCityOptions(
+    dest.nameZh,
+    dest.routeCities,
+    cityIds,
+    dest.commonRoutes,
+  )
+  const selected = dest.routeCities.filter((c) => cityIds.includes(c.id))
+  const seedCities: RouteCity[] = selected.map((c) => ({
+    id: c.id,
+    nameZh: c.nameZh,
+    nameLocal: c.nameLocal,
+    region: c.region,
+    typicalNights: c.typicalNights,
+    blurb: c.blurb,
+    highlights: [c.nameZh, `${c.nameZh}經典景點`, `${c.nameZh}在地美食區`],
+  }))
+  const seeds = routeCityHighlightsToSeeds(seedCities, cityIds)
   const userSpots = dest.spots.filter((s) => s.id.startsWith('user-spot-'))
   return {
     ...dest,
-    tagline: bits.tagline,
-    intro: bits.intro,
-    background: bits.background,
-    memorable: bits.memorable,
-    recommendedDays: bits.recommendedDays,
-    tips: bits.tips,
-    flexDayIdeas: bits.flexDayIdeas,
-    routeCities: bits.routeCities,
-    commonRoutes: bits.commonRoutes,
-    selectedRouteCityIds: bits.selectedRouteCityIds,
-    selectedRoutePackageId: bits.selectedRoutePackageId,
+    recommendedDays: {
+      min: days.min,
+      comfortable: days.comfortable,
+      suggestedLongest: days.suggestedLongest,
+      note: days.note,
+    },
+    flexDayIdeas: selected.map((c) => `${c.nameZh}多留半日／彈性日（${c.region}）`),
+    selectedRouteCityIds: cityIds,
+    selectedRoutePackageId: packageId,
     curatedPlans: undefined,
-    spots: [...userSpots, ...bits.spots],
+    spots: [
+      ...userSpots,
+      ...spotsFromSeeds(
+        dest.nameZh,
+        seeds.map((s) => ({
+          name: s.name,
+          tags: s.tags,
+          hours: s.hours,
+          area: s.area,
+          summary: s.summary,
+        })),
+      ),
+    ],
+  }
+}
+
+/** Merge AI-proposed country cities / classic routes onto a destination. */
+export function applyAiCountryRoutePayload(
+  dest: Destination,
+  payload: AiCountryRoutePayload,
+): Destination {
+  if (!payload.isCountryTour || !payload.cities?.length) return dest
+  const cities = payload.cities
+    .map((c, index) => ({
+      id: String(c.id || `city-${index + 1}`).trim() || `city-${index + 1}`,
+      nameZh: String(c.nameZh || '').trim(),
+      nameLocal: String(c.nameLocal || c.nameZh || '').trim(),
+      region: String(c.region || '地區').trim(),
+      typicalNights: Math.max(0, Math.min(7, Number(c.typicalNights) || 2)),
+      blurb: String(c.blurb || '').trim() || '旅行社常見停留城市',
+      highlights: Array.isArray(c.highlights)
+        ? c.highlights.map((h) => String(h || '').trim()).filter(Boolean).slice(0, 5)
+        : [],
+      defaultSelected: Boolean(c.defaultSelected),
+    }))
+    .filter((c) => c.nameZh)
+  if (cities.length < 3) return dest
+
+  const routes = (payload.routes || [])
+    .map((r, index) => ({
+      id: String(r.id || `route-${index + 1}`).trim() || `route-${index + 1}`,
+      nameZh: String(r.nameZh || '').trim() || `路線 ${index + 1}`,
+      summary: String(r.summary || '').trim(),
+      cityIds: (r.cityIds || []).map(String).filter((id) => cities.some((c) => c.id === id)),
+      minDays: Math.max(4, Math.min(32, Number(r.minDays) || 7)),
+      comfortableDays: Math.max(5, Math.min(32, Number(r.comfortableDays) || 10)),
+      suggestedLongest: Math.max(6, Math.min(32, Number(r.suggestedLongest) || 14)),
+    }))
+    .filter((r) => r.cityIds.length >= 2)
+
+  const defaultRouteId =
+    payload.defaultRouteId && routes.some((r) => r.id === payload.defaultRouteId)
+      ? payload.defaultRouteId
+      : routes[0]?.id
+  const defaultCityIds = defaultRouteId
+    ? routes.find((r) => r.id === defaultRouteId)!.cityIds
+    : cities.filter((c) => c.defaultSelected).map((c) => c.id).slice(0, 6)
+  const cityIds = defaultCityIds.length
+    ? defaultCityIds
+    : cities.slice(0, Math.min(6, cities.length)).map((c) => c.id)
+
+  const days =
+    payload.recommendedDays &&
+    Number(payload.recommendedDays.comfortable) >= 5
+      ? {
+          min: Math.max(4, Number(payload.recommendedDays.min) || 7),
+          comfortable: Math.max(6, Number(payload.recommendedDays.comfortable) || 12),
+          suggestedLongest: Math.max(
+            8,
+            Number(payload.recommendedDays.suggestedLongest) || 18,
+          ),
+          note:
+            String(payload.recommendedDays.note || '').trim() ||
+            estimateDaysFromCityOptions(payload.countryNameZh || dest.nameZh, cities, cityIds, routes)
+              .note,
+        }
+      : estimateDaysFromCityOptions(
+          payload.countryNameZh || dest.nameZh,
+          cities,
+          cityIds,
+          routes,
+        )
+
+  const seedCities: RouteCity[] = cities.map((c) => ({
+    ...c,
+    highlights:
+      c.highlights.length >= 2
+        ? c.highlights
+        : [c.nameZh, `${c.nameZh}經典景點`, `${c.nameZh}舊城／市集`],
+  }))
+  const seeds = routeCityHighlightsToSeeds(seedCities, cityIds)
+  const userSpots = dest.spots.filter((s) => s.id.startsWith('user-spot-'))
+
+  return {
+    ...dest,
+    nameZh: payload.countryNameZh?.trim() || dest.nameZh,
+    tagline: payload.tagline?.trim() || dest.tagline,
+    intro: payload.intro?.trim() || dest.intro,
+    background: payload.background?.trim() || dest.background,
+    memorable:
+      payload.memorable && payload.memorable.length >= 2
+        ? payload.memorable.map(String)
+        : dest.memorable,
+    tips: payload.tips?.length ? payload.tips.map(String) : dest.tips,
+    recommendedDays: {
+      min: days.min,
+      comfortable: days.comfortable,
+      suggestedLongest: days.suggestedLongest,
+      note: days.note,
+    },
+    routeCities: cities.map((c) => ({
+      id: c.id,
+      nameZh: c.nameZh,
+      nameLocal: c.nameLocal,
+      region: c.region,
+      typicalNights: c.typicalNights,
+      blurb: c.blurb,
+    })),
+    commonRoutes: routes,
+    selectedRouteCityIds: cityIds,
+    selectedRoutePackageId: defaultRouteId,
+    flexDayIdeas: cities
+      .filter((c) => cityIds.includes(c.id))
+      .map((c) => `${c.nameZh}多留半日／彈性日（${c.region}）`),
+    curatedPlans: undefined,
+    spots: [
+      ...userSpots,
+      ...spotsFromSeeds(
+        payload.countryNameZh || dest.nameZh,
+        seeds.map((s) => ({
+          name: s.name,
+          tags: s.tags,
+          hours: s.hours,
+          area: s.area,
+          summary: s.summary,
+        })),
+      ),
+    ],
   }
 }
 
@@ -495,7 +684,7 @@ export function inferCustomTripProfile(name: string): {
   )
   const countryProfile = findCountryRouteProfile(text)
 
-  // Country-wide tours: propose common cities / classic routes (英國≠只有倫敦).
+  // Country-wide tours: curated profiles first; other countries get AI city menus next.
   if (countryProfile) {
     const cityIds = defaultSelectedCityIds(countryProfile)
     const bits = countryProfileToTripBits(
@@ -518,6 +707,140 @@ export function inferCustomTripProfile(name: string): {
       commonRoutes: bits.commonRoutes,
       selectedRouteCityIds: bits.selectedRouteCityIds,
       selectedRoutePackageId: bits.selectedRoutePackageId,
+    }
+  }
+
+  // Keep rich Germany seed before the generic AI-country stub.
+  if (germany) {
+    const label = /德國|Germany|german|Deutschland/i.test(text) ? '德國' : text
+    return {
+      recommendedDays: {
+        min: 6,
+        comfortable: slow ? 9 : 8,
+        suggestedLongest: 12,
+        note: `${label}：慕尼黑＋城堡或柏林單城約 6–7 天；南德＋萊茵或柏林串線舒服約 ${slow ? 9 : 8} 天，再長可加德累斯頓／海德堡。`,
+      },
+      tagline: '城堡、啤酒與鐵路串起的中歐慢遊',
+      intro: `${label} 適合用鐵路把慕尼黑、柏林、科隆等基地串起來：白天看城堡、博物館與萊茵河，傍晚把腳伸進啤酒花園。同一城的景點請排在同一天，讓歷史場景有時間慢慢進記憶，而不是趕點打卡。`,
+      background:
+        '德國位於歐洲心臟，歷史上曾是神聖羅馬帝國諸侯、普魯士與戰後東西分裂的交會處。南邊巴伐利亞保留城堡與啤酒傳統，萊茵河谷以哥德教堂與河運文明聞名，柏林則同時承載冷戰傷痕與當代藝術能量。今天用 ICE 高鐵串線，等於用幾天時間走完「童話、重建與現代」三層德國。',
+      memorable: [
+        '新天鵝堡雲霧散開的那一刻，整座童話城堡像被點亮，山風裡還能聽見遊客的驚嘆。',
+        '沿著柏林圍牆紀念段慢慢走，塗鴉色彩與歷史解說牌並排，快樂拍照與沈重記憶同時存在。',
+        '出科隆車站抬頭，大教堂雙塔幾乎壓到眼前，石頭的尺度比照片兇很多。',
+        '傍晚鑽進啤酒花園，Pretzel 上桌、小麥啤酒起泡，火車與城堡的疲憊會突然鬆開。',
+        '海德堡紅砂巖城堡俯瞰紅屋頂與內卡河，是「啊，這就是德國明信片」的經典瞬間。',
+      ],
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
+      spots: spotsFromSeeds(label, germanyTemplateSeeds()),
+      flexDayIdeas: [
+        '慕尼黑老城咖啡與英式花園散步',
+        '柏林二手市集或畫廊半日',
+        '萊茵河畔啤酒與夕陽',
+        '雨備：博物館島深挖一座館',
+      ],
+      tips: [
+        '德國跨城請優先 ICE／區域列車，把慕尼黑、柏林、科隆當過夜基地。',
+        '新天鵝堡建議獨立留一整天；博物館島挑 1–2 座即可。',
+        '九月可能碰上慕尼黑啤酒節，住宿與人潮要提前抓。',
+      ],
+      routeCities: [
+        {
+          id: 'munich',
+          nameZh: '慕尼黑',
+          nameLocal: 'Munich',
+          region: '巴伐利亞',
+          typicalNights: 3,
+          blurb: '南德基地：舊城、啤酒與城堡日遊',
+        },
+        {
+          id: 'berlin',
+          nameZh: '柏林',
+          nameLocal: 'Berlin',
+          region: '柏林',
+          typicalNights: 3,
+          blurb: '首都文化與冷戰記憶',
+        },
+        {
+          id: 'cologne',
+          nameZh: '科隆',
+          nameLocal: 'Cologne',
+          region: '北萊茵－西伐利亞',
+          typicalNights: 1,
+          blurb: '大教堂與萊茵河段',
+        },
+        {
+          id: 'frankfurt',
+          nameZh: '法蘭克福／海德堡',
+          nameLocal: 'Frankfurt / Heidelberg',
+          region: '黑森／巴登',
+          typicalNights: 1,
+          blurb: '南德西段 overnight',
+        },
+        {
+          id: 'dresden',
+          nameZh: '德累斯頓',
+          nameLocal: 'Dresden',
+          region: '薩克森',
+          typicalNights: 1,
+          blurb: '巴洛克舊城',
+        },
+      ],
+      commonRoutes: [
+        {
+          id: 'de-south',
+          nameZh: '南德城堡精華',
+          summary: '慕尼黑＋城堡／萊茵',
+          cityIds: ['munich', 'cologne', 'frankfurt'],
+          minDays: 6,
+          comfortableDays: 8,
+          suggestedLongest: 11,
+        },
+        {
+          id: 'de-classic',
+          nameZh: '慕尼黑＋柏林＋萊茵',
+          summary: '最常見德國多城',
+          cityIds: ['munich', 'berlin', 'cologne', 'frankfurt'],
+          minDays: 9,
+          comfortableDays: 12,
+          suggestedLongest: 16,
+        },
+      ],
+      selectedRouteCityIds: ['munich', 'berlin', 'cologne', 'frankfurt'],
+      selectedRoutePackageId: 'de-classic',
+    }
+  }
+
+  if (looksLikeCountryTourName(text)) {
+    const label = displayPlaceLabel(text)
+    return {
+      recommendedDays: {
+        min: 8,
+        comfortable: slow ? 14 : 12,
+        suggestedLongest: 21,
+        note: `${label}：判為國家／多城行程。AI 會提出旅行社常見城市與經典路線供勾選；完整走重要場景往往需要兩週以上，不是首都 8–10 天。`,
+      },
+      tagline: '國家多城路線・AI 正在準備常見城市',
+      intro: `${label} 會以「旅行社常見多城涵蓋」來規劃：先列出一般旅客常去的城市／區域與經典路線，再依你勾選估天數。請稍候 AI 產生城市選單；不要假設只會排首都週邊。`,
+      background: `${label} 作為國家級目的地，通常包含多個過夜城市與區域轉場。系統會請 AI 依當地旅遊常識提出常見串線，讓行程尺度接近真實旅行社產品，而不是單一城市假期。`,
+      memorable: [
+        '首都精華只是開場，不是全程',
+        '第二、第三 overnight 城市常才是節奏轉折',
+        '區域之間的移動日需要算進總天數',
+        '勾選越多城市，天數應明顯拉長',
+      ],
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
+      spots: spotsFromSeeds(label, cityTemplateSeeds(label)).slice(0, 10),
+      flexDayIdeas: [`${label}多城轉場緩衝日`, `${label}天氣備案日`],
+      tips: [
+        'AI 產生城市選單後，請先勾選／套用經典路線，再往下排天數。',
+        '多國行程請用逗號分開各國，系統會分別展開城市並合計天數。',
+      ],
+      routeCities: [],
+      commonRoutes: [],
+      selectedRouteCityIds: [],
     }
   }
 
@@ -576,43 +899,6 @@ export function inferCustomTripProfile(name: string): {
       tips: [
         '熱門館需預約時段；星期一／二部分場館休館請先查。',
         '地鐵＋步行最有效率；把同一區景點排在同一天。',
-      ],
-    }
-  }
-
-  if (germany) {
-    const label = /德國|Germany|german|Deutschland/i.test(text) ? '德國' : text
-    return {
-      recommendedDays: {
-        min: 6,
-        comfortable: slow ? 9 : 8,
-        suggestedLongest: 12,
-        note: `${label}：慕尼黑＋城堡或柏林單城約 6–7 天；南德＋萊茵或柏林串線舒服約 ${slow ? 9 : 8} 天，再長可加德累斯頓／海德堡。`,
-      },
-      tagline: '城堡、啤酒與鐵路串起的中歐慢遊',
-      intro: `${label} 適合用鐵路把慕尼黑、柏林、科隆等基地串起來：白天看城堡、博物館與萊茵河，傍晚把腳伸進啤酒花園。同一城的景點請排在同一天，讓歷史場景有時間慢慢進記憶，而不是趕點打卡。`,
-      background:
-        '德國位於歐洲心臟，歷史上曾是神聖羅馬帝國諸侯、普魯士與戰後東西分裂的交會處。南邊巴伐利亞保留城堡與啤酒傳統，萊茵河谷以哥德教堂與河運文明聞名，柏林則同時承載冷戰傷痕與當代藝術能量。今天用 ICE 高鐵串線，等於用幾天時間走完「童話、重建與現代」三層德國。',
-      memorable: [
-        '新天鵝堡雲霧散開的那一刻，整座童話城堡像被點亮，山風裡還能聽見遊客的驚嘆。',
-        '沿著柏林圍牆紀念段慢慢走，塗鴉色彩與歷史解說牌並排，快樂拍照與沈重記憶同時存在。',
-        '出科隆車站抬頭，大教堂雙塔幾乎壓到眼前，石頭的尺度比照片兇很多。',
-        '傍晚鑽進啤酒花園，Pretzel 上桌、小麥啤酒起泡，火車與城堡的疲憊會突然鬆開。',
-        '海德堡紅砂巖城堡俯瞰紅屋頂與內卡河，是「啊，這就是德國明信片」的經典瞬間。',
-      ],
-      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
-      seasonGuide,
-      spots: spotsFromSeeds(label, germanyTemplateSeeds()),
-      flexDayIdeas: [
-        '慕尼黑老城咖啡與英式花園散步',
-        '柏林二手市集或畫廊半日',
-        '萊茵河畔啤酒與夕陽',
-        '雨備：博物館島深挖一座館',
-      ],
-      tips: [
-        '德國跨城請優先 ICE／區域列車，把慕尼黑、柏林、科隆當過夜基地。',
-        '新天鵝堡建議獨立留一整天；博物館島挑 1–2 座即可。',
-        '九月可能碰上慕尼黑啤酒節，住宿與人潮要提前抓。',
       ],
     }
   }

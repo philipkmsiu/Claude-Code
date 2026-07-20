@@ -161,3 +161,47 @@ export function seasonGuideWithAi(input: {
 }): Promise<AiSeasonGuide> {
   return postJson('/api/ai/season-guide', input)
 }
+
+export type AiCountryRouteSuggestion = {
+  source: 'crazyrouter'
+  isCountryTour: boolean
+  countryNameZh: string
+  tagline?: string
+  intro?: string
+  background?: string
+  memorable?: string[]
+  tips?: string[]
+  defaultRouteId?: string
+  cities: {
+    id: string
+    nameZh: string
+    nameLocal: string
+    region: string
+    typicalNights: number
+    blurb: string
+    highlights: string[]
+    defaultSelected?: boolean
+  }[]
+  routes: {
+    id: string
+    nameZh: string
+    summary: string
+    cityIds: string[]
+    minDays: number
+    comfortableDays: number
+    suggestedLongest: number
+  }[]
+  recommendedDays?: {
+    min: number
+    comfortable: number
+    suggestedLongest: number
+    note: string
+  } | null
+}
+
+/** Ask AI for travel-agent-style cities / classic routes for any country. */
+export function suggestCountryRoutesWithAi(input: {
+  destinationName: string
+}): Promise<AiCountryRouteSuggestion> {
+  return postJson('/api/ai/suggest-country-routes', input)
+}

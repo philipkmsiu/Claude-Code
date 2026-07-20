@@ -17,8 +17,9 @@
  *    day-trip line onto every landmark card.
  * 9. nearbyFood / souvenirs / shoppingOutlet must be spot-specific (no spam).
  * 10. Motion / click SFX only on the home page; later steps = music only.
- * 11. Country input → propose common cities / classic routes (英國≠只有倫敦);
- *     full nation tours often need 18–28 days. Multi-country days should add.
+ * 11. Country input → propose common cities / classic routes (any country via AI,
+ *     not only UK/FR); full nation tours often need 18–28 days.
+ *     Multi-country days should add.
  */
 
 /** Machine-readable principle ids (keep in sync with comments above). */
@@ -36,6 +37,7 @@ export const PRODUCT_PRINCIPLES = [
   'motion_sfx_home_only_then_music_only',
   'no_copy_paste_fields_across_spots',
   'country_tour_proposes_common_cities_and_routes',
+  'ai_country_routes_for_any_nation',
   'multi_country_days_add_not_max',
 ] as const
 

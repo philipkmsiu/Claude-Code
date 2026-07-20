@@ -651,9 +651,79 @@ export function estimateDaysForCities(
   }
 }
 
+/**
+ * Broad country / nation-tour detector. Used so AI can propose agent-style
+ * cities for ANY country — not only the curated UK/FR/CH/IE profiles.
+ */
+const COUNTRY_NAME_RE =
+  /英國|UK|Britain|United Kingdom|英倫|法國|France|瑞士|Switzerland|愛爾蘭|Ireland|德國|Germany|Deutschland|義大利|意大利|Italy|西班牙|Spain|葡萄牙|Portugal|希臘|Greece|荷蘭|Netherlands|Holland|比利時|Belgium|奧地利|Austria|捷克|Czech|匈牙利|Hungary|波蘭|Poland|克羅埃西亞|Croatia|挪威|Norway|瑞典|Sweden|丹麥|Denmark|芬蘭|Finland|冰島|Iceland|土耳其|Turkey|Türkiye|摩洛哥|Morocco|埃及|Egypt|以色列|Israel|阿聯酋|UAE|杜拜|阿拉伯聯合大公國|日本|Japan|韓國|南韓|Korea|泰國|Thailand|越南|Vietnam|馬來西亞|Malaysia|印尼|Indonesia|菲律賓|Philippines|新加坡|Singapore|台灣|臺灣|Taiwan|中國|China|美國|USA|United States|加拿大|Canada|墨西哥|Mexico|巴西|Brazil|阿根廷|Argentina|秘魯|Peru|智利|Chile|澳洲|澳大利亞|Australia|紐西蘭|新西蘭|New Zealand|南非|South Africa|肯尼亞|Kenya|印度|India|斯里蘭卡|Sri Lanka|尼泊爾|Nepal|俄羅斯|Russia|烏克蘭|Ukraine|喬治亞|Georgia/i
+
+const OBVIOUS_CITY_ONLY_RE =
+  /^(倫敦|London|巴黎|Paris|羅馬|Rome|米蘭|Milan|威尼斯|Venice|佛羅倫斯|Florence|巴塞隆納|Barcelona|馬德里|Madrid|阿姆斯特丹|Amsterdam|維也納|Vienna|布拉格|Prague|柏林|Berlin|慕尼黑|Munich|蘇黎世|Zurich|日內瓦|Geneva|都柏林|Dublin|愛丁堡|Edinburgh|東京|Tokyo|大阪|Osaka|京都|Kyoto|首爾|Seoul|曼谷|Bangkok|新加坡|Singapore|台北|臺北|紐約|New York|洛杉磯|Los Angeles|舊金山|San Francisco|雪梨|Sydney|墨爾本|Melbourne|多倫多|Toronto|溫哥華|Vancouver|杜拜|Dubai|開羅|Cairo|伊斯坦堡|Istanbul|西安|大阪|京都)$/i
+
+export function looksLikeCountryTourName(name: string): boolean {
+  const text = name.trim()
+  if (!text || OBVIOUS_CITY_ONLY_RE.test(text)) return false
+  if (findCountryRouteProfile(text)) return true
+  if (COUNTRY_NAME_RE.test(text)) return true
+  // 「XX國」「共和國」等
+  if (/國$|共和國|王國|聯邦|合衆國|合眾國/.test(text) && text.length <= 12) {
+    return true
+  }
+  return false
+}
+
 /** Whether this name should use extended (country-tour) day ranges instead of city-break caps. */
 export function isCountryTourName(name: string): boolean {
-  return Boolean(findCountryRouteProfile(name))
+  return looksLikeCountryTourName(name)
+}
+
+/** Estimate days from lightweight city options (curated or AI-sourced). */
+export function estimateDaysFromCityOptions(
+  countryLabel: string,
+  cities: {
+    id: string
+    nameZh: string
+    typicalNights: number
+  }[],
+  cityIds: string[],
+  routes?: {
+    id: string
+    nameZh: string
+    cityIds: string[]
+    minDays: number
+    comfortableDays: number
+    suggestedLongest: number
+  }[],
+): { min: number; comfortable: number; suggestedLongest: number; note: string } {
+  const route = routes?.find(
+    (r) =>
+      r.cityIds.length === cityIds.length &&
+      r.cityIds.every((id) => cityIds.includes(id)),
+  )
+  if (route) {
+    return {
+      min: route.minDays,
+      comfortable: route.comfortableDays,
+      suggestedLongest: route.suggestedLongest,
+      note: `${countryLabel}「${route.nameZh}」：最少約 ${route.minDays} 天，舒服 ${route.comfortableDays} 天，完整可到 ${route.suggestedLongest} 天。`,
+    }
+  }
+  const selected = cities.filter((c) => cityIds.includes(c.id))
+  const nights = selected.reduce((sum, c) => sum + Math.max(c.typicalNights, 0), 0)
+  const transferBuffer = Math.max(0, selected.length - 1)
+  const comfortable = Math.min(32, Math.max(6, nights + transferBuffer + 1))
+  const min = Math.max(5, Math.round(comfortable * 0.75))
+  const longest = Math.min(
+    32,
+    comfortable + Math.max(3, Math.ceil(selected.length * 0.8)),
+  )
+  return {
+    min,
+    comfortable,
+    suggestedLongest: longest,
+    note: `${countryLabel}：已選 ${selected.length} 個城市／區域，估約 ${min}–${comfortable} 天（完整可到 ${longest} 天）。這是旅行社常見多城涵蓋，不是只玩首都。`,
+  }
 }
 
 /** Build placeholder scenic seeds from selected route cities. */
@@ -668,6 +738,20 @@ export function routeCitiesToSpotSeeds(
   summary: string
 }[] {
   const cities = citiesByIds(profile, cityIds)
+  return routeCityHighlightsToSeeds(cities, cityIds)
+}
+
+export function routeCityHighlightsToSeeds(
+  cities: RouteCity[],
+  cityIds: string[],
+): {
+  name: string
+  tags: ('must' | 'photo' | 'popular' | 'culture' | 'nature' | 'food' | 'shopping')[]
+  hours: number
+  area: string
+  summary: string
+}[] {
+  const set = new Set(cityIds)
   const seeds: {
     name: string
     tags: ('must' | 'photo' | 'popular' | 'culture' | 'nature' | 'food' | 'shopping')[]
@@ -675,7 +759,7 @@ export function routeCitiesToSpotSeeds(
     area: string
     summary: string
   }[] = []
-  for (const city of cities) {
+  for (const city of cities.filter((c) => set.has(c.id))) {
     city.highlights.forEach((highlight, index) => {
       seeds.push({
         name: highlight,
@@ -690,4 +774,41 @@ export function routeCitiesToSpotSeeds(
     })
   }
   return seeds
+}
+
+/** AI / client payload for dynamic country routes. */
+export type AiCountryRoutePayload = {
+  isCountryTour: boolean
+  countryNameZh: string
+  tagline?: string
+  intro?: string
+  background?: string
+  memorable?: string[]
+  tips?: string[]
+  defaultRouteId?: string
+  cities: {
+    id: string
+    nameZh: string
+    nameLocal: string
+    region: string
+    typicalNights: number
+    blurb: string
+    highlights: string[]
+    defaultSelected?: boolean
+  }[]
+  routes: {
+    id: string
+    nameZh: string
+    summary: string
+    cityIds: string[]
+    minDays: number
+    comfortableDays: number
+    suggestedLongest: number
+  }[]
+  recommendedDays?: {
+    min: number
+    comfortable: number
+    suggestedLongest: number
+    note: string
+  }
 }

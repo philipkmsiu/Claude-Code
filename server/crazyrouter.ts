@@ -959,6 +959,142 @@ async function handlePlacePhotoFile(req: IncomingMessage, res: ServerResponse) {
   }
 }
 
+async function handleSuggestCountryRoutes(
+  req: IncomingMessage,
+  res: ServerResponse,
+) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(await readBody(req)) as {
+      destinationName?: string
+    }
+    const destinationName = payload.destinationName?.trim()
+    if (!destinationName) {
+      sendJson(res, 400, { error: 'destinationName is required' })
+      return
+    }
+
+    const content = await chatCompletion(
+      [
+        {
+          role: 'system',
+          content: `你是資深旅行社產品經理。使用者輸入一個地名時，你要判斷它是「國家／多城旅程」還是「單一城市假期」，並為國家級目的地提出一般旅行社會賣的常見城市與經典路線。
+只回傳 JSON：
+{
+  "isCountryTour": boolean,
+  "countryNameZh": string,
+  "tagline": string,
+  "intro": string,
+  "background": string,
+  "memorable": string[],
+  "tips": string[],
+  "defaultRouteId": string,
+  "cities": [
+    {
+      "id": string,
+      "nameZh": string,
+      "nameLocal": string,
+      "region": string,
+      "typicalNights": number,
+      "blurb": string,
+      "highlights": string[],
+      "defaultSelected": boolean
+    }
+  ],
+  "routes": [
+    {
+      "id": string,
+      "nameZh": string,
+      "summary": string,
+      "cityIds": string[],
+      "minDays": number,
+      "comfortableDays": number,
+      "suggestedLongest": number
+    }
+  ],
+  "recommendedDays": {
+    "min": number,
+    "comfortable": number,
+    "suggestedLongest": number,
+    "note": string
+  }
+}
+硬性規則：
+- 若輸入是單一城市（巴黎、東京、大阪、羅馬、紐約…）→ isCountryTour=false，cities/routes 可空陣列
+- 若輸入是國家或明顯全國／多城遊（義大利、西班牙、日本、美國、泰國、澳洲、挪威…）→ isCountryTour=true
+- cities：8–14 個旅行社常排的 overnight／區域（含非首都），每城 highlights 2–4 個真實景點名
+- routes：至少 3 條（短假期／經典／完整），天數要真實：完整國家線常 14–28 天，禁止把全國估成首都 8–10 天
+- defaultRouteId 指向「最常見經典路線」
+- typicalNights：該城一般連住晚數（日遊點可 0）
+- 全文繁體中文；不要 Markdown`,
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            destinationName,
+            ask: '請像旅行社一樣，判斷這是否國家多城行程；若是，列出一般旅客會涵蓋的城市與 3 條經典路線（含合理天數）。不要只給首都。',
+          }),
+        },
+      ],
+      0.35,
+    )
+
+    const parsed = extractJson(content) as {
+      isCountryTour?: boolean
+      countryNameZh?: string
+      tagline?: string
+      intro?: string
+      background?: string
+      memorable?: string[]
+      tips?: string[]
+      defaultRouteId?: string
+      cities?: unknown[]
+      routes?: unknown[]
+      recommendedDays?: {
+        min?: number
+        comfortable?: number
+        suggestedLongest?: number
+        note?: string
+      }
+    }
+
+    sendJson(res, 200, {
+      source: 'crazyrouter',
+      isCountryTour: Boolean(parsed.isCountryTour),
+      countryNameZh: String(parsed.countryNameZh || destinationName).trim(),
+      tagline: String(parsed.tagline || '').trim(),
+      intro: String(parsed.intro || '').trim(),
+      background: String(parsed.background || '').trim(),
+      memorable: Array.isArray(parsed.memorable)
+        ? parsed.memorable.map((m) => String(m || '').trim()).filter(Boolean)
+        : [],
+      tips: Array.isArray(parsed.tips)
+        ? parsed.tips.map((t) => String(t || '').trim()).filter(Boolean)
+        : [],
+      defaultRouteId: String(parsed.defaultRouteId || '').trim(),
+      cities: Array.isArray(parsed.cities) ? parsed.cities : [],
+      routes: Array.isArray(parsed.routes) ? parsed.routes : [],
+      recommendedDays: parsed.recommendedDays || null,
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      error:
+        error instanceof Error
+          ? error.message
+          : 'AI suggest-country-routes failed',
+    })
+  }
+}
+
 function attachRoutes(middlewares: Connect.Server) {
   middlewares.use('/api/ai/recommend-days', (req, res, next) => {
     handleRecommendDays(req, res).catch(next)
@@ -968,6 +1104,9 @@ function attachRoutes(middlewares: Connect.Server) {
   })
   middlewares.use('/api/ai/suggest-spots', (req, res, next) => {
     handleSuggestSpots(req, res).catch(next)
+  })
+  middlewares.use('/api/ai/suggest-country-routes', (req, res, next) => {
+    handleSuggestCountryRoutes(req, res).catch(next)
   })
   middlewares.use('/api/ai/season-guide', (req, res, next) => {
     handleSeasonGuide(req, res).catch(next)
