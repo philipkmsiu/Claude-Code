@@ -33,6 +33,7 @@ export const PRODUCT_PRINCIPLES = [
   'spot_fields_food_souvenir_shopping_must_differ',
   'motion_sfx_home_only_then_music_only',
   'no_copy_paste_fields_across_spots',
+  'country_trips_propose_common_multi_region_routes',
 ] as const
 
 /**
@@ -52,12 +53,13 @@ export const AI_RESEARCH_PRINCIPLES_ZH = `
 5) 景點 name 必須是真實地點；禁止「經典地標」「老城／歷史區」這類空泛類別名。
 6) area 用真實城市／城區，方便同城排同一天、並讓住宿對上過夜城市。
 7) 全日遠足／Outlet 日 stayHours 建議 ≥ 5，且不要與大量市區地標擠在同一天。
-8) 全文繁體中文；不要 Markdown。
+8) 國土／多區目的地（例如英國、法國、瑞士、義大利、德國）：禁止只給首都＋近郊日遊。必須提出 2–3 條常見路線尺度（精華短線／經典串線／含偏遠區的長線），並讓 spots／hotels 覆蓋對應 overnight 城市。英國要想到英格蘭、蘇格蘭，以及可選的愛爾蘭；法國要想羅亞爾／里昂／普羅旺斯／蔚藍海岸；瑞士要想琉森、少女峰區、策馬特等山湖基地。走完重要場景常需 14–24 天，不要把國土行程估成 7–10 天城市遊。
+9) 全文繁體中文；不要 Markdown。
 `.trim()
 
 /** User-message ask string — same principles, shorter. */
 export const AI_RESEARCH_ASK_ZH =
-  '請先自行完整調研並分析這個目的地（無需使用者再提示），再輸出：季節氣候、歷史背景、難忘之處、真實景點（每點各自不同的附近美食、手信、附近購物）、分城市住宿、必吃必喝必買、建議天數與實用 tips。禁止空泛類別句。禁止把同一句美食／手信／Outlet 文案複製到每個地標。著名 Outlet／名牌村若適合此行程，必須是獨立一日購景點；其他景點只寫附近逛街。多城行程的 hotels 必須覆蓋各過夜城市。'
+  '請先自行完整調研並分析這個目的地（無需使用者再提示），再輸出：季節氣候、歷史背景、難忘之處、真實景點（每點各自不同的附近美食、手信、附近購物）、分城市住宿、必吃必喝必買、建議天數與實用 tips。禁止空泛類別句。禁止把同一句美食／手信／Outlet 文案複製到每個地標。著名 Outlet／名牌村若適合此行程，必須是獨立一日購景點；其他景點只寫附近逛街。多城行程的 hotels 必須覆蓋各過夜城市。若目的地是國家／多區（英國、法國、瑞士等），請提出常見路線（含 overnight 城市），不要只圍着首都打轉；天數要符合多城串線真實尺度。'
 
 /** Famous outlet day-trips to inject once when the destination region matches. */
 export const FAMOUS_OUTLET_SPOTS: {

@@ -45,6 +45,11 @@ import {
   isOutletDaytripSpam,
   shouldInjectFamousOutlet,
 } from './travelPrinciples'
+import {
+  allowsExtendedTripDuration,
+  matchCommonRouteRegion,
+  spotsFromCommonRoute,
+} from './commonRoutes'
 
 /** Hard ceiling for manual day input — long trips (e.g. 新疆 29 日) are allowed. */
 export const MAX_TRIP_DAYS = 32
@@ -338,6 +343,18 @@ export function isLongHaulDestination(name: string): boolean {
   return /新疆|南北疆|青甘|大環線|環線|帕米爾|自駕公路|西藏.*線|川藏|滇藏/.test(name)
 }
 
+/** Highway long-hauls OR country-scale multi-region circuits (UK / France / Swiss…). */
+export function isExtendedTripDestination(name: string): boolean {
+  return allowsExtendedTripDuration(name)
+}
+
+export {
+  allowsExtendedTripDuration,
+  commonRouteOptionsForPrompt,
+  isMultiRegionCountryTrip,
+  matchCommonRouteRegion,
+} from './commonRoutes'
+
 /** Infer trip length from destination wording (環線 / 南北疆 / 慢遊 etc.). */
 export function inferCustomTripProfile(name: string): {
   recommendedDays: Destination['recommendedDays']
@@ -363,6 +380,32 @@ export function inferCustomTripProfile(name: string): {
   const germany = /德國|Germany|german|Deutschland|柏林|慕尼黑|科隆|德累斯頓|法蘭克福/i.test(
     text,
   )
+  const commonRegion = matchCommonRouteRegion(text)
+
+  // Country-scale destinations: propose classic multi-region routes, not capital-only.
+  if (commonRegion && commonRegion.id !== 'germany') {
+    const slowBonus = slow ? 2 : 0
+    return {
+      recommendedDays: {
+        min: commonRegion.recommendedDays.min,
+        comfortable: commonRegion.recommendedDays.comfortable + slowBonus,
+        suggestedLongest: commonRegion.recommendedDays.suggestedLongest,
+        note: commonRegion.recommendedDays.note,
+      },
+      tagline: commonRegion.tagline,
+      intro: commonRegion.intro,
+      background: commonRegion.background,
+      memorable: commonRegion.memorable,
+      bestSeason: `最適合 ${formatMonthsZh(seasonGuide.bestMonths)}；最不建議 ${formatMonthsZh(seasonGuide.worstMonths)}`,
+      seasonGuide,
+      spots: spotsFromCommonRoute(commonRegion.labelZh, commonRegion),
+      flexDayIdeas: commonRegion.flexDayIdeas,
+      tips: [
+        ...commonRegion.tips,
+        `常見路線可選：${commonRegion.routeOptions.map((r) => r.nameZh).join('／')}。`,
+      ],
+    }
+  }
 
   // Single Chinese historic cities: keep advice in a realistic city-break range.
   if (/西安|西京|兵馬俑/.test(text) && !loop) {
@@ -1113,9 +1156,13 @@ export function displayPlaceLabel(name: string): string {
   const text = name.trim()
   if (/^german$|^germany$|^deutschland$/i.test(text)) return '德國'
   if (/^france$|^french$/i.test(text)) return '法國'
+  if (/^uk$|^u\.k\.$|^united kingdom$|^britain$|^great britain$/i.test(text)) return '英國'
+  if (/^switzerland$|^swiss$|^suisse$|^schweiz$/i.test(text)) return '瑞士'
   if (/^italy$|^italian$/i.test(text)) return '義大利'
   if (/^spain$|^spanish$/i.test(text)) return '西班牙'
   if (/^japan$|^japanese$/i.test(text)) return '日本'
+  const region = matchCommonRouteRegion(text)
+  if (region) return region.labelZh
   return text
 }
 
@@ -1123,6 +1170,10 @@ export function displayPlaceLabel(name: string): string {
 export function hotelsForCustomPlace(name: string): HotelOption[] {
   const text = name.trim()
   const label = displayPlaceLabel(text)
+  const commonRegion = matchCommonRouteRegion(text)
+  if (commonRegion) {
+    return commonRegion.hotels
+  }
   if (/德國|Germany|german|Deutschland|柏林|慕尼黑|科隆/i.test(text)) {
     return [
       {
@@ -3122,6 +3173,50 @@ const KNOWN_HOTEL_CITIES = [
   'Manchester',
   '布萊頓',
   'Brighton',
+  '都柏林',
+  'Dublin',
+  '貝爾法斯特',
+  'Belfast',
+  '戈爾韋',
+  'Galway',
+  '格拉斯哥',
+  'Glasgow',
+  // France overnight bases
+  '凡爾賽',
+  '里昂',
+  'Lyon',
+  '尼斯',
+  'Nice',
+  '亞維儂',
+  'Avignon',
+  '圖爾',
+  'Tours',
+  '波爾多',
+  'Bordeaux',
+  '馬賽',
+  'Marseille',
+  '羅亞爾',
+  '普羅旺斯',
+  // Switzerland overnight bases
+  '蘇黎世',
+  'Zurich',
+  '琉森',
+  '盧塞恩',
+  'Lucerne',
+  '因特拉肯',
+  'Interlaken',
+  '策馬特',
+  'Zermatt',
+  '日內瓦',
+  'Geneva',
+  '洛桑',
+  'Lausanne',
+  '伯恩',
+  'Bern',
+  '蒙特勒',
+  'Montreux',
+  '格林德瓦',
+  'Grindelwald',
 ]
 
 /** Collapse spot areas into a hotel base city/region. */
@@ -3155,7 +3250,7 @@ const SHARED_HOTEL_CLUSTERS: string[][] = [
   ['科隆', '杜塞道夫', '本拉特', '萊茵'],
   ['法蘭克福', '海德堡', '巴登', '黑森林', '斯圖加特'],
   ['柏林', '波茨坦', '德累斯頓'],
-  // London day-trips share a London hotel; Edinburgh/York stay separate overnight bases.
+  // London day-trips share a London hotel; Edinburgh/York/Dublin stay separate overnight bases.
   [
     '倫敦',
     'London',
@@ -3173,6 +3268,23 @@ const SHARED_HOTEL_CLUSTERS: string[][] = [
     '格林威治',
     'Greenwich',
   ],
+  ['巴斯', 'Bath', '布里斯托', 'Bristol'],
+  ['約克', 'York'],
+  ['愛丁堡', 'Edinburgh', '高地', '因弗內斯'],
+  ['都柏林', 'Dublin'],
+  ['貝爾法斯特', 'Belfast', '巨人堤'],
+  // France: Paris day-trips stay in Paris; Loire / Lyon / South are separate bases.
+  ['巴黎', 'Paris', '凡爾賽', '吉維尼'],
+  ['圖爾', '羅亞爾', 'Tours'],
+  ['里昂', 'Lyon'],
+  ['亞維儂', 'Avignon', '普羅旺斯', '亞爾'],
+  ['尼斯', 'Nice', '摩納哥', '埃茲', '坎城'],
+  // Switzerland mountain/lake bases
+  ['蘇黎世', 'Zurich'],
+  ['琉森', '盧塞恩', 'Lucerne'],
+  ['因特拉肯', 'Interlaken', '格林德瓦', '勞特布魯寧'],
+  ['策馬特', 'Zermatt'],
+  ['日內瓦', 'Geneva', '洛桑', 'Lausanne', '蒙特勒'],
 ]
 
 function sharedHotelClusterId(base: string): string | null {
@@ -3515,7 +3627,8 @@ export function defaultSelectedSpotIds(
     )
     .map((s) => s.id)
   // Keep city defaults modest so fit advice stays in a realistic 4–8 day range.
-  const cap = isLongHaulDestination(dest?.nameZh || '') ? 14 : 8
+  // Country-scale / long-haul routes start with a wider must-see set.
+  const cap = isExtendedTripDestination(dest?.nameZh || dest?.nameLocal || '') ? 16 : 8
   return [...must, ...photo.slice(0, 4), ...popular.slice(0, 3)].slice(0, cap)
 }
 
@@ -3607,7 +3720,7 @@ export function assessDurationFit(options: {
     selected.map((s) => hotelAreaBase(s.area) || s.area.split(/[・·/／]/)[0] || s.area),
   )
   const areaCount = areas.size
-  const longHaul = isLongHaulDestination(dest?.nameZh || dest?.nameLocal || '')
+  const longHaul = isExtendedTripDestination(dest?.nameZh || dest?.nameLocal || '')
 
   // Each long day-trip roughly occupies a full day.
   const longTripDays = longTrips.length
@@ -3618,7 +3731,7 @@ export function assessDurationFit(options: {
   const shortByCount = Math.ceil(shortSpots.length / spotsPerDay)
   const shortDays = Math.max(shortByHours, shortByCount, shortSpots.length ? 1 : 0)
 
-  // City trips: at most 1–2 transit buffers. Long-haul can use more.
+  // City trips: at most 1–2 transit buffers. Extended trips can use more.
   const rawTransit = Math.max(0, areaCount - 1)
   const transitBuffers = longHaul
     ? rawTransit
@@ -3638,10 +3751,23 @@ export function assessDurationFit(options: {
   )
 
   // Hard ceiling for ordinary city breaks (西安／大阪／台北…).
+  // Country-scale circuits (英國／法國／瑞士…) and highway long-hauls stay uncapped here.
   if (!longHaul) {
     minDays = clampDays(Math.min(minDays, 7))
     recommendedDays = clampDays(Math.min(recommendedDays, 9))
     comfortableDays = clampDays(Math.min(comfortableDays, 11))
+  } else if (dest?.recommendedDays) {
+    // Anchor multi-region country trips to their common-route scale when many spots are selected.
+    const selectRatio = selected.length / Math.max(dest.spots.length, 1)
+    if (selectRatio >= 0.55) {
+      minDays = clampDays(Math.max(minDays, dest.recommendedDays.min))
+      recommendedDays = clampDays(
+        Math.max(recommendedDays, dest.recommendedDays.comfortable),
+      )
+      comfortableDays = clampDays(
+        Math.max(comfortableDays, dest.recommendedDays.suggestedLongest),
+      )
+    }
   }
 
   // If destination has a curated plan near this spot load, prefer its advice.
@@ -4442,6 +4568,46 @@ export function buildItinerary(options: {
 
   // Pack by city/base first so Berlin never shares a day with Cologne, etc.
   const AREA_TRAVEL_ORDER = [
+    // UK / Ireland
+    '倫敦',
+    '溫莎',
+    '牛津',
+    '劍橋',
+    '巴斯',
+    '巨石',
+    '卡地夫',
+    '約克',
+    '曼徹斯特',
+    '利物浦',
+    '湖區',
+    '愛丁堡',
+    '格拉斯哥',
+    '高地',
+    '都柏林',
+    '貝爾法斯特',
+    '巨人堤',
+    // France
+    '巴黎',
+    '凡爾賽',
+    '羅亞爾',
+    '圖爾',
+    '里昂',
+    '亞維儂',
+    '普羅旺斯',
+    '尼斯',
+    '摩納哥',
+    // Switzerland
+    '蘇黎世',
+    '琉森',
+    '盧塞恩',
+    '伯恩',
+    '因特拉肯',
+    '格林德瓦',
+    '策馬特',
+    '蒙特勒',
+    '洛桑',
+    '日內瓦',
+    // Germany
     '慕尼黑',
     '海德堡',
     '法蘭克福',
@@ -4453,7 +4619,7 @@ export function buildItinerary(options: {
     '柏林',
     '德累斯頓',
     '漢堡',
-    '巴黎',
+    // East Asia
     '大阪',
     '京都',
     '東京',

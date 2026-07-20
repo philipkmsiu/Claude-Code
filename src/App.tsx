@@ -50,6 +50,8 @@ import {
   spotInputExamples,
   estimateTripBudget,
   isLongHaulDestination,
+  isExtendedTripDestination,
+  matchCommonRouteRegion,
   type Companion,
   type Destination,
   type DestinationId,
@@ -260,7 +262,7 @@ function App() {
       aiReview.status === 'balanced'
         ? aiReview.status
         : durationFit.status
-    const longHaul = isLongHaulDestination(
+    const longHaul = isExtendedTripDestination(
       selectedDestinations.map((d) => d.nameZh).join(' ') || primary?.nameZh || '',
     )
     let recommendedDays = clampDays(aiReview.recommendedDays)
@@ -269,6 +271,7 @@ function App() {
       aiReview.comfortableDays || aiReview.recommendedDays,
     )
     // Never let AI turn a city break into a 21-day expedition.
+    // Country-scale circuits (英國／法國／瑞士…) may legitimately need 2–3 weeks.
     if (!longHaul) {
       minDays = Math.min(minDays, 7)
       recommendedDays = Math.min(Math.max(recommendedDays, minDays), 9)
@@ -924,7 +927,8 @@ function App() {
             (part) => Boolean(part?.trim()),
           )
         const rd = result.recommendedDays
-        const recommendedDays =
+        const routeRegion = matchCommonRouteRegion(dest.nameZh)
+        let recommendedDays =
           rd &&
           Number(rd.min) > 0 &&
           Number(rd.comfortable) > 0 &&
@@ -936,6 +940,47 @@ function App() {
                 note: String(rd.note || '').trim() || dest.recommendedDays.note,
               }
             : undefined
+        // Country-scale trips: never let AI shrink back to capital city-break days.
+        if (recommendedDays && routeRegion) {
+          recommendedDays = {
+            min: Math.max(recommendedDays.min, routeRegion.recommendedDays.min),
+            comfortable: Math.max(
+              recommendedDays.comfortable,
+              routeRegion.recommendedDays.comfortable,
+            ),
+            suggestedLongest: Math.max(
+              recommendedDays.suggestedLongest,
+              routeRegion.recommendedDays.suggestedLongest,
+            ),
+            note:
+              recommendedDays.note ||
+              routeRegion.recommendedDays.note ||
+              dest.recommendedDays.note,
+          }
+        }
+        const routeTips =
+          result.commonRoutes && result.commonRoutes.length
+            ? [
+                `常見路線：${result.commonRoutes
+                  .map(
+                    (route) =>
+                      `${route.name}${route.comfortableDays ? `（約 ${route.comfortableDays} 天）` : ''}${
+                        route.cities?.length ? ` → ${route.cities.join('、')}` : ''
+                      }`,
+                  )
+                  .join('；')}`,
+              ]
+            : routeRegion
+              ? [
+                  `常見路線：${routeRegion.routeOptions
+                    .map(
+                      (route) =>
+                        `${route.nameZh}（約 ${route.comfortableDays} 天）→ ${route.cities.join('、')}`,
+                    )
+                    .join('；')}`,
+                ]
+              : []
+        const mergedTips = [...routeTips, ...(result.tips || [])].filter(Boolean)
         updates.push({
           id: dest.id,
           // Always prefer AI-researched spots so every destination uses the same pipeline.
@@ -944,7 +989,7 @@ function App() {
           tagline: result.tagline,
           background: result.background,
           memorable: result.memorable,
-          tips: result.tips,
+          tips: mergedTips,
           flexDayIdeas: result.flexDayIdeas,
           recommendedDays,
           seasonGuide: seasonGuide || undefined,
@@ -1480,7 +1525,7 @@ function App() {
               <StickerWidget
                 emoji="🗺️"
                 title="想去邊就打邊"
-                note="西安、大阪、新疆南北疆都得"
+                note="英國、法國、瑞士會給多城串線"
                 tone="sky"
               />
               <StickerWidget
@@ -1503,6 +1548,9 @@ function App() {
                 { emoji: '🏯', text: '西安' },
                 { emoji: '🏔️', text: '青甘大環線' },
                 { emoji: '🐪', text: '新疆南北疆' },
+                { emoji: '🇬🇧', text: '英國' },
+                { emoji: '🇫🇷', text: '法國' },
+                { emoji: '🏔️', text: '瑞士' },
                 { emoji: '🍜', text: '大阪' },
                 { emoji: '🗼', text: '巴黎' },
               ]}
@@ -1598,6 +1646,7 @@ function App() {
               {catalog.map((dest, index) => {
                 const active = selectedDestIds.includes(dest.id)
                 const isCustom = dest.id.startsWith('custom-')
+                const commonRoutes = matchCommonRouteRegion(dest.nameZh)
                 return (
                   <button
                     key={dest.id}
@@ -1622,6 +1671,12 @@ function App() {
                       {dest.recommendedDays.comfortable} 天 · 建議最長{' '}
                       {dest.recommendedDays.suggestedLongest} 天
                     </span>
+                    {commonRoutes ? (
+                      <span className="dest-meta">
+                        常見路線：
+                        {commonRoutes.routeOptions.map((route) => route.nameZh).join('／')}
+                      </span>
+                    ) : null}
                     <span className="dest-meta">
                       最佳 {formatMonthsZh(getSeasonGuide(dest).bestMonths)} · 避開{' '}
                       {formatMonthsZh(getSeasonGuide(dest).worstMonths)}
